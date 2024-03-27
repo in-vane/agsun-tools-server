@@ -181,7 +181,6 @@ class OcrHandler(MainHandler):
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
             custom_data= tasks.check_ocr_char(filename,crop, page_num)
-            print(custom_data['error'],custom_data['result'][0])
         if mode == self.MODE_ICON:
             print("== MODE_ICON ==")
             custom_data = tasks.check_ocr_icon(filename,crop, page_num)

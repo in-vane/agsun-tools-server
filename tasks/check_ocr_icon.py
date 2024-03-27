@@ -125,22 +125,15 @@ def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, s
     return img1, img2
 
 def check_ocr_icon(img1, img2):
-    print(1)
     nparr_1 = np.frombuffer(img1, np.uint8)
-    print(2)
     img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-    print(3)
     nparr_1 = np.frombuffer(img2, np.uint8)
     img2 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
 
-
     img1_aligned = match_and_align_images(img1, img2)
-    print(4)
     large_contours1 = detect_and_filter_contours(img1_aligned)
-    print(5)
     large_contours2 = detect_and_filter_contours(img2)
     img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(img1_aligned, img2, large_contours1, large_contours2)
-    print(6)
 
     _, image_buffer = cv2.imencode('.png', img1_aligned_highlighted)
     image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')

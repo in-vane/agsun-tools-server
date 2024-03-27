@@ -335,14 +335,13 @@ class ocrImg2ImgDifference(ocrImg2imgDifference):
 
 
 def check_ocr_char(filename,img_base64, page_num):
-    pdf_path = f"./python/assets/pdf/{filename}"
+    pdf_path = f"./assets/pdf/{filename}"
     # 解码 base64 字符串为图像数据
     image_data_1 = base64.b64decode(img_base64.split(',')[-1])
     nparr_1 = np.frombuffer(image_data_1, np.uint8)
     img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
     if img1 is None or img1.size == 0:
         print("Decoded image is empty or invalid.")
-        print(img1)
         return
     # 打开PDF文件
     doc = fitz.open(pdf_path)
@@ -354,6 +353,7 @@ def check_ocr_char(filename,img_base64, page_num):
 
     diff = ocrImg2ImgDifference(['en', 'hu'])
     custom_data = diff.returnMarkImageImg2img(img1, img2)
+    
     if custom_data['error']:
         _, image_buffer = cv2.imencode('.jpeg', custom_data['result'][0])
         image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')

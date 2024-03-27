@@ -1,15 +1,16 @@
 import os
-import fitz  # PyMuPDF
+import fitz
 import cv2
 import base64
 from io import BytesIO
-import zipfile
+
 # 新版pdf转化为图片文件夹
-PDF1_IMAGE = './python/assets/pdf/image1'
+PDF1_IMAGE = './assets/pdf/image1'
 # 旧版pdf转化为图片文件夹
-PDF2_IMAGE = './python/assets/pdf/image2'
+PDF2_IMAGE = './assets/pdf/image2'
 # 对比结果图片文件夹
-RESULT_IMAGE = './python/assets/pdf/image3'
+RESULT_IMAGE = './assets/pdf/image3'
+
 
 # pdf转化为图片，放入output_folder文件夹下
 def pdf_to_images(doc, output_folder):
@@ -21,6 +22,8 @@ def pdf_to_images(doc, output_folder):
         pix = page.get_pixmap()
         img_path = os.path.join(output_folder, f"page_{page_num}.png")
         pix.save(img_path)  # 直接使用Pixmap对象的save方法保存图片
+
+
 # 清空image1、image2和image3文件夹
 def clear_directory_contents(dir_paths):
     """清空指定目录下的所有文件（不删除子目录中的内容）"""
@@ -36,6 +39,8 @@ def clear_directory_contents(dir_paths):
                     pass
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
+
+
 # 根据列表获取image3下的图片，再转化为base64
 def images_to_base64_list(image_folder, page_numbers):
     """根据页号列表，将对应的图片转换为Base64字符串列表"""
@@ -49,6 +54,8 @@ def images_to_base64_list(image_folder, page_numbers):
             base64_string = base64.b64encode(image_bytes).decode('utf-8')
             base64_strings.append(base64_string)
     return base64_strings
+
+
 # 把不同的地方绿色框标注起来
 def mark_image_with_green_border(image_path, output_folder):
     """在图片周围画一个绿色的大框，并保存到指定的文件夹"""
@@ -57,6 +64,8 @@ def mark_image_with_green_border(image_path, output_folder):
     cv2.rectangle(img, (0, 0), (width, height), (0, 255, 0), thickness=20)  # 使用绿色画一个大框
     output_path = os.path.join(output_folder, os.path.basename(image_path))
     cv2.imwrite(output_path, img)
+
+
 # 找两张图片不同的地方
 def find_and_mark_differences(image1_path, image2_path, output_folder):
     # 读取两张图片
@@ -125,7 +134,6 @@ def compare(pdf1_path, pdf2_path):
             mark_image_with_green_border(image1_path, RESULT_IMAGE)
             mismatch_list.append(page_number)
 
-
     print("Mismatched pages:", mismatch_list)
     print("Specified directories have been cleared.")
     # 对mismatch_list进行排序
@@ -136,9 +144,6 @@ def compare(pdf1_path, pdf2_path):
     clear_directory_contents(dir_paths)
     return mismatch_list, base64_strings
 
-
-
 # pdf1_path = 'pdf/1.pdf'  # 请根据实际情况修改路径
 # pdf2_path = 'pdf/2.pdf'  # 请根据实际情况修改路径
 # compare(pdf1_path, pdf2_path)
-
