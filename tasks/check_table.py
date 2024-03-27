@@ -10,8 +10,8 @@ import pandas as pd
 from tabula import read_pdf
 
 
-PDF_PATH = './python/assets/pdf/temp.pdf'
-CSV_PATH = './python/assets/csv/exact_table.csv' 
+PDF_PATH = './assets/pdf/temp.pdf'
+CSV_PATH = './assets/csv/exact_table.csv' 
 SUCCESS = 0
 ERROR_NO_EXPLORED_VIEW = 1
 BASE64_PNG = 'data:image/png;base64,'

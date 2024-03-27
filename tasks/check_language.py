@@ -9,7 +9,7 @@ import fitz
 from langdetect import detect
 from ppocronnx.predict_system import TextSystem
 
-IMAGE_PATH = './python/assets/images'
+IMAGE_PATH = './assets/images'
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
 
 

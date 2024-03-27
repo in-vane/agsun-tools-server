@@ -43,7 +43,7 @@ class FileAssembler:
             self.received_data += base64.b64decode(b64[1])
         
         # output_path = self.file_name
-        output_path = './python/assets/pdf/'
+        output_path = './assets/pdf/'
         # 如果目录不存在，则创建它
         if not os.path.exists(output_path):
             os.makedirs(output_path)

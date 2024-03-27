@@ -12,9 +12,9 @@ from collections import defaultdict
 from ppocronnx.predict_system import TextSystem
 
 
-PDF_PATH = './python/assets/pdf/temp.pdf'
-IMAGE_PATH = './python/assets/image'
-CSV_PATH = './python/assets/csv/selected_table.csv'
+PDF_PATH = './assets/pdf/temp.pdf'
+IMAGE_PATH = './assets/image'
+CSV_PATH = './assets/csv/selected_table.csv'
 
 
 def find_target_table(doc):

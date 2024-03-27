@@ -10,10 +10,10 @@ from openpyxl.styles import Border, Side
 
 from .get_table_message import all
 
-EXCEL_PATH = './python/assets/excel/temp.xlsx'
-IMAGE_PATH = './python/assets/images/temp.png'
-PDF_PATH_FROM_EXCEL = './python/assets/pdf/temp_excel.pdf'
-PDF_PATH = './python/assets/pdf/temp.pdf'
+EXCEL_PATH = './assets/excel/temp.xlsx'
+IMAGE_PATH = './assets/images/temp.png'
+PDF_PATH_FROM_EXCEL = './assets/pdf/temp_excel.pdf'
+PDF_PATH = './assets/pdf/temp.pdf'
 
 
 def change_excel(wb, work_table, message_dict):
