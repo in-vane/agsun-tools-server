@@ -87,11 +87,12 @@ class PartCountHandler(MainHandler):
         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
         # rect_int= [int(x) for x in rect[1:]]
         rect_int = [int(x) for x in rect]
-        xmin = rect_int[0] / 300 * 72
-        ymin = rect_int[1] / 300 * 72
-        xmax = (rect_int[0] + rect_int[2]) / 300 * 72
-        ymax = (rect_int[1] + rect_int[3]) / 300 * 72
+        xmin = rect_int[0]
+        ymin = rect_int[1]
+        xmax = (rect_int[0] + rect_int[2])
+        ymax = (rect_int[1] + rect_int[3])
         pdf_rect = [xmin,ymin,xmax,ymax]
+        print(pdf_rect)
         page_number_explore = int(self.get_argument('pageNumberExplore'))
         page_number_table = int(self.get_argument('pageNumberTable'))
         error, result = tasks.check_part_count(filename, pdf_rect, page_number_explore, page_number_table)
@@ -172,23 +173,19 @@ class OcrHandler(MainHandler):
         self.MODE_ICON = 1
 
     def post(self):
+        filename = self.get_argument('filename')
         mode = int(self.get_argument('mode'))
-        page = int(self.get_argument('page'))
-        crop = int(self.get_argument('crop'))
+        page_num = int(self.get_argument('page'))
+        crop = self.get_argument('crop')
         custom_data = {}
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
-            error, img_base64_pic, img_base64_doc = tasks.check_ocr_char(crop, page)
-            custom_data = {
-                "error": error,
-                "result": [img_base64_pic, img_base64_doc],
-            }
+            custom_data= tasks.check_ocr_char(filename,crop, page_num)
+            print(custom_data['error'],custom_data['result'][0])
         if mode == self.MODE_ICON:
             print("== MODE_ICON ==")
-            img1, img2 = tasks.check_ocr_icon(crop, page)
-            custom_data = {
-                "result": [img1, img2],
-            }
+            custom_data = tasks.check_ocr_icon(filename,crop, page_num)
+
         self.write(custom_data)
 
 
