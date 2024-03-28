@@ -85,7 +85,7 @@ def save_modified_page_only(pdf_path, page_number, rect):
     """
     doc = fitz.open(pdf_path)  # 打开PDF文件
     page = doc.load_page(page_number)  # 加载指定页面
-
+    doc.close()
     # 获取页面上的所有文字块及其位置
     text_instances = page.get_text("dict")["blocks"]
 
@@ -270,6 +270,7 @@ def get_image(pdf_path, page_number, crop_rect):
     output_pdf_stream = io.BytesIO(output_pdf_bytes)
     doc = fitz.open(stream=output_pdf_stream, filetype="pdf")
     page = doc.load_page(0)
+    doc.close()
     mat = fitz.Matrix(ZOOM, ZOOM)
     pix = page.get_pixmap(matrix=mat)
     # Convert to RGB if not already in RGB format
@@ -278,7 +279,6 @@ def get_image(pdf_path, page_number, crop_rect):
     # Now, we can be sure that `pix.samples` contains 3 components per pixel (RGB)
     image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
         pix.height, pix.width, 3)
-    cv2.imwrite("D:/PycharmProjects/part_count/material/result1.png", image)
     # 获取页面上的所有文字块及其边界框
     blocks = page.get_text("blocks")
 
@@ -394,7 +394,7 @@ def find_and_count_matches(image, filtered_contours, original_contour, threshold
     return valid_matches, matched_contours_list
 
 
-def get_results(image, number_bboxes, image1):
+def get_results(image, number_bboxes):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # 应用高斯模糊和Canny边缘检测
     blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
@@ -402,31 +402,31 @@ def get_results(image, number_bboxes, image1):
     # 使用霍夫变换检测直线
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180,
                             threshold=50, minLineLength=100, maxLineGap=10)
-    line_image = image.copy()
-    # 遍历检测到的每条线段
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        # 在line_image上绘制线段
-        cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
-    cv2.imwrite('D:/PycharmProjects/part_count/material/result3.png', line_image)
+    # line_image = image.copy()
+    # # 遍历检测到的每条线段
+    # for line in lines:
+    #     x1, y1, x2, y2 = line[0]
+    #     # 在line_image上绘制线段
+    #     cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
+    # cv2.imwrite('D:/PycharmProjects/part_count/material/result3.png', line_image)
 
     filtered_contours = get_contour_image(image)
-    contour_image = image.copy()
-    cv2.drawContours(contour_image, filtered_contours, -1, (0, 255, 0), 3)
-    cv2.imwrite(
-        'D:/PycharmProjects/part_count/material/result2.png', contour_image)
+    # contour_image = image.copy()
+    # cv2.drawContours(contour_image, filtered_contours, -1, (0, 255, 0), 3)
+    # cv2.imwrite(
+    #     'D:/PycharmProjects/part_count/material/result2.png', contour_image)
     # 初始化字典来存储数字和最近直线的配对关系
     digit_to_part_mapping = {}
     # 遍历每个识别到的数字
     for text, bbox in number_bboxes.items():
         x_min, y_min, x_max, y_max = [int(coord * ZOOM) for coord in bbox]
         bbox = [x_min, y_min, x_max, y_max]
-        # 因为边框格式已经统一，所以我们可以直接使用这些坐标绘制矩形
-        cv2.rectangle(image1, (int(x_min), int(y_min)),
-                      (int(x_max), int(y_max)), (0, 255, 0), 2)
-        # 在边框上方显示识别的文本
-        cv2.putText(image1, text, (int(x_min), int(y_min) - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+        # # 因为边框格式已经统一，所以我们可以直接使用这些坐标绘制矩形
+        # cv2.rectangle(image1, (int(x_min), int(y_min)),
+        #               (int(x_max), int(y_max)), (0, 255, 0), 2)
+        # # 在边框上方显示识别的文本
+        # cv2.putText(image1, text, (int(x_min), int(y_min) - 10),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
         # 寻找最近的直线
         closest_line = find_closest_line_to_bbox(bbox, lines)
         if closest_line:
@@ -435,16 +435,15 @@ def get_results(image, number_bboxes, image1):
             if part_contour is not None:
                 digit_to_part_mapping[text] = {
                     'part_contour': part_contour, 'bbox': bbox, 'similar_parts_count': 0}
-                # 绘制最近的直线
-                cv2.line(image1, (closest_line[0], closest_line[1]), (closest_line[2], closest_line[3]), (255, 0, 0),
-                         2)
-                # 绘制零件框
-                cv2.drawContours(image1, [part_contour], -1, (0, 0, 255), 2)
+                # # 绘制最近的直线
+                # cv2.line(image1, (closest_line[0], closest_line[1]), (closest_line[2], closest_line[3]), (255, 0, 0),
+                #          2)
+                # # 绘制零件框
+                # cv2.drawContours(image1, [part_contour], -1, (0, 0, 255), 2)
             else:
                 # 如果未找到零件框，则更新字典中的相应信息
                 digit_to_part_mapping[text] = {
                     'part_contour': None, 'bbox': bbox, 'similar_parts_count': 1}
-    cv2.imwrite('D:/PycharmProjects/part_count/material/result4.png', image1)
     for digit, info in digit_to_part_mapping.items():
         if 'part_contour' in info and info['part_contour'] is not None:
             # template = extract_template_with_contour(image, info['part_contour'])
@@ -722,6 +721,7 @@ def get_image(pdf_path, page_number, crop_rect):
     output_pdf_stream = io.BytesIO(output_pdf_bytes)
     doc = fitz.open(stream=output_pdf_stream, filetype="pdf")
     page = doc.load_page(0)
+    doc.close()
     mat = fitz.Matrix(ZOOM, ZOOM)
     pix = page.get_pixmap(matrix=mat)
     # Convert to RGB if not already in RGB format
@@ -730,7 +730,6 @@ def get_image(pdf_path, page_number, crop_rect):
     # Now, we can be sure that `pix.samples` contains 3 components per pixel (RGB)
     image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
         pix.height, pix.width, 3)
-    cv2.imwrite("D:/PycharmProjects/part_count/material/result1.png", image)
     # 获取页面上的所有文字块及其边界框
     blocks = page.get_text("blocks")
 
@@ -1055,8 +1054,7 @@ def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, p
     pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
     image, bbox = get_image(pdf_path, page_number_explore, crop_rect)
-    image1 = image.copy()
-    digit_to_part_mapping = get_results(image, bbox, image1)
+    digit_to_part_mapping = get_results(image, bbox)
     status_message, match_results = form_extraction_and_compare(
         pdf_path, page_number_table - 1, digit_to_part_mapping)
     revalidated_results = revalidate_matches(
