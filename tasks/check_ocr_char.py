@@ -72,15 +72,9 @@ class ocrImg2imgDifference(object):
                 result = cv2.warpPerspective(img1, M, (shape1, shape0))
                 before_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
                 after_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-                _, buffer_before = cv2.imencode('.jpg', before_gray)
-                _, buffer_after = cv2.imencode('.jpg', after_gray)
-                img_base64_before = base64.b64encode(buffer_before).decode('utf-8')
-                img_base64_after = base64.b64encode(buffer_after).decode('utf-8')
-
                 custom_data = {
                     "error": True,
-                    "result": [img_base64_before, img_base64_after],
+                    "result": [before_gray, after_gray],
                 }
             else:
                 custom_data = {
@@ -340,13 +334,10 @@ def check_ocr_char(filename,img_base64, page_num):
     image_data_1 = base64.b64decode(img_base64.split(',')[-1])
     nparr_1 = np.frombuffer(image_data_1, np.uint8)
     img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-    if img1 is None or img1.size == 0:
-        print("Decoded image is empty or invalid.")
-        print(img1)
-        return
+    img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
     # 打开PDF文件
     doc = fitz.open(pdf_path)
-    page = doc.load_page(page_num)
+    page = doc.load_page(page_num-1)
     image = page.get_pixmap(matrix=fitz.Matrix(DPI / 72, DPI / 72))
     img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape((image.height, image.width, 3))
     doc.close()

@@ -1,10 +1,10 @@
 import base64
 import cv2
+import fitz
 import numpy as np
 
-
-BASE64_PNG = 'data:image/png;base64,'
-
+DPI=300
+BASE64_JPG = 'data:image/jpeg;base64,'
 def detect_and_filter_contours(img1, area_threshold=200):
     gray=cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     # Apply Gaussian blur
@@ -26,6 +26,8 @@ def match_and_align_images(img1, img2):
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
     # 初始化SIFT检测器
     sift = cv2.SIFT_create()
+    shape0, shape1 = img2.shape[0], img2.shape[1]
+
     # 检测关键点和描述符
     keypoints1, descriptors1 = sift.detectAndCompute(gray1, None)
     keypoints2, descriptors2 = sift.detectAndCompute(gray2, None)
@@ -34,15 +36,32 @@ def match_and_align_images(img1, img2):
     matches = bf.knnMatch(descriptors1, descriptors2, k=2)
     # 应用比率测试
     good_matches = [m for m, n in matches if m.distance < 0.75 * n.distance]
-    # 提取匹配点坐标
-    src_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    # 计算单应性矩阵
-    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-    # 对齐img1到img2
-    h, w = img2.shape[:2]
-    img1_aligned = cv2.warpPerspective(img1, M, (w, h))
-    return img1_aligned
+    if len(good_matches) >= 4:
+        pts_src = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        pts_dst = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+        M, _ = cv2.findHomography(pts_src, pts_dst, cv2.RANSAC, 5.0)
+        if M is not None:
+            result = cv2.warpPerspective(img1, M, (shape1, shape0))
+            before_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+            after_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+            custom_data = {
+                "error": True,
+                "result": [before_gray, after_gray],
+            }
+        else:
+            custom_data = {
+                "error": False,
+                "result": ["无法计算单应性矩阵"],
+            }
+    else:
+        custom_data = {
+            "error": False,
+            "result": ["不足以计算单应性矩阵，匹配点过少。"],
+        }
+
+    return custom_data
+
 def pyr_down_image(image, levels=1):
     """
     使用高斯金字塔对图像进行下采样
@@ -124,29 +143,33 @@ def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, s
 
     return img1, img2
 
-def check_ocr_icon(img1, img2):
-    print(1)
-    nparr_1 = np.frombuffer(img1, np.uint8)
-    print(2)
+def check_ocr_icon(filename,img1, page_num):
+    pdf_path = f"./python/assets/pdf/{filename}"
+    # 解码 base64 字符串为图像数据
+    image_data_1 = base64.b64decode(img1.split(',')[-1])
+    nparr_1 = np.frombuffer(image_data_1, np.uint8)
     img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-    print(3)
-    nparr_1 = np.frombuffer(img2, np.uint8)
-    img2 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-
-
-    img1_aligned = match_and_align_images(img1, img2)
-    print(4)
-    large_contours1 = detect_and_filter_contours(img1_aligned)
-    print(5)
-    large_contours2 = detect_and_filter_contours(img2)
-    img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(img1_aligned, img2, large_contours1, large_contours2)
-    print(6)
-
-    _, image_buffer = cv2.imencode('.png', img1_aligned_highlighted)
-    image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
-    _, image_buffer = cv2.imencode('.png', img2_highlighted)
-    image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
-    
-    return f"{BASE64_PNG}{image_base64_1}", f"{BASE64_PNG}{image_base64_2}"
+    img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
+    # 打开PDF文件
+    doc = fitz.open(pdf_path)
+    page = doc.load_page(page_num - 1)
+    image = page.get_pixmap(matrix=fitz.Matrix(DPI / 72, DPI / 72))
+    img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape((image.height, image.width, 3))
+    doc.close()
+    img2 = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    custom_data = match_and_align_images(img1, img2)
+    if custom_data['error']:
+        large_contours1 = detect_and_filter_contours(custom_data['result'][0])
+        large_contours2 = detect_and_filter_contours(custom_data['result'][1])
+        img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(custom_data['result'][0], custom_data['result'][1], large_contours1, large_contours2)
+        _, image_buffer = cv2.imencode('.jpeg', img1_aligned_highlighted)
+        image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
+        _, image_buffer = cv2.imencode('.jpeg', img2_highlighted)
+        image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
+        custom_data['result'][0]=f"{BASE64_JPG}{image_base64_1}"
+        custom_data['result'][1]=f"{BASE64_JPG}{image_base64_2}"
+        return custom_data
+    else:
+        return custom_data
 
 
