@@ -44,9 +44,9 @@ async def pdf2img_single(ws, pdf_path, options):
         page = doc.load_page(page_number)
         img_base64 = ''
 
-        if(options['mode'] == MODE_NORMAL):
+        if (options['mode'] == MODE_NORMAL):
             img_base64 = pdf2img(page, dpi=72)
-        if(options['mode'] == MODE_VECTOR):
+        if (options['mode'] == MODE_VECTOR):
             if is_vector_page(page):
                 img_base64 = pdf2img(page, dpi=300)
 
@@ -111,21 +111,26 @@ def resize(base64_1, base64_2):
             good_matches.append(m)
 
     # 提取匹配的关键点对的坐标
-    src_pts = np.float32([keypoints_B[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([keypoints_A[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    src_pts = np.float32(
+        [keypoints_B[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32(
+        [keypoints_A[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
     # 计算变换矩阵
     M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC)
 
     # 将图片 B 根据变换矩阵进行缩放和平移
-    image_B_aligned = cv2.warpPerspective(image_B, M, (max_width, max_height), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
+    image_B_aligned = cv2.warpPerspective(
+        image_B, M, (max_width, max_height), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
 
     # 如果 B 的尺寸发生了改变
     if image_B_aligned.shape[0] != max_height or image_B_aligned.shape[1] != max_width:
         # 如果小于最大尺寸，填补白色
         if image_B_aligned.shape[0] < max_height or image_B_aligned.shape[1] < max_width:
-            padding_B_aligned = np.ones((max_height, max_width, 3), dtype=np.uint8) * 255
-            padding_B_aligned[:image_B_aligned.shape[0], :image_B_aligned.shape[1]] = image_B_aligned
+            padding_B_aligned = np.ones(
+                (max_height, max_width, 3), dtype=np.uint8) * 255
+            padding_B_aligned[:image_B_aligned.shape[0],
+                              :image_B_aligned.shape[1]] = image_B_aligned
             image_B_aligned = padding_B_aligned
         # 如果大于最大尺寸，裁减到最大尺寸
         elif image_B_aligned.shape[0] > max_height or image_B_aligned.shape[1] > max_width:
@@ -147,7 +152,7 @@ def compare_explore(img_1, img_2):
     print("Image Similarity: {:.4f}%".format(score * 100))
 
     # The diff image contains the actual image differences between the two images
-    # and is represented as a floating point data type in the range [0,1] 
+    # and is represented as a floating point data type in the range [0,1]
     # so we must convert the array to 8-bit unsigned integers in the range
     # [0,255] before we can use it with OpenCV
     diff = (diff * 255).astype("uint8")
@@ -156,7 +161,8 @@ def compare_explore(img_1, img_2):
     # Threshold the difference image, followed by finding contours to
     # obtain the regions of the two input images that differ
     thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
-    contours = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = cv2.findContours(
+        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
     # mask = np.zeros(before.shape, dtype='uint8')
@@ -165,7 +171,7 @@ def compare_explore(img_1, img_2):
     for c in contours:
         area = cv2.contourArea(c)
         if area > 40:
-            x,y,w,h = cv2.boundingRect(c)
+            x, y, w, h = cv2.boundingRect(c)
             # cv2.rectangle(before, (x, y), (x + w, y + h), (243,71,24), 2)
             # cv2.rectangle(after, (x, y), (x + w, y + h), (243,71,24), 2)
             cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)

@@ -26,7 +26,8 @@ def baidu_translate(query, app_id='20240303001981368', secret_key='0_Nq4RdREx1L3
         salt = '123456'
         sign_str = app_id + query + salt + secret_key
         sign = hashlib.md5(sign_str.encode()).hexdigest()
-        params = {'q': query, 'appid': app_id, 'salt': salt, 'from': from_lang, 'to': to_lang, 'sign': sign}
+        params = {'q': query, 'appid': app_id, 'salt': salt,
+                  'from': from_lang, 'to': to_lang, 'sign': sign}
 
         response = requests.get(base_url, params=params)
         result = response.json()
@@ -110,11 +111,13 @@ def compare_dictionaries(red_text_data, table_data):
             if len(red_text_data[red_key]) != len(table_data[most_similar_key]):
                 print(max_similarity)
                 print(f"键的值长度不同: {red_key}")
-                message_dict[red_key] = list(range(1, len(red_text_data[red_key]) + 1))
+                message_dict[red_key] = list(
+                    range(1, len(red_text_data[red_key]) + 1))
             else:
                 # 如果数量相同，则比较列表里的值
                 print(max_similarity)
-                mismatch = compare_values_containment(red_text_data[red_key], table_data[most_similar_key])
+                mismatch = compare_values_containment(
+                    red_text_data[red_key], table_data[most_similar_key])
                 if mismatch:
                     message_dict[red_key] = mismatch
                     print(f"值有差异: {red_key}")
@@ -123,7 +126,8 @@ def compare_dictionaries(red_text_data, table_data):
         else:
             print(max_similarity)
             print(f"相似度小于0.8: {red_key}")
-            message_dict[red_key] = list(range(1, len(red_text_data[red_key]) + 1))
+            message_dict[red_key] = list(
+                range(1, len(red_text_data[red_key]) + 1))
     # 假设message_dict是你的字典变量
     if "CE-sign" in message_dict:
         message_dict['CE-sign'] = red_text_data['CE-sign']

@@ -29,11 +29,13 @@ def get_standard_document_as_dict(wb, sheet_name):
 
         # If the start of the table is found
         if table_start_column is not None:
-            first_cell_value = row[table_start_column - 1].value  # Get the value of the first column of the table
+            # Get the value of the first column of the table
+            first_cell_value = row[table_start_column - 1].value
             red_texts = []
             for cell in row[table_start_column:]:
                 if cell.font and cell.font.color and cell.font.color.rgb == 'FFFF0000':  # Look for red font
-                    red_texts.append(cell.value)  # Add the red font value to the list
+                    # Add the red font value to the list
+                    red_texts.append(cell.value)
 
             if red_texts:
                 # If the key is already in the dictionary, append the new red text value
@@ -130,7 +132,6 @@ def add_ce_signs_to_dict(doc, input_dict):
     :return: None（原地修改字典）
     """
 
-
     # 用于存储所有找到的CE标记的列表
     ce_signs = []
 
@@ -163,7 +164,6 @@ def all(wb, work_table, doc, PDF_PATH1):
     table_content_dict = remove_empty_lists(table_content_dict)
     table_content_dict = add_ce_signs_to_dict(doc, table_content_dict)
     print(f"客户ce表：{table_content_dict}")
-
 
     start = time.time()
     red_text_data = compare_dictionaries(red_text_data, table_content_dict)
