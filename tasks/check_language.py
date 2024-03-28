@@ -11,11 +11,6 @@ from ppocronnx.predict_system import TextSystem
 
 IMAGE_PATH = './python/assets/images'
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
-# 正确文件代码状态
-CODE_SUCCEED = 1
-# 错误文件代码状态
-CODE_ERROR = 0
-
 
 
 # 判断单页文本是否为语言目录页。
@@ -215,18 +210,11 @@ def find_mismatched_languages(doc, detected_languages, page_number):
 
 # 主函数
 def check_language(file):
-    result = {}
-    # doc = fitz.open(stream=BytesIO(file))
-    doc = fitz.open(file)
+    doc = fitz.open(stream=BytesIO(file))
+    # doc = fitz.open(file)
     total_pages = doc.page_count
     language_pages = get_directory(doc)
-    if not language_pages[0]:
-        print("请仔细检查，该文件无语言目录")
-        result['code'] = CODE_ERROR 
-        result['data'] = None
-        result['msg'] = '请仔细检查文件无语言目录'
-        print(f"result:{result}")
-        return result
+    language_page = language_pages[0][0]
     language_message =language_pages[1]
     texts_by_languages = extract_text_by_language(doc, language_pages[1])
     detected_languages = detect_language_of_texts(texts_by_languages)
@@ -238,18 +226,13 @@ def check_language(file):
     print(f"detected_languages: {detected_languages}")
     print(f"mismatched_languages: {mismatched_languages}")
 
-    message = generate_language_report(mismatched_languages, language_message,total_pages)
-
+    result = generate_language_report(mismatched_languages, language_message,total_pages)
+    print(f"result:{result}")
 
     doc.close()
     shutil.rmtree(IMAGE_PATH)
-    result['code'] = CODE_SUCCEED  # Indicate that there is no error
-    result['data'] = {
-        'language_page': language_pages[0][0],  # Assuming language_page is a variable holding some data
-        'message': message  # A success message
-    }
-    print(f"result:{result}")
-    return result
-check_language('1.pdf')
+
+    return is_error, language_page, result
+# check_language('1.pdf')
 
 

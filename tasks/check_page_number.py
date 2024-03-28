@@ -14,11 +14,13 @@ def annotate_page_number_issues(doc, physical_page_numbers, issues):
         # 找到对应的物理页码
         physical_page_index = physical_page_numbers[issue_page_num - 1]
         page = doc.load_page(physical_page_index - 1)
-        footer_rect = fitz.Rect(0, page.rect.height - 50, page.rect.width, page.rect.height)
+        footer_rect = fitz.Rect(0, page.rect.height -
+                                50, page.rect.width, page.rect.height)
 
         # 在页脚区域添加红色文本
         align = fitz.TEXT_ALIGN_LEFT if issue_page_num % 2 == 0 else fitz.TEXT_ALIGN_RIGHT
-        page.insert_textbox(footer_rect, "Page error", color=fitz.utils.getColor("red"), fontsize=12, align=align)
+        page.insert_textbox(footer_rect, "Page error", color=fitz.utils.getColor(
+            "red"), fontsize=12, align=align)
 
         # 将页面转换为图像
         pix = page.get_pixmap(alpha=False)
@@ -77,7 +79,8 @@ def extract_page_numbers(doc):
         page = doc.load_page(page_num)  # 加载当前页
 
         # 定义页脚区域，从页面底部向上100个单位
-        footer_rect = fitz.Rect(0, page.rect.height - footer_height, page.rect.width, page.rect.height)
+        footer_rect = fitz.Rect(
+            0, page.rect.height - footer_height, page.rect.width, page.rect.height)
 
         # 从页脚区域提取文本
         footer_text = page.get_text("text", clip=footer_rect)
@@ -95,7 +98,8 @@ def extract_page_numbers(doc):
         printed_page_numbers.append(probable_page_number)
 
     # 将打印页码列表中的元素转换为整数，对于None值保持不变
-    printed_page_numbers = [int(item) if item is not None else None for item in printed_page_numbers]
+    printed_page_numbers = [
+        int(item) if item is not None else None for item in printed_page_numbers]
 
     return printed_page_numbers
 
@@ -103,16 +107,18 @@ def extract_page_numbers(doc):
 # 主函数
 def check_page_number(file):
     doc = fitz.open(stream=BytesIO(file))
-    
+
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
     # 获取文件中的页码表
     printed_page_numbers = extract_page_numbers(doc)
     # 对比两个页码表
-    issues = check_page_number_issues(printed_page_numbers, physical_page_numbers)
+    issues = check_page_number_issues(
+        printed_page_numbers, physical_page_numbers)
     is_error = False if len(issues) == 0 else True
     # 在错误的页码附近标注错误
-    error_pages_base64 = annotate_page_number_issues(doc, physical_page_numbers, issues)
+    error_pages_base64 = annotate_page_number_issues(
+        doc, physical_page_numbers, issues)
 
     doc.close()
 

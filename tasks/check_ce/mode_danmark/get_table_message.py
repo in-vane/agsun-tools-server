@@ -25,11 +25,13 @@ def get_standard_document_as_dict(standard_excel, sheet_name):
 
         # If the start of the table is found
         if table_start_column is not None:
-            first_cell_value = row[table_start_column - 1].value  # Get the value of the first column of the table
+            # Get the value of the first column of the table
+            first_cell_value = row[table_start_column - 1].value
             red_texts = []
             for cell in row[table_start_column:]:
                 if cell.font and cell.font.color and cell.font.color.rgb == 'FFFF0000':  # Look for red font
-                    red_texts.append(cell.value)  # Add the red font value to the list
+                    # Add the red font value to the list
+                    red_texts.append(cell.value)
 
             if red_texts:
                 # If the key is already in the dictionary, append the new red text value

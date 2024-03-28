@@ -21,7 +21,8 @@ def pdf_to_image(file, page_number=0, resolution=300):
         w = int(match.group(1))
         d = int(match.group(2))
 
-    pix = page.get_pixmap(matrix=fitz.Matrix(1, 1).prescale(resolution / 72, resolution / 72))
+    pix = page.get_pixmap(matrix=fitz.Matrix(
+        1, 1).prescale(resolution / 72, resolution / 72))
     return np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n), w, d
 
 
@@ -30,7 +31,8 @@ def find_largest_rectangle_opencv(image, resolution=300):
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     edges = cv2.Canny(blurred, 50, 150)
 
-    contours, _ = cv2.findContours(edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     largest_area = 0
     largest_contour = None
@@ -56,8 +58,10 @@ def find_largest_rectangle_opencv(image, resolution=300):
 
 def compare_size(file):
     RESOLUTION = 300
-    image, width, height = pdf_to_image(file, page_number=0, resolution=RESOLUTION)
-    largest_width, largest_height, x, y, w, h = find_largest_rectangle_opencv(image, resolution=RESOLUTION)
+    image, width, height = pdf_to_image(
+        file, page_number=0, resolution=RESOLUTION)
+    largest_width, largest_height, x, y, w, h = find_largest_rectangle_opencv(
+        image, resolution=RESOLUTION)
 
     is_error = False
     msg = "尺寸一致"
@@ -68,7 +72,8 @@ def compare_size(file):
         msg = f"尺寸不一致: 标注为({height} x {width}), 检测结果为({largest_height} x {largest_width})"
     # 在图像上插入错误提示文字
     t = f"Marked ({height} x {width}), Real ({largest_height} x {largest_width})"
-    cv2.putText(image, t, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (24, 31, 172), 2)
+    cv2.putText(image, t, (x, y - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (24, 31, 172), 2)
 
     # 保存带有错误提示的图像
     # cv2.imwrite("error_image.jpg", image)

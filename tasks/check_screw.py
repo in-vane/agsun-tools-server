@@ -12,9 +12,9 @@ from collections import defaultdict
 from ppocronnx.predict_system import TextSystem
 
 
-PDF_PATH = './python/assets/pdf/temp.pdf'
-IMAGE_PATH = './python/assets/image'
-CSV_PATH = './python/assets/csv/selected_table.csv'
+PDF_PATH = './assets/pdf/temp.pdf'
+IMAGE_PATH = './assets/image'
+CSV_PATH = './assets/csv/selected_table.csv'
 
 
 def find_target_table(doc):
@@ -110,7 +110,8 @@ def extract_images_below_steps(doc):
             match_rects = page.search_for(match.group(0))
             for rect in match_rects:
                 # 定义步骤编号下方的矩形区域，此处可能需要调整
-                clip_rect = fitz.Rect(rect.x0 - 3, rect.y1 - 20, rect.x1 + 800, rect.y1 + 315)
+                clip_rect = fitz.Rect(
+                    rect.x0 - 3, rect.y1 - 20, rect.x1 + 800, rect.y1 + 315)
                 # 提取该区域的图像
                 pix = page.get_pixmap(clip=clip_rect)
                 # 定义图像的保存路径
@@ -198,7 +199,8 @@ def get_step_screw(doc):
     # 提取步骤下方的图像
     extracted_images = extract_images_below_steps(doc)
     extracted_images = recognize_text_in_images(extracted_images)
-    letter_counts, letter_count, letter_pageNumber = get_image_text(extracted_images)
+    letter_counts, letter_count, letter_pageNumber = get_image_text(
+        extracted_images)
 
     return letter_counts, letter_count, letter_pageNumber
 
@@ -214,8 +216,10 @@ def check_total_and_step(doc):
     for key in letter_counts:
         if key in result_dict:
             if result_dict[key] != letter_counts[key]:
-                count_mismatch[key] = {'expected': result_dict[key], 'actual': letter_counts[key]}
-                print(f"数量不匹配: {key}, 应有 {result_dict[key]} 个, 实际有 {letter_counts[key]} 个")
+                count_mismatch[key] = {
+                    'expected': result_dict[key], 'actual': letter_counts[key]}
+                print(
+                    f"数量不匹配: {key}, 应有 {result_dict[key]} 个, 实际有 {letter_counts[key]} 个")
         else:
             print(f"多余的字符: {key} 在 result_dict 中不存在")
             extra_chars[key] = letter_counts[key]
@@ -227,6 +231,7 @@ def check_total_and_step(doc):
             missing_chars[key] = result_dict[key]
 
     return count_mismatch, letter_count, letter_pageNumber, result_dict
+
 
 def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
     mismatch_dict = []
@@ -248,10 +253,9 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
                 'step_total': value,
                 'step_count': letter_count.get(key, []),
                 'step_page_no': letter_pageNumber.get(key, [])
-            }) 
+            })
 
     return mismatch_dict, match_dict
-
 
 
 # 主函数
@@ -262,9 +266,11 @@ def check_screw(file):
     if not os.path.isdir(IMAGE_PATH):
         os.makedirs(IMAGE_PATH)
 
-    count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(doc)
-    mismatch_dict, match_dict = create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber)
-    
+    count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
+        doc)
+    mismatch_dict, match_dict = create_dicts(
+        result_dict, count_mismatch, letter_count, letter_pageNumber)
+
     print(f"count_mismatch = {count_mismatch}")
     print("Mismatch Dict:", mismatch_dict)
     print("Match Dict:", match_dict)

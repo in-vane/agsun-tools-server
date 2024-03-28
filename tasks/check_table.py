@@ -10,8 +10,12 @@ import pandas as pd
 from tabula import read_pdf
 
 
-PDF_PATH = './python/assets/pdf/temp.pdf'
-CSV_PATH = './python/assets/csv/exact_table.csv' 
+
+
+PDF_PATH = './assets/pdf/temp.pdf'
+
+CSV_PATH = './assets/csv/'
+CSV_NAME="exact_table.csv"
 SUCCESS = 0
 ERROR_NO_EXPLORED_VIEW = 1
 BASE64_PNG = 'data:image/png;base64,'
@@ -37,9 +41,12 @@ class SimpleImageDataset(Dataset):
 """
 
 # 对表格进行预处理，以纠正列名
+
+
 def process_table(table):
     # 如果列名中含有'.1'，则移除
-    corrected_columns = [col.split('.1')[0] if '.1' in col else col for col in table.columns]
+    corrected_columns = [
+        col.split('.1')[0] if '.1' in col else col for col in table.columns]
     table.columns = corrected_columns
     return table
 
@@ -72,9 +79,11 @@ def read_and_filter_tables(page_number):
     processed_tables = [process_table(table) for table in tables]
 
     # 筛选出符合条件的表格
-    filtered_tables = [table for table in processed_tables if is_desired_table(table)]
+    filtered_tables = [
+        table for table in processed_tables if is_desired_table(table)]
 
     return filtered_tables
+
 
 """
 # pdf转图片
@@ -127,6 +136,8 @@ def predict():
 """
 
 # 标注错误
+
+
 def add_annotation_with_fitz(doc, annotations):
     for page_number, texts in annotations.items():
         # 获取页面对象
@@ -164,16 +175,20 @@ def convert_values_to_int(d):
 # 比较表格检查错误
 def compare_tables_with_csv(table):
     # 读取CSV文件并创建字典
-    csv_table = pd.read_csv(CSV_PATH)
-    csv_dict = pd.Series(csv_table.iloc[:, 2].values, index=csv_table.iloc[:, 0]).to_dict()
-    csv_dict.update(pd.Series(csv_table.iloc[:, 5].values, index=csv_table.iloc[:, 3]).to_dict())
+    csv_table = pd.read_csv(CSV_PATH+CSV_NAME)
+    csv_dict = pd.Series(
+        csv_table.iloc[:, 2].values, index=csv_table.iloc[:, 0]).to_dict()
+    csv_dict.update(
+        pd.Series(csv_table.iloc[:, 5].values, index=csv_table.iloc[:, 3]).to_dict())
 
     # 转换字典中的浮点数为整数
     csv_dict = convert_values_to_int(csv_dict)
 
     # 将传入的DataFrame转换成字典
-    pdf_dict = pd.Series(table.iloc[:, 2].values, index=table.iloc[:, 0]).to_dict()
-    pdf_dict.update(pd.Series(table.iloc[:, 5].values, index=table.iloc[:, 3]).to_dict())
+    pdf_dict = pd.Series(table.iloc[:, 2].values,
+                         index=table.iloc[:, 0]).to_dict()
+    pdf_dict.update(
+        pd.Series(table.iloc[:, 5].values, index=table.iloc[:, 3]).to_dict())
 
     # 转换字典中的浮点数为整数
     pdf_dict = convert_values_to_int(pdf_dict)
@@ -193,7 +208,8 @@ def compare_tables_with_csv(table):
 # 查找匹配的表格
 def find_matching_table(doc, exact_pagenumber, table_character, ):
     if len(table_character) != 2:
-        print("Error: 'table_character' should be a list with two elements: [number_of_rows, number_of_columns]")
+        print(
+            "Error: 'table_character' should be a list with two elements: [number_of_rows, number_of_columns]")
         return None
 
     num_rows, num_columns = table_character
@@ -271,6 +287,14 @@ def get_error_pages_as_base64(error_pages, doc):
 
 # 主函数
 def compare_table(file, page_number):
+    # 检查目录是否存在
+    if not os.path.exists(CSV_PATH):
+        # 目录不存在，创建目录
+        os.makedirs(CSV_PATH)
+        print(f"目录 {CSV_PATH} 被创建")
+    else:
+        # 目录已存在
+        print(f"目录 {CSV_PATH} 已存在")
     # 打开PDF文件
     # doc =fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
@@ -282,7 +306,6 @@ def compare_table(file, page_number):
     else:
         print("在该页没找到标准表格了")
 
-
     # 假设 filtered_tables 是之前从 PDF 中提取并筛选出的表格列表
     # 下面的代码会遍历这些表格，打印出它们的行数和列数，并将它们存储为 CSV 文件
     table_character = []
@@ -292,9 +315,7 @@ def compare_table(file, page_number):
         print(f"Number of columns: {table.shape[1]}")
         table_character.append(table.shape[0])
         table_character.append(table.shape[1])
-        table.to_csv(CSV_PATH, index=False)
-
-
+        table.to_csv(CSV_PATH+CSV_NAME, index=False)
 
     error_pages = find_matching_table(doc, page_number, table_character)
     images_base64 = get_error_pages_as_base64(error_pages, doc)
@@ -306,7 +327,7 @@ def compare_table(file, page_number):
 
     doc.close()
     os.remove(PDF_PATH)
-    os.remove(CSV_PATH)
+    os.remove(CSV_PATH+CSV_NAME)
     # shutil.rmtree(IMAGE_PATH)
 
     return images_base64, error_pages
