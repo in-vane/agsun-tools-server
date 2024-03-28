@@ -53,7 +53,7 @@ def process_table(table):
 
 # 检查表格是否符合我们想要的格式
 def is_desired_table(table):
-    if table.shape[1] == 6:
+    if table.shape[1] % 3 == 0:
         try:
             # 尝试将第一列和第四列转换为数值型，并检查它们是否按顺序递增
             first_col = pd.to_numeric(table.iloc[:, 0]).dropna()

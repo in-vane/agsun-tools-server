@@ -116,8 +116,9 @@ class PartCountHandler(MainHandler):
         print(pdf_rect)
         page_number_explore = int(self.get_argument('pageNumberExplore'))
         page_number_table = int(self.get_argument('pageNumberTable'))
-        error, result = tasks.check_part_count(
+        error, result,images_base64,error_pages = tasks.check_part_count(
             filename, pdf_rect, page_number_explore, page_number_table)
+        print(error, result,images_base64,error_pages)
         custom_data = {
             "error": error,
             "result": result

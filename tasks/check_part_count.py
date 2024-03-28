@@ -1,19 +1,211 @@
 import os
-import io
 import re
-import sys
-
 import cv2
-import fitz  # PyMuPDF
 import pdfplumber
 import numpy as np
+import base64
+import io
+from PIL import Image
+from io import BytesIO
+import fitz
 import pandas as pd
-import matplotlib.pyplot as plt
+from tabula import read_pdf
 
 
 DPI = 600
 ZOOM = DPI / 72
+PDF_PATH = './assets/pdf/temp.pdf'
 
+CSV_PATH = './assets/csv/'
+CSV_NAME="exact_table.csv"
+SUCCESS = 0
+ERROR_NO_EXPLORED_VIEW = 1
+BASE64_PNG = 'data:image/png;base64,'
+def process_table(table):
+    # 如果列名中含有'.1'，则移除
+    corrected_columns = [
+        col.split('.1')[0] if '.1' in col else col for col in table.columns]
+    table.columns = corrected_columns
+    return table
+
+
+# 检查表格是否符合我们想要的格式
+def is_desired_table(table):
+    if table.shape[1] == 6:
+        try:
+            # 尝试将第一列和第四列转换为数值型，并检查它们是否按顺序递增
+            first_col = pd.to_numeric(table.iloc[:, 0]).dropna()
+            fourth_col = pd.to_numeric(table.iloc[:, 3]).dropna()
+            # 检查列是否递增，列标题是否匹配
+            if first_col.is_monotonic_increasing and fourth_col.is_monotonic_increasing:
+                if table.columns[0] == table.columns[3] and \
+                        table.columns[1] == table.columns[4] and \
+                        table.columns[2] == table.columns[5]:
+                    return True
+        except ValueError:
+            # 如果无法转换为数值型，那么这个表格不符合条件
+            pass
+    return False
+
+
+# 读取PDF中的表格并进行筛选
+def read_and_filter_tables(page_number):
+    # 使用tabula读取指定页码的表格
+    tables = read_pdf(PDF_PATH, pages=page_number, multiple_tables=True)
+
+    # 处理每个表格的列名
+    processed_tables = [process_table(table) for table in tables]
+
+    # 筛选出符合条件的表格
+    filtered_tables = [
+        table for table in processed_tables if is_desired_table(table)]
+
+    return filtered_tables
+def add_annotation_with_fitz(doc, annotations):
+    for page_number, texts in annotations.items():
+        # 获取页面对象
+        page = doc[page_number - 1]  # 页面索引从0开始
+
+        # 定义左上角区域的矩形，例如：30像素从左边界，30像素从顶部边界，宽度为页面宽度的一半，高度为50像素
+        top_left_rect = fitz.Rect(30, 30, page.rect.width / 2, 80)
+
+        # 在左上角区域添加红色文本
+        page.insert_textbox(top_left_rect, texts, color=fitz.utils.getColor("red"), fontsize=12,
+                            align=fitz.TEXT_ALIGN_LEFT)
+
+
+# 转换字典中的浮点数为整数
+def convert_values_to_int(d):
+    new_dict = {}
+    for k, v in d.items():
+        # 转换键
+        if isinstance(k, float) or (isinstance(k, str) and k.isdigit()):
+            new_key = int(k)
+        else:
+            new_key = k
+
+        # 转换值
+        if isinstance(v, float) or (isinstance(v, str) and v.isdigit()):
+            new_value = int(v)
+        else:
+            new_value = v
+
+        new_dict[new_key] = new_value
+
+    return new_dict
+
+
+# 比较表格检查错误
+def compare_tables_with_csv(table):
+    # 读取CSV文件并创建字典
+    csv_table = pd.read_csv(CSV_PATH+CSV_NAME)
+    csv_dict = pd.Series(
+        csv_table.iloc[:, 2].values, index=csv_table.iloc[:, 0]).to_dict()
+    csv_dict.update(
+        pd.Series(csv_table.iloc[:, 5].values, index=csv_table.iloc[:, 3]).to_dict())
+
+    # 转换字典中的浮点数为整数
+    csv_dict = convert_values_to_int(csv_dict)
+
+    # 将传入的DataFrame转换成字典
+    pdf_dict = pd.Series(table.iloc[:, 2].values,
+                         index=table.iloc[:, 0]).to_dict()
+    pdf_dict.update(
+        pd.Series(table.iloc[:, 5].values, index=table.iloc[:, 3]).to_dict())
+
+    # 转换字典中的浮点数为整数
+    pdf_dict = convert_values_to_int(pdf_dict)
+
+    # 比较两个字典
+    mismatch = False
+    mismatch_number = []
+    for key in csv_dict:
+        if key in pdf_dict and csv_dict[key] != pdf_dict[key]:
+            print(f"不匹配的序号：{key}")
+            mismatch = True
+            mismatch_number.append(key)
+
+    return mismatch, mismatch_number
+
+
+# 查找匹配的表格
+def find_matching_table(doc, exact_pagenumber, table_character, ):
+    if len(table_character) != 2:
+        print(
+            "Error: 'table_character' should be a list with two elements: [number_of_rows, number_of_columns]")
+        return None
+
+    num_rows, num_columns = table_character
+    count = 0
+    mismatched_pages = []  # 存储不匹配的页号
+    page_exact_number = exact_pagenumber + 1
+    page_count = len(doc)
+    total_mismatch_number = {}
+    for page_number in range(page_exact_number, page_count):
+        # 读取当前页的表格
+        tables = read_pdf(PDF_PATH, pages=page_number, multiple_tables=True)
+
+        for table in tables:
+            # 检查表格行数和列数是否符合要求
+            if table.shape[0] == num_rows and table.shape[1] == num_columns:
+                count += 1
+                # 检查表格与CSV是否匹配
+                is_mismatched, mismatch_number = compare_tables_with_csv(table)
+                if is_mismatched:
+                    mismatched_pages.append(page_number)
+                    total_mismatch_number[page_number] = mismatch_number
+                print(f"Found a matching table on page {page_number}")
+            # 如果检测到的表格行数比预期多一行，则删除第一行
+            if table.shape[0] == num_rows + 1 and table.shape[1] == num_columns:
+                table = table.drop(table.index[0]).reset_index(drop=True)
+                count += 1
+                # 检查表格与CSV是否匹配
+                is_mismatched, mismatch_number = compare_tables_with_csv(table)
+                if is_mismatched:
+                    mismatched_pages.append(page_number)
+                    total_mismatch_number[page_number] = mismatch_number
+                print(f"Found a matching table on page {page_number}")
+
+    print(f"相似表格个数:{count}")
+    print(f"不匹配的页数：{mismatched_pages}")
+    print(f"不匹配的页数和对应的表格序号{total_mismatch_number}")
+
+    # 创建注释字典
+    annotations = {}
+    for page in mismatched_pages:
+        if page in total_mismatch_number:
+            mismatch_info = f"mismatch: {total_mismatch_number[page]}"
+            annotations[page] = mismatch_info
+    add_annotation_with_fitz(doc, annotations)
+
+    return mismatched_pages
+
+
+def get_error_pages_as_base64(error_pages, doc):
+    """
+    将PDF中指定的错误页转换为图片，获取其字节流并转化为base64字符串。
+
+    :param error_pages: 包含错误页页码的列表，页码从1开始。
+    :param doc: fitz.Document对象
+    :return: 包含每个错误页面图片Base64字符串的列表
+    """
+    base64_images = []
+
+    for page_num in error_pages:
+        page_index = page_num - 1
+        page = doc.load_page(page_index)
+        pix = page.get_pixmap()
+        # 使用pixmap的samples属性来获取像素数据
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="PNG")  # 使用Pillow保存图像数据到BytesIO对象
+        img_bytes.seek(0)
+
+        base64_str = base64.b64encode(img_bytes.read()).decode('utf-8')
+        base64_images.append(f"{BASE64_PNG}{base64_str}")
+
+    return base64_images
 
 # 定义一个函数来统一边框格式为[x_min, y_min, x_max, y_max]
 def unify_bbox_format(bbox):
@@ -76,16 +268,15 @@ def get_contour_image(image, min_area=200, max_aspect_ratio=4, min_fill_ratio=0.
 
 
 
-def save_modified_page_only(pdf_path, page_number, rect):
+def save_modified_page_only(doc, page_number, rect):
     """
     仅保存修改后的PDF页面到新文件中。
 
-    :param pdf_path: 输入PDF文件的路径。
+    :param doc: 输入PDF文件。
     :param output_path: 修改后PDF页面的保存路径。
     :param page_number: 要修改的页面编号（从0开始）。
     :param rect: 保留内容的矩形区域，格式为(x0, y0, x1, y1)。
     """
-    doc = fitz.open(pdf_path)  # 打开PDF文件
     page = doc.load_page(page_number)  # 加载指定页面
 
     # 获取页面上的所有文字块及其位置
@@ -111,7 +302,6 @@ def save_modified_page_only(pdf_path, page_number, rect):
     output_stream = io.BytesIO()
     new_doc.save(output_stream)
     new_doc.close()
-    doc.close()
 
     # 返回字节流中的数据
     return output_stream.getvalue()
@@ -292,9 +482,10 @@ def calculate_center(bbox):
 
 
 
-def get_image(pdf_path, page_number, crop_rect):
+def get_image(pdf, page_number, crop_rect):
+
     output_pdf_bytes = save_modified_page_only(
-        pdf_path, page_number - 1, crop_rect)
+        pdf, page_number - 1, crop_rect)
     # 将字节流转换为一个BytesIO对象
     output_pdf_stream = io.BytesIO(output_pdf_bytes)
     doc = fitz.open(stream=output_pdf_stream, filetype="pdf")
@@ -513,12 +704,57 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping):
     if not results:
         return 'No matching tables found', []
     return 'Success', results
+# 主函数
+def compare_table(pdf, page_number):
+    # 检查目录是否存在
+    if not os.path.exists(CSV_PATH):
+        # 目录不存在，创建目录
+        os.makedirs(CSV_PATH)
+        print(f"目录 {CSV_PATH} 被创建")
+    else:
+        # 目录已存在
+        print(f"目录 {CSV_PATH} 已存在")
+    pdf.save(PDF_PATH)
+    # 获取标准表格
+    filtered_tables = read_and_filter_tables(page_number)
+    if filtered_tables:
+        print("在该页找到标准表格了")
+    else:
+        print("在该页没找到标准表格了")
 
+    # 假设 filtered_tables 是之前从 PDF 中提取并筛选出的表格列表
+    # 下面的代码会遍历这些表格，打印出它们的行数和列数，并将它们存储为 CSV 文件
+    table_character = []
+    for i, table in enumerate(filtered_tables):
+        print(f"Table {i + 1}:")
+        print(f"Number of rows: {table.shape[0]}")
+        print(f"Number of columns: {table.shape[1]}")
+        table_character.append(table.shape[0])
+        table_character.append(table.shape[1])
+        table.to_csv(CSV_PATH+CSV_NAME, index=False)
 
+    error_pages = find_matching_table(pdf, page_number, table_character)
+    if error_pages is not None:
+        images_base64 = get_error_pages_as_base64(error_pages, pdf)
+
+        # 将文档转换成字节流
+        # doc_bytes = doc.write()
+        # 将字节流进行base64编码
+        # doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
+        os.remove(PDF_PATH)
+        os.remove(CSV_PATH+CSV_NAME)
+        # shutil.rmtree(IMAGE_PATH)
+
+        return images_base64, error_pages
+    else:
+        return [],[]
 def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, page_number_table=7):
     pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
-    image, bbox = get_image(pdf_path, page_number_explore, crop_rect)
+    pdf = fitz.open(pdf_path)  # 打开PDF文件
+    image, bbox = get_image(pdf, page_number_explore, crop_rect)
+    images_base64, error_pages=compare_table(pdf, page_number_table)
+    pdf.close()
     digit_to_part_mapping = get_results(image, bbox)
     status_message, match_results = form_extraction_and_compare(
         pdf_path, page_number_table - 1, digit_to_part_mapping)
@@ -543,4 +779,4 @@ def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, p
                     f"Key: {key}, Matched: {matched}, Found: {found}, Expected in Table: {expected}")
     else:
         print(status_message)  # 如果状态消息不是'Success'，则打印出状态消息
-    return status_message, results
+    return status_message, results,images_base64,error_pages
