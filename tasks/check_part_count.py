@@ -450,7 +450,7 @@ def get_results(image, number_bboxes):
             # template = extract_template_with_contour(image, info['part_contour'])
             # count = find_and_count_matches(image, template, threshold=0.9)
             count, matched_contours = find_and_count_matches(
-                image, filtered_contours, info['part_contour'], threshold=0.02)
+                image, filtered_contours, info['part_contour'], threshold=0.05)
             digit_to_part_mapping[digit]['similar_parts_count'] = count
             # 在字典中存储匹配到的轮廓
             digit_to_part_mapping[digit]['matched_contours'] = matched_contours
