@@ -96,6 +96,8 @@ def convert_excel_sheet_to_pdf(excel_file, sheet_name):
     jpype.shutdownJVM()
 
 # 将pdf的第一页转化图片
+
+
 def convert_pdf_page_to_image(pdf_path, image_path, page_number=0):
     """
     Convert the specified page of a PDF file into an image.

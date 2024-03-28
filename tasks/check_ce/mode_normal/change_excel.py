@@ -95,6 +95,8 @@ def convert_excel_sheet_to_pdf(excel_file, sheet_name):
     jpype.shutdownJVM()
 
 # 将pdf的第一页转化图片
+
+
 def convert_pdf_page_to_image_base64(page_number=0):
     """
     Convert the specified page of a PDF file into a Base64 image string.
@@ -111,7 +113,7 @@ def convert_pdf_page_to_image_base64(page_number=0):
     # 将选中的页面转换为图片（pix）
     pix = page.get_pixmap()
 
-     # 使用pixmap的samples属性来获取像素数据
+    # 使用pixmap的samples属性来获取像素数据
     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
     img_bytes = io.BytesIO()
@@ -138,7 +140,6 @@ def checkTags(excel_file, pdf_file):
     convert_excel_sheet_to_pdf(EXCEL_PATH, work_table)
     # 将excel转化为pdf，保存到PDF_PATG
     image_base64 = convert_pdf_page_to_image_base64()
-
 
     os.remove(EXCEL_PATH)
 

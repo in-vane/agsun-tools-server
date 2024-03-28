@@ -25,7 +25,8 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
                             # Redraw the line with the specified new line width and color (red in this example)
                             new_color = (1, 0, 0)  # Red color
                             shape.draw_line(start_point, end_point)
-                            shape.finish(width=new_line_width, color=new_color, stroke_opacity=item['stroke_opacity'])
+                            shape.finish(
+                                width=new_line_width, color=new_color, stroke_opacity=item['stroke_opacity'])
         # Commit the drawing operations to the page
         shape.commit()
     doc.save(PDF_OUTPUT)

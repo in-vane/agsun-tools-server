@@ -58,14 +58,17 @@ class ocrImg2imgDifference(object):
         kp1, des1 = sift.detectAndCompute(img1, None)
         kp2, des2 = sift.detectAndCompute(img2, None)
 
-        flann = cv2.FlannBasedMatcher(dict(algorithm=0, trees=6), dict(checks=10))
+        flann = cv2.FlannBasedMatcher(
+            dict(algorithm=0, trees=6), dict(checks=10))
         matches = flann.knnMatch(des1, des2, k=2)
 
         good = [m for m, n in matches if m.distance < 0.7 * n.distance]
 
         if len(good) >= 4:
-            pts_src = np.float32([kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
-            pts_dst = np.float32([kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
+            pts_src = np.float32(
+                [kp1[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+            pts_dst = np.float32(
+                [kp2[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
             M, _ = cv2.findHomography(pts_src, pts_dst, cv2.RANSAC, 5.0)
             if M is not None:
@@ -75,8 +78,10 @@ class ocrImg2imgDifference(object):
 
                 _, buffer_before = cv2.imencode('.jpg', before_gray)
                 _, buffer_after = cv2.imencode('.jpg', after_gray)
-                img_base64_before = base64.b64encode(buffer_before).decode('utf-8')
-                img_base64_after = base64.b64encode(buffer_after).decode('utf-8')
+                img_base64_before = base64.b64encode(
+                    buffer_before).decode('utf-8')
+                img_base64_after = base64.b64encode(
+                    buffer_after).decode('utf-8')
 
                 custom_data = {
                     "error": True,
@@ -149,7 +154,8 @@ class ocrImg2imgDifference(object):
                         countJ1 = j - count2
                     w1 = result1[i][0][1][0] - result1[i][0][0][0]
                     h1 = int(result1[i][0][2][1] - result1[i][0][0][1])
-                    x1 = int(result1[i][0][0][0])  # + (count1) * int(w1 / len1))
+                    # + (count1) * int(w1 / len1))
+                    x1 = int(result1[i][0][0][0])
                     y1 = int(result1[i][0][0][1])
                     radius = int(w1 / len1)
                     x1_1 = x1
@@ -159,9 +165,12 @@ class ocrImg2imgDifference(object):
                 if compareList[j][0] == '+':
                     if count2 == 1:
                         countJ2 = j - count1
-                    w1 = result2[int(match[i])][0][1][0] - result2[int(match[i])][0][0][0]
-                    h1 = int(result2[int(match[i])][0][2][1] - result2[int(match[i])][0][0][1])
-                    x1 = int(result2[int(match[i])][0][0][0])  # + (count2) * int(w1 / len2))
+                    w1 = result2[int(match[i])][0][1][0] - \
+                        result2[int(match[i])][0][0][0]
+                    h1 = int(result2[int(match[i])][0][2]
+                             [1] - result2[int(match[i])][0][0][1])
+                    # + (count2) * int(w1 / len2))
+                    x1 = int(result2[int(match[i])][0][0][0])
                     y1 = int(result2[int(match[i])][0][0][1])
                     radius = int(w1 / len2)
                     x1_2 = x1
@@ -232,7 +241,8 @@ class ocrImg2imgDifference(object):
                         countJ1 = j - count2
                     w1 = result1[i][0][1][0] - result1[i][0][0][0]
                     h1 = int(result1[i][0][2][1] - result1[i][0][0][1])
-                    x1 = int(result1[i][0][0][0])  # + (count1) * int(w1 / len1))
+                    # + (count1) * int(w1 / len1))
+                    x1 = int(result1[i][0][0][0])
                     # x1 = int(result1[i][0][0][0] )
                     y1 = int(result1[i][0][0][1])
                     radius = int(w1 / len1)
@@ -243,9 +253,12 @@ class ocrImg2imgDifference(object):
                 if compareList[j][0] == '+':
                     if count2 == 1:
                         countJ2 = j - count1
-                    w1 = result2[int(match[i])][0][1][0] - result2[int(match[i])][0][0][0]
-                    h1 = int(result2[int(match[i])][0][2][1] - result2[int(match[i])][0][0][1])
-                    x1 = int(result2[int(match[i])][0][0][0])  # + (count2) * int(w1 / len2))
+                    w1 = result2[int(match[i])][0][1][0] - \
+                        result2[int(match[i])][0][0][0]
+                    h1 = int(result2[int(match[i])][0][2]
+                             [1] - result2[int(match[i])][0][0][1])
+                    # + (count2) * int(w1 / len2))
+                    x1 = int(result2[int(match[i])][0][0][0])
                     y1 = int(result2[int(match[i])][0][0][1])
                     radius = int(w1 / len2)
                     x1_2 = x1
@@ -303,7 +316,8 @@ class ocrImg2imgDifference(object):
         self.result = result2
         # print(result1)
         match, unMatch = self.findGoodMatch(result1, result2)
-        before_img1, after_img2 = self.markDifference(result1, result2, before_img1, after_img2, match, unMatch)
+        before_img1, after_img2 = self.markDifference(
+            result1, result2, before_img1, after_img2, match, unMatch)
         return before_img1, after_img2
 
     def returnPdfText(self):
@@ -325,7 +339,7 @@ class ocrImg2ImgDifference(ocrImg2imgDifference):
 
             # 标记出文本区域的不同
             before_img_marked, after_img_marked = self.markDifference(result1, result2, custom_data["result"][0], custom_data["result"][1], match,
-                                                                   unMatch)
+                                                                      unMatch)
             custom_data['result'][0] = before_img_marked
             custom_data['result'][1] = after_img_marked
             return custom_data
@@ -333,8 +347,7 @@ class ocrImg2ImgDifference(ocrImg2imgDifference):
             return custom_data
 
 
-
-def check_ocr_char(filename,img_base64, page_num):
+def check_ocr_char(filename, img_base64, page_num):
     pdf_path = f"./assets/pdf/{filename}"
     # 解码 base64 字符串为图像数据
     image_data_1 = base64.b64decode(img_base64.split(',')[-1])
@@ -347,13 +360,14 @@ def check_ocr_char(filename,img_base64, page_num):
     doc = fitz.open(pdf_path)
     page = doc.load_page(page_num)
     image = page.get_pixmap(matrix=fitz.Matrix(DPI / 72, DPI / 72))
-    img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape((image.height, image.width, 3))
+    img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape(
+        (image.height, image.width, 3))
     doc.close()
     img2 = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
 
     diff = ocrImg2ImgDifference(['en', 'hu'])
     custom_data = diff.returnMarkImageImg2img(img1, img2)
-    
+
     if custom_data['error']:
         _, image_buffer = cv2.imencode('.jpeg', custom_data['result'][0])
         image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')

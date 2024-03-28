@@ -66,7 +66,8 @@ def get_image_text(extracted_images):
         print(f"Processing page: {index + 1}")  # 打印当前处理的PDF页号
         img = cv2.imread(image_path)
         res = text_sys.detect_and_ocr(img)
-        page_texts = [boxed_result.ocr_text for boxed_result in res]  # 仅获取识别的文本内容
+        # 仅获取识别的文本内容
+        page_texts = [boxed_result.ocr_text for boxed_result in res]
 
         # 判断当前页面是否为语言目录页
         is_index, directory = find_language_index_page(page_texts)
@@ -92,7 +93,8 @@ def convert_pdf_to_images(doc):
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
         pix = page.get_pixmap()
-        output_image_path = os.path.join(IMAGE_PATH, f"output_page_{page_num}.png")
+        output_image_path = os.path.join(
+            IMAGE_PATH, f"output_page_{page_num}.png")
         pix.save(output_image_path)
         extracted_images.append(output_image_path)
 
@@ -105,7 +107,8 @@ def get_directory(doc):
     extracted_images = convert_pdf_to_images(doc)
 
     # 从图像中识别文本
-    language_index_pages, directory_information = get_image_text(extracted_images)
+    language_index_pages, directory_information = get_image_text(
+        extracted_images)
     print(f"language_index_pages: {language_index_pages}")
 
     return language_index_pages, directory_information
@@ -126,12 +129,14 @@ def extract_text_by_language(doc, language_pages):
         # Determine the end page
         # If it's not the last language, the end page is the start page of the next language - 1
         # If it's the last language, the end page is the last page of the document
-        end_page = sorted_languages[i + 1][1] - 1 if i + 1 < len(sorted_languages) else total_pages
+        end_page = sorted_languages[i + 1][1] - 1 if i + \
+            1 < len(sorted_languages) else total_pages
 
         # Extract text from the specified page range
         text = ""
         for page_num in range(start_page, end_page + 1):
-            page_text = doc[page_num - 1].get_text()  # Page numbers are zero-indexed in PyMuPDF
+            # Page numbers are zero-indexed in PyMuPDF
+            page_text = doc[page_num - 1].get_text()
             text += page_text
 
         # Add the extracted text to the dictionary
@@ -155,16 +160,18 @@ def detect_language_of_texts(texts_by_languages):
     return detected_languages
 
 
-def generate_language_report(mismatched_languages, language_message,total_pages):
+def generate_language_report(mismatched_languages, language_message, total_pages):
 
     # 使用字典推导式将每个值转换为大写
-    mismatched_languages = {key: value.upper() for key, value in mismatched_languages.items()}
+    mismatched_languages = {key: value.upper()
+                            for key, value in mismatched_languages.items()}
 
     # 计算每种语言的页码范围
     sorted_languages = sorted(language_message.items(), key=lambda x: x[1])
     language_ranges = {}
     for i, (lang, start_page) in enumerate(sorted_languages):
-        end_page = total_pages if i == len(sorted_languages) - 1 else sorted_languages[i + 1][1] - 1
+        end_page = total_pages if i == len(
+            sorted_languages) - 1 else sorted_languages[i + 1][1] - 1
         language_ranges[lang] = [start_page, end_page]
 
     # 生成不匹配语言的详细信息
@@ -204,7 +211,6 @@ def find_mismatched_languages(doc, detected_languages, page_number):
         if key.lower() != value.lower():
             mismatched[key] = value
 
-
     return mismatched
 
 
@@ -215,18 +221,20 @@ def check_language(file):
     total_pages = doc.page_count
     language_pages = get_directory(doc)
     language_page = language_pages[0][0]
-    language_message =language_pages[1]
+    language_message = language_pages[1]
     texts_by_languages = extract_text_by_language(doc, language_pages[1])
     detected_languages = detect_language_of_texts(texts_by_languages)
 
-    mismatched_languages = find_mismatched_languages(doc, detected_languages, language_pages[0])
+    mismatched_languages = find_mismatched_languages(
+        doc, detected_languages, language_pages[0])
     is_error = False if len(mismatched_languages.keys()) == 0 else True
 
     # Printing the new dictionary with mismatched languages
     print(f"detected_languages: {detected_languages}")
     print(f"mismatched_languages: {mismatched_languages}")
 
-    result = generate_language_report(mismatched_languages, language_message,total_pages)
+    result = generate_language_report(
+        mismatched_languages, language_message, total_pages)
     print(f"result:{result}")
 
     doc.close()
@@ -234,5 +242,3 @@ def check_language(file):
 
     return is_error, language_page, result
 # check_language('1.pdf')
-
-

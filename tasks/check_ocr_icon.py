@@ -5,17 +5,21 @@ import numpy as np
 
 BASE64_PNG = 'data:image/png;base64,'
 
+
 def detect_and_filter_contours(img1, area_threshold=200):
-    gray=cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     # Apply Gaussian blur
     blurred_image = cv2.GaussianBlur(gray, (5, 5), 0)
     # 使用Canny边缘检测
     edges = cv2.Canny(blurred_image, 100, 200)
     # 查找轮廓
-    contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # 过滤轮廓
-    large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > area_threshold]
+    large_contours = [
+        cnt for cnt in contours if cv2.contourArea(cnt) > area_threshold]
     return large_contours
+
 
 def match_and_align_images(img1, img2):
     # # 二值化处理
@@ -35,14 +39,18 @@ def match_and_align_images(img1, img2):
     # 应用比率测试
     good_matches = [m for m, n in matches if m.distance < 0.75 * n.distance]
     # 提取匹配点坐标
-    src_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    src_pts = np.float32(
+        [keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32(
+        [keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
     # 计算单应性矩阵
     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
     # 对齐img1到img2
     h, w = img2.shape[:2]
     img1_aligned = cv2.warpPerspective(img1, M, (w, h))
     return img1_aligned
+
+
 def pyr_down_image(image, levels=1):
     """
     使用高斯金字塔对图像进行下采样
@@ -54,6 +62,7 @@ def pyr_down_image(image, levels=1):
     for _ in range(levels):
         img_pyr = cv2.pyrDown(img_pyr)
     return img_pyr
+
 
 def compare_contours(img1, img2):
     # # 转换为灰度图
@@ -82,8 +91,7 @@ def compare_contours(img1, img2):
 #             similarity = cv2.matchShapes(contour1, contour2, 1, 0.0)
 
 
-    
-def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, similarity_threshold=5,iou_threshold=0.1):
+def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, similarity_threshold=5, iou_threshold=0.1):
     # 假设所有轮廓最开始都是未匹配的
     matched1 = [False] * len(large_contours1)
     matched2 = [False] * len(large_contours2)
@@ -116,13 +124,16 @@ def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, s
     # 高亮显示未匹配的轮廓
     for i, contour in enumerate(large_contours1):
         if not matched1[i]:  # 如果img1中的轮廓未匹配
-            cv2.drawContours(img1, [contour], -1, (0, 0, 255), 3)  # 在img1上用红色高亮显示
+            cv2.drawContours(img1, [contour], -1,
+                             (0, 0, 255), 3)  # 在img1上用红色高亮显示
 
     for j, contour in enumerate(large_contours2):
         if not matched2[j]:  # 如果img2中的轮廓未匹配
-            cv2.drawContours(img2, [contour], -1, (255, 0, 0), 3)  # 在img2上用蓝色高亮显示
+            cv2.drawContours(img2, [contour], -1,
+                             (255, 0, 0), 3)  # 在img2上用蓝色高亮显示
 
     return img1, img2
+
 
 def check_ocr_icon(img1, img2):
     nparr_1 = np.frombuffer(img1, np.uint8)
@@ -133,13 +144,12 @@ def check_ocr_icon(img1, img2):
     img1_aligned = match_and_align_images(img1, img2)
     large_contours1 = detect_and_filter_contours(img1_aligned)
     large_contours2 = detect_and_filter_contours(img2)
-    img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(img1_aligned, img2, large_contours1, large_contours2)
+    img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(
+        img1_aligned, img2, large_contours1, large_contours2)
 
     _, image_buffer = cv2.imencode('.png', img1_aligned_highlighted)
     image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
     _, image_buffer = cv2.imencode('.png', img2_highlighted)
     image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
-    
+
     return f"{BASE64_PNG}{image_base64_1}", f"{BASE64_PNG}{image_base64_2}"
-
-

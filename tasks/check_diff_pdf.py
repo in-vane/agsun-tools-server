@@ -61,7 +61,8 @@ def mark_image_with_green_border(image_path, output_folder):
     """在图片周围画一个绿色的大框，并保存到指定的文件夹"""
     img = cv2.imread(image_path)
     height, width = img.shape[:2]
-    cv2.rectangle(img, (0, 0), (width, height), (0, 255, 0), thickness=20)  # 使用绿色画一个大框
+    cv2.rectangle(img, (0, 0), (width, height),
+                  (0, 255, 0), thickness=20)  # 使用绿色画一个大框
     output_path = os.path.join(output_folder, os.path.basename(image_path))
     cv2.imwrite(output_path, img)
 
@@ -80,7 +81,8 @@ def find_and_mark_differences(image1_path, image2_path, output_folder):
     # 计算差异并找到差异区域
     diff = cv2.absdiff(gray1, gray2)
     _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if contours:  # 如果存在差异
         exists_difference = True
@@ -115,7 +117,8 @@ def compare(pdf1_path, pdf2_path):
     mismatch_list = []  # 用于记录不匹配的页号
 
     # 获取image1文件夹中的所有图片文件名
-    images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(os.path.join(PDF1_IMAGE, f))]
+    images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(
+        os.path.join(PDF1_IMAGE, f))]
 
     # 对每一对同名图片执行对比和标注操作
     for img_name in images:
@@ -130,7 +133,8 @@ def compare(pdf1_path, pdf2_path):
             if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
                 mismatch_list.append(page_number)
         else:
-            print(f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
+            print(
+                f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
             mark_image_with_green_border(image1_path, RESULT_IMAGE)
             mismatch_list.append(page_number)
 
