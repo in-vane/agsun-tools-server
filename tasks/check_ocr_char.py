@@ -75,17 +75,6 @@ class ocrImg2imgDifference(object):
                 result = cv2.warpPerspective(img1, M, (shape1, shape0))
                 before_gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
                 after_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-<<<<<<< HEAD
-=======
-
-                _, buffer_before = cv2.imencode('.jpg', before_gray)
-                _, buffer_after = cv2.imencode('.jpg', after_gray)
-                img_base64_before = base64.b64encode(
-                    buffer_before).decode('utf-8')
-                img_base64_after = base64.b64encode(
-                    buffer_after).decode('utf-8')
-
->>>>>>> abe0bfe31bbc64ee25ab2f1675745cbdb7fe5fdc
                 custom_data = {
                     "error": True,
                     "result": [before_gray, after_gray],
@@ -356,13 +345,8 @@ def check_ocr_char(filename, img_base64, page_num):
     image_data_1 = base64.b64decode(img_base64.split(',')[-1])
     nparr_1 = np.frombuffer(image_data_1, np.uint8)
     img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-<<<<<<< HEAD
     img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
-=======
-    if img1 is None or img1.size == 0:
-        print("Decoded image is empty or invalid.")
-        return
->>>>>>> abe0bfe31bbc64ee25ab2f1675745cbdb7fe5fdc
+
     # 打开PDF文件
     doc = fitz.open(pdf_path)
     page = doc.load_page(page_num-1)

@@ -1052,7 +1052,7 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping):
 
 
 def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, page_number_table=7):
-    pdf_path = f"./python/assets/pdf/{filename}"
+    pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
     image, bbox = get_image(pdf_path, page_number_explore, crop_rect)
     image1 = image.copy()

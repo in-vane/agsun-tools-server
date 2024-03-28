@@ -3,17 +3,20 @@ import cv2
 import fitz
 import numpy as np
 
-<<<<<<< HEAD
+
 DPI=300
 BASE64_JPG = 'data:image/jpeg;base64,'
-=======
-
-BASE64_PNG = 'data:image/png;base64,'
 
 
->>>>>>> abe0bfe31bbc64ee25ab2f1675745cbdb7fe5fdc
+
 def detect_and_filter_contours(img1, area_threshold=200):
-    gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    # 假设 img1 是你要处理的图像
+    if len(img1.shape) == 2 or img1.shape[2] == 1:
+        # img1 是灰度图像，不需要转换
+        gray = img1
+    else:
+        # img1 是彩色图像，需要转换
+        gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     # Apply Gaussian blur
     blurred_image = cv2.GaussianBlur(gray, (5, 5), 0)
     # 使用Canny边缘检测
@@ -46,7 +49,6 @@ def match_and_align_images(img1, img2):
     matches = bf.knnMatch(descriptors1, descriptors2, k=2)
     # 应用比率测试
     good_matches = [m for m, n in matches if m.distance < 0.75 * n.distance]
-<<<<<<< HEAD
     if len(good_matches) >= 4:
         pts_src = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
         pts_dst = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -72,20 +74,6 @@ def match_and_align_images(img1, img2):
         }
 
     return custom_data
-=======
-    # 提取匹配点坐标
-    src_pts = np.float32(
-        [keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    dst_pts = np.float32(
-        [keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-    # 计算单应性矩阵
-    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-    # 对齐img1到img2
-    h, w = img2.shape[:2]
-    img1_aligned = cv2.warpPerspective(img1, M, (w, h))
-    return img1_aligned
-
->>>>>>> abe0bfe31bbc64ee25ab2f1675745cbdb7fe5fdc
 
 def pyr_down_image(image, levels=1):
     """
@@ -170,9 +158,8 @@ def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, s
 
     return img1, img2
 
-<<<<<<< HEAD
 def check_ocr_icon(filename,img1, page_num):
-    pdf_path = f"./python/assets/pdf/{filename}"
+    pdf_path = f"./assets/pdf/{filename}"
     # 解码 base64 字符串为图像数据
     image_data_1 = base64.b64decode(img1.split(',')[-1])
     nparr_1 = np.frombuffer(image_data_1, np.uint8)
@@ -189,7 +176,9 @@ def check_ocr_icon(filename,img1, page_num):
     if custom_data['error']:
         large_contours1 = detect_and_filter_contours(custom_data['result'][0])
         large_contours2 = detect_and_filter_contours(custom_data['result'][1])
-        img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(custom_data['result'][0], custom_data['result'][1], large_contours1, large_contours2)
+        img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(cv2.cvtColor(custom_data['result'][0], cv2.COLOR_GRAY2BGR), cv2.cvtColor(custom_data['result'][1], cv2.COLOR_GRAY2BGR), large_contours1, large_contours2)
+        cv2.imwrite('D:/PycharmProjects/part_count/material/result1.png',img1_aligned_highlighted)
+        cv2.imwrite('D:/PycharmProjects/part_count/material/result2.png',img2_highlighted)
         _, image_buffer = cv2.imencode('.jpeg', img1_aligned_highlighted)
         image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
         _, image_buffer = cv2.imencode('.jpeg', img2_highlighted)
@@ -201,24 +190,4 @@ def check_ocr_icon(filename,img1, page_num):
         return custom_data
 
 
-=======
 
-def check_ocr_icon(img1, img2):
-    nparr_1 = np.frombuffer(img1, np.uint8)
-    img1 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-    nparr_1 = np.frombuffer(img2, np.uint8)
-    img2 = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-
-    img1_aligned = match_and_align_images(img1, img2)
-    large_contours1 = detect_and_filter_contours(img1_aligned)
-    large_contours2 = detect_and_filter_contours(img2)
-    img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(
-        img1_aligned, img2, large_contours1, large_contours2)
-
-    _, image_buffer = cv2.imencode('.png', img1_aligned_highlighted)
-    image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
-    _, image_buffer = cv2.imencode('.png', img2_highlighted)
-    image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
-
-    return f"{BASE64_PNG}{image_base64_1}", f"{BASE64_PNG}{image_base64_2}"
->>>>>>> abe0bfe31bbc64ee25ab2f1675745cbdb7fe5fdc
