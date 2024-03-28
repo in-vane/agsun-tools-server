@@ -17,10 +17,12 @@ ZOOM = DPI / 72
 PDF_PATH = './assets/pdf/temp.pdf'
 
 CSV_PATH = './assets/csv/'
-CSV_NAME="exact_table.csv"
+CSV_NAME = "exact_table.csv"
 SUCCESS = 0
 ERROR_NO_EXPLORED_VIEW = 1
 BASE64_PNG = 'data:image/png;base64,'
+
+
 def process_table(table):
     # 如果列名中含有'.1'，则移除
     corrected_columns = [
@@ -61,6 +63,8 @@ def read_and_filter_tables(page_number):
         table for table in processed_tables if is_desired_table(table)]
 
     return filtered_tables
+
+
 def add_annotation_with_fitz(doc, annotations):
     for page_number, texts in annotations.items():
         # 获取页面对象
@@ -208,6 +212,8 @@ def get_error_pages_as_base64(error_pages, doc):
     return base64_images
 
 # 定义一个函数来统一边框格式为[x_min, y_min, x_max, y_max]
+
+
 def unify_bbox_format(bbox):
     x_min = min([point[0] for point in bbox])
     y_min = min([point[1] for point in bbox])
@@ -264,8 +270,6 @@ def get_contour_image(image, min_area=200, max_aspect_ratio=4, min_fill_ratio=0.
 
     # or return [largest_contour] if you want to only return the largest one
     return filtered_contours
-
-
 
 
 def save_modified_page_only(doc, page_number, rect):
@@ -355,8 +359,6 @@ def find_closest_line_to_bbox(bbox, lines):
                 closest_line = line_endpoints
 
     return closest_line
-
-
 
 
 def find_farthest_point_from_bbox(bbox, line):
@@ -452,7 +454,6 @@ def find_and_count_matches(image, filtered_contours, original_contour, threshold
     return valid_matches, matched_contours_list
 
 
-
 # 定义一个函数来检查序列是否递增
 def is_increasing(sequence):
     return all(x < y for x, y in zip(sequence, sequence[1:]))
@@ -461,9 +462,6 @@ def is_increasing(sequence):
 # 定义一个函数来检查字符串是否包含数字
 def contains_number(s):
     return any(char.isdigit() for char in s)
-
-
-
 
 
 def is_point_inside_bbox(point, bbox, margin=0):
@@ -477,9 +475,6 @@ def calculate_center(bbox):
     center_x = (x_min + x_max) / 2
     center_y = (y_min + y_max) / 2
     return (center_x, center_y)
-
-
-
 
 
 def get_image(pdf, page_number, crop_rect):
@@ -522,15 +517,6 @@ def get_image(pdf, page_number, crop_rect):
     return image, number_bboxes
 
 
-
-
-
-
-
-
-
-
-
 def get_results(image, number_bboxes):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # 应用高斯模糊和Canny边缘检测
@@ -568,10 +554,6 @@ def get_results(image, number_bboxes):
             # 在字典中存储匹配到的轮廓
             digit_to_part_mapping[digit]['matched_contours'] = matched_contours
     return digit_to_part_mapping
-
-
-
-
 
 
 def revalidate_matches(image, failed_matches, digit_to_part_mapping, threshold=1):
@@ -705,6 +687,8 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping):
         return 'No matching tables found', []
     return 'Success', results
 # 主函数
+
+
 def compare_table(pdf, page_number):
     # 检查目录是否存在
     if not os.path.exists(CSV_PATH):
@@ -747,13 +731,15 @@ def compare_table(pdf, page_number):
 
         return images_base64, error_pages
     else:
-        return [],[]
+        return [], []
+
+
 def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, page_number_table=7):
     pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
     pdf = fitz.open(pdf_path)  # 打开PDF文件
     image, bbox = get_image(pdf, page_number_explore, crop_rect)
-    images_base64, error_pages=compare_table(pdf, page_number_table)
+    images_base64, error_pages = compare_table(pdf, page_number_table)
     pdf.close()
     digit_to_part_mapping = get_results(image, bbox)
     status_message, match_results = form_extraction_and_compare(
@@ -779,4 +765,5 @@ def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, p
                     f"Key: {key}, Matched: {matched}, Found: {found}, Expected in Table: {expected}")
     else:
         print(status_message)  # 如果状态消息不是'Success'，则打印出状态消息
-    return status_message, results,images_base64,error_pages
+
+    return status_message, results, images_base64, error_pages

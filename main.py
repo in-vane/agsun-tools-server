@@ -53,7 +53,7 @@ class MainHandler(tornado.web.RequestHandler):
         for field_name, file in self.request.files.items():
             files.append(file[0])
         return files
-    
+
     def save_results(self):
         pass
 
@@ -116,13 +116,19 @@ class PartCountHandler(MainHandler):
         print(pdf_rect)
         page_number_explore = int(self.get_argument('pageNumberExplore'))
         page_number_table = int(self.get_argument('pageNumberTable'))
-        error, result,images_base64,error_pages = tasks.check_part_count(
+        error, result, images_base64, error_pages = tasks.check_part_count(
             filename, pdf_rect, page_number_explore, page_number_table)
-        print(error, result,images_base64,error_pages)
+        print(error, result, images_base64, error_pages)
+
         custom_data = {
             "error": error,
-            "result": result
+            "result": result,
+            "table": {
+                "error_pages": images_base64,
+                "error_pages_no": error_pages,
+            }
         }
+
         self.write(custom_data)
 
 
@@ -169,26 +175,18 @@ class ScrewHandler(MainHandler):
 
 class LanguageHandler(MainHandler):
     def post(self):
-        # 假设文件通过表单上传，字段名为'file'
-        file_body = self.request.files['file'][0]['body']  # 获取上传文件的内容
-        result = tasks.check_language(file_body)  # 调用check_language函数处理文件
+        files = self.get_files()
+        file = files[0]
+        body = file["body"]
+        code, data, msg = tasks.check_language(body)
 
-        # 根据check_language的返回结果构造响应数据
-        if result['code'] == 1:
-            custom_data = {
-                "error": False,
-                "content_page": result['data'].get('language_page', None),
-                "result": result['data'].get('lauauage', [])
-            }
-        else:
-            custom_data = {
-                "error": True,
-                "message": result['msg'],
-                "content_page": None,
-                "result": None
-            }
+        custom_data = {
+            'code': code,
+            'data': data,
+            'msg': msg
+        }
 
-        self.write(custom_data)  # 将构造的数据作为响应返回
+        self.write(custom_data)
 
 
 class OcrHandler(MainHandler):
