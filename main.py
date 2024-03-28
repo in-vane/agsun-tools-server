@@ -17,18 +17,18 @@ BASE64_JPG = 'data:image/jpeg;base64,'
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
-            (r'/', MainHandler),
-            (r'/ce', CEHandler),
-            (r'/size', SizeHandler),
-            (r'/explore', ExploreHandler),
-            (r'/partCount', PartCountHandler),
-            (r'/pageNumber', PageNumberHandler),
-            (r'/table', TableHandler),
-            (r'/screw', ScrewHandler),
-            (r'/language', LanguageHandler),
-            (r'/ocr_char', OcrHandler),
-            (r'/ocr_icon', OcrHandler),
-            (r"/api", ApiHandler),
+            (r'/api', MainHandler),
+            (r'/api/ce', CEHandler),
+            (r'/api/size', SizeHandler),
+            (r'/api/explore', ExploreHandler),
+            (r'/api/partCount', PartCountHandler),
+            (r'/api/pageNumber', PageNumberHandler),
+            (r'/api/table', TableHandler),
+            (r'/api/screw', ScrewHandler),
+            (r'/api/language', LanguageHandler),
+            (r'/api/ocr_char', OcrHandler),
+            (r'/api/ocr_icon', OcrHandler),
+            (r"/websocket", WebSocketHandler),
         ]
         settings = {
             'debug': True
@@ -53,6 +53,9 @@ class MainHandler(tornado.web.RequestHandler):
         for field_name, file in self.request.files.items():
             files.append(file[0])
         return files
+    
+    def save_results(self):
+        pass
 
 
 class CEHandler(MainHandler):
@@ -199,7 +202,7 @@ class OcrHandler(MainHandler):
         self.write(custom_data)
 
 
-class ApiHandler(tornado.websocket.WebSocketHandler):
+class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.files = {}
