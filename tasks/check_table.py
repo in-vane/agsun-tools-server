@@ -13,8 +13,9 @@ from tabula import read_pdf
 
 
 PDF_PATH = './assets/pdf/temp.pdf'
-CSV_PATH = './assets/csv/exact_table.csv'
 
+CSV_PATH = './assets/csv/'
+CSV_NAME="exact_table.csv"
 SUCCESS = 0
 ERROR_NO_EXPLORED_VIEW = 1
 BASE64_PNG = 'data:image/png;base64,'
@@ -174,7 +175,7 @@ def convert_values_to_int(d):
 # 比较表格检查错误
 def compare_tables_with_csv(table):
     # 读取CSV文件并创建字典
-    csv_table = pd.read_csv(CSV_PATH)
+    csv_table = pd.read_csv(CSV_PATH+CSV_NAME)
     csv_dict = pd.Series(
         csv_table.iloc[:, 2].values, index=csv_table.iloc[:, 0]).to_dict()
     csv_dict.update(
@@ -286,6 +287,14 @@ def get_error_pages_as_base64(error_pages, doc):
 
 # 主函数
 def compare_table(file, page_number):
+    # 检查目录是否存在
+    if not os.path.exists(CSV_PATH):
+        # 目录不存在，创建目录
+        os.makedirs(CSV_PATH)
+        print(f"目录 {CSV_PATH} 被创建")
+    else:
+        # 目录已存在
+        print(f"目录 {CSV_PATH} 已存在")
     # 打开PDF文件
     # doc =fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
@@ -306,7 +315,7 @@ def compare_table(file, page_number):
         print(f"Number of columns: {table.shape[1]}")
         table_character.append(table.shape[0])
         table_character.append(table.shape[1])
-        table.to_csv(CSV_PATH, index=False)
+        table.to_csv(CSV_PATH+CSV_NAME, index=False)
 
     error_pages = find_matching_table(doc, page_number, table_character)
     images_base64 = get_error_pages_as_base64(error_pages, doc)
@@ -318,7 +327,7 @@ def compare_table(file, page_number):
 
     doc.close()
     os.remove(PDF_PATH)
-    os.remove(CSV_PATH)
+    os.remove(CSV_PATH+CSV_NAME)
     # shutil.rmtree(IMAGE_PATH)
 
     return images_base64, error_pages
