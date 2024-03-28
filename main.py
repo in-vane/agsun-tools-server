@@ -168,16 +168,26 @@ class ScrewHandler(MainHandler):
 
 class LanguageHandler(MainHandler):
     def post(self):
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        error, content_page, result = tasks.check_language(body)
-        custom_data = {
-            "error": error,
-            "content_page": content_page,
-            "result": result
-        }
-        self.write(custom_data)
+        # 假设文件通过表单上传，字段名为'file'
+        file_body = self.request.files['file'][0]['body']  # 获取上传文件的内容
+        result = tasks.check_language(file_body)  # 调用check_language函数处理文件
+
+        # 根据check_language的返回结果构造响应数据
+        if result['code'] == 1:
+            custom_data = {
+                "error": False,
+                "content_page": result['data'].get('language_page', None),
+                "result": result['data'].get('lauauage', [])
+            }
+        else:
+            custom_data = {
+                "error": True,
+                "message": result['msg'],
+                "content_page": None,
+                "result": None
+            }
+
+        self.write(custom_data)  # 将构造的数据作为响应返回
 
 
 class OcrHandler(MainHandler):
