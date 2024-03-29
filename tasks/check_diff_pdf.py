@@ -1,18 +1,14 @@
 import os
-import fitz  # PyMuPDF
+import fitz
 import cv2
 import base64
 from io import BytesIO
 from skimage.metrics import structural_similarity as compare_ssim
 
 
-# 新版pdf转化为图片文件夹
-PDF1_IMAGE = './assets/image1'
-
-# 旧版pdf转化为图片文件夹
-PDF2_IMAGE = './assets/image2'
-# 对比结果图片文件夹
-RESULT_IMAGE = './assets/image3'
+PDF1_IMAGE = './assets/image1'  # 新版pdf转化为图片文件夹
+PDF2_IMAGE = './assets/image2'  # 旧版pdf转化为图片文件夹
+RESULT_IMAGE = './assets/image3'  # 对比结果图片文件夹
 similarity_list = []
 
 # pdf转化为图片，放入output_folder文件夹下
@@ -188,10 +184,9 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
 
     return adjusted_sequences, refined_mismatch_list
 
+
 # 主函数
-
-
-def compare(pdf1_path, pdf2_path):
+def check_diff_pdf(pdf1_path, pdf2_path):
     pdf1_path = fitz.open(stream=BytesIO(pdf1_path))
     pdf2_path = fitz.open(stream=BytesIO(pdf2_path))
     # 转换PDF为图片并保存

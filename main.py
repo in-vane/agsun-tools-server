@@ -18,14 +18,15 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r'/api', MainHandler),
-            (r'/api/ce', CEHandler),
-            (r'/api/size', SizeHandler),
             (r'/api/explore', ExploreHandler),
+            (r'/api/fullPage', FullPageHandler),
             (r'/api/partCount', PartCountHandler),
             (r'/api/pageNumber', PageNumberHandler),
             (r'/api/table', TableHandler),
             (r'/api/screw', ScrewHandler),
             (r'/api/language', LanguageHandler),
+            (r'/api/ce', CEHandler),
+            (r'/api/size', SizeHandler),
             (r'/api/ocr_char', OcrHandler),
             (r'/api/ocr_icon', OcrHandler),
             (r"/websocket", WebSocketHandler),
@@ -58,46 +59,32 @@ class MainHandler(tornado.web.RequestHandler):
         pass
 
 
-class CEHandler(MainHandler):
-    def post(self):
-        mode = int(self.get_argument('mode'))
-        files = self.get_files()
-        file_1, file_2 = files[0], files[1]
-        file_1_type, file_1_body = file_1["content_type"], file_1["body"]
-        file_2_body = file_2["body"]
-        if file_1_type == CONTENT_TYPE_PDF:
-            file_pdf, file_excel = file_1_body, file_2_body
-        else:
-            file_pdf, file_excel = file_2_body, file_1_body
-        img_base64 = ''
-        if mode == 0:
-            img_base64 = tasks.check_CE_mode_normal(file_excel, file_pdf)
-        custom_data = {
-            "result": f"{BASE64_PNG}{img_base64}"
-        }
-        self.write(custom_data)
-
-
-class SizeHandler(MainHandler):
-    def post(self):
-        files = self.get_files()
-        file = files[0]
-        filename, content_type, body = file["filename"], file["content_type"], file["body"]
-        error, error_msg, img_base64 = tasks.compare_size(body)
-        custom_data = {
-            "error": error,
-            "error_msg": error_msg,
-            "result": f"{BASE64_PNG}{img_base64}",
-        }
-        self.write(custom_data)
-
-
 class ExploreHandler(MainHandler):
     def post(self):
         img_1 = self.get_argument('img_1')
         img_2 = self.get_argument('img_2')
         img_base64 = tasks.compare_explore(img_1, img_2)
         custom_data = {"result": f"{BASE64_PNG}{img_base64}"}
+        self.write(custom_data)
+
+
+class FullPageHandler(MainHandler):
+    def post(self):
+        files = self.get_files()
+        file_1, file_2 = files
+        body_1, body_2 = file_1["body"], file_2["body"]
+        pages, imgs_base64, error_msg = tasks.check_diff_pdf(body_1, body_2)
+
+        custom_data = {
+            "code": 0,
+            "msg": "",
+            "data": {
+                'pages': pages,
+                'imgs_base64': imgs_base64,
+                'error_msg': error_msg
+            }
+        }
+        
         self.write(custom_data)
 
 
@@ -186,6 +173,40 @@ class LanguageHandler(MainHandler):
             'msg': msg
         }
 
+        self.write(custom_data)
+
+
+class CEHandler(MainHandler):
+    def post(self):
+        mode = int(self.get_argument('mode'))
+        files = self.get_files()
+        file_1, file_2 = files[0], files[1]
+        file_1_type, file_1_body = file_1["content_type"], file_1["body"]
+        file_2_body = file_2["body"]
+        if file_1_type == CONTENT_TYPE_PDF:
+            file_pdf, file_excel = file_1_body, file_2_body
+        else:
+            file_pdf, file_excel = file_2_body, file_1_body
+        img_base64 = ''
+        if mode == 0:
+            img_base64 = tasks.check_CE_mode_normal(file_excel, file_pdf)
+        custom_data = {
+            "result": f"{BASE64_PNG}{img_base64}"
+        }
+        self.write(custom_data)
+
+
+class SizeHandler(MainHandler):
+    def post(self):
+        files = self.get_files()
+        file = files[0]
+        filename, content_type, body = file["filename"], file["content_type"], file["body"]
+        error, error_msg, img_base64 = tasks.compare_size(body)
+        custom_data = {
+            "error": error,
+            "error_msg": error_msg,
+            "result": f"{BASE64_PNG}{img_base64}",
+        }
         self.write(custom_data)
 
 
