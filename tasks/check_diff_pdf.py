@@ -6,6 +6,7 @@ from io import BytesIO
 from skimage.metrics import structural_similarity as compare_ssim
 
 
+BASE64_PNG = 'data:image/png;base64,'
 PDF1_IMAGE = './assets/image1'  # 新版pdf转化为图片文件夹
 PDF2_IMAGE = './assets/image2'  # 旧版pdf转化为图片文件夹
 RESULT_IMAGE = './assets/image3'  # 对比结果图片文件夹
@@ -53,7 +54,7 @@ def images_to_base64_list(image_folder, page_numbers):
             image_bytes = image_file.read()
             # 编码为Base64字符串，并添加到列表中
             base64_string = base64.b64encode(image_bytes).decode('utf-8')
-            base64_strings.append(base64_string)
+            base64_strings.append(f"{BASE64_PNG}{base64_string}")
     return base64_strings
 # 把不同的地方绿色框标注起来
 
@@ -187,13 +188,13 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
 
 # 主函数
 def check_diff_pdf(pdf1_path, pdf2_path):
-    pdf1_path = fitz.open(stream=BytesIO(pdf1_path))
-    pdf2_path = fitz.open(stream=BytesIO(pdf2_path))
+    pdf_1 = fitz.open(stream=BytesIO(pdf1_path))
+    pdf_2 = fitz.open(stream=BytesIO(pdf2_path))
     # 转换PDF为图片并保存
     # pdf1_path = fitz.open(pdf1_path)
     # pdf2_path = fitz.open(pdf2_path)
-    pdf_to_images(pdf1_path, PDF1_IMAGE)
-    pdf_to_images(pdf2_path, PDF2_IMAGE)
+    pdf_to_images(pdf_1, PDF1_IMAGE)
+    pdf_to_images(pdf_2, PDF2_IMAGE)
     print("PDF转换并保存图片完成。")
 
     if not os.path.exists(RESULT_IMAGE):
@@ -243,7 +244,7 @@ def check_diff_pdf(pdf1_path, pdf2_path):
     base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
     print(len(mismatch_list))
     if not adjusted_sequences:
-        return ""
+        return mismatch_list,  base64_strings, ''
     else:
         summaries = []
         for start, end in adjusted_sequences:
@@ -253,6 +254,10 @@ def check_diff_pdf(pdf1_path, pdf2_path):
     print(continuous)
     dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
+
+    pdf_1.close()
+    pdf_2.close()
+
     return mismatch_list, base64_strings, continuous
 
 
