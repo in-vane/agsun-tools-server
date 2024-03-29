@@ -6,7 +6,6 @@ from io import BytesIO
 from skimage.metrics import structural_similarity as compare_ssim
 
 
-
 # 新版pdf转化为图片文件夹
 PDF1_IMAGE = './assets/image1'
 
@@ -17,6 +16,8 @@ RESULT_IMAGE = './assets/image3'
 similarity_list = []
 
 # pdf转化为图片，放入output_folder文件夹下
+
+
 def pdf_to_images(doc, output_folder):
     """使用fitz（PyMuPDF）将PDF转换为图片，并保存到指定文件夹"""
     if not os.path.exists(output_folder):
@@ -27,6 +28,8 @@ def pdf_to_images(doc, output_folder):
         img_path = os.path.join(output_folder, f"page_{page_num}.png")
         pix.save(img_path)  # 直接使用Pixmap对象的save方法保存图片
 # 清空image1、image2和image3文件夹
+
+
 def clear_directory_contents(dir_paths):
     """清空指定目录下的所有文件（不删除子目录中的内容）"""
     for dir_path in dir_paths:
@@ -42,6 +45,8 @@ def clear_directory_contents(dir_paths):
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
 # 根据列表获取image3下的图片，再转化为base64
+
+
 def images_to_base64_list(image_folder, page_numbers):
     """根据页号列表，将对应的图片转换为Base64字符串列表"""
     base64_strings = []
@@ -55,14 +60,19 @@ def images_to_base64_list(image_folder, page_numbers):
             base64_strings.append(base64_string)
     return base64_strings
 # 把不同的地方绿色框标注起来
+
+
 def mark_image_with_green_border(image_path, output_folder):
     """在图片周围画一个绿色的大框，并保存到指定的文件夹"""
     img = cv2.imread(image_path)
     height, width = img.shape[:2]
-    cv2.rectangle(img, (0, 0), (width, height), (0, 255, 0), thickness=20)  # 使用绿色画一个大框
+    cv2.rectangle(img, (0, 0), (width, height),
+                  (0, 255, 0), thickness=20)  # 使用绿色画一个大框
     output_path = os.path.join(output_folder, os.path.basename(image_path))
     cv2.imwrite(output_path, img)
 # 找两张图片不同的地方
+
+
 def find_and_mark_differences(image1_path, image2_path, output_folder):
     global similarity_list
     exists_difference = False  # 确保在引用之前已经定义并初始化
@@ -78,7 +88,8 @@ def find_and_mark_differences(image1_path, image2_path, output_folder):
     ssim_index, _ = compare_ssim(gray1, gray2, full=True)
 
     # 从image1_path中提取页码
-    page_number = int(os.path.basename(image1_path).split('_')[1].split('.')[0]) - 1  # 假设页码从1开始
+    page_number = int(os.path.basename(image1_path).split('_')[
+                      1].split('.')[0]) - 1  # 假设页码从1开始
 
     # 确保列表长度足够
     while len(similarity_list) <= page_number:
@@ -92,7 +103,8 @@ def find_and_mark_differences(image1_path, image2_path, output_folder):
     # 计算差异并找到差异区域
     diff = cv2.absdiff(gray1, gray2)
     _, thresh = cv2.threshold(diff, 200, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if contours:  # 如果存在差异
         exists_difference = True
@@ -110,6 +122,8 @@ def find_and_mark_differences(image1_path, image2_path, output_folder):
     cv2.imwrite(output_path, color_img2)
 
     return exists_difference
+
+
 def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, threshold=0.8):
     start_index = None  # 记录连续区间开始的索引
     continuous_sequences = []
@@ -125,7 +139,8 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
         else:
             # 当遇到非连续页码或者达到列表末尾时，检查之前的连续区间
             if start_index is not None and i - start_index >= 2:  # 确认连续区间长度超过3
-                continuous_sequences.append((mismatch_list[start_index], mismatch_list[i]))
+                continuous_sequences.append(
+                    (mismatch_list[start_index], mismatch_list[i]))
             start_index = None  # 重置连续区间的开始索引
     # 移除之前添加的哨兵元素
     mismatch_list.pop()
@@ -149,7 +164,8 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
                 current_sequence_start = i + 1
         # 检查并添加最后一个序列
         if current_sequence_start <= end_index:
-            adjusted_sequences.append((current_sequence_start + 1, end_index + 1))
+            adjusted_sequences.append(
+                (current_sequence_start + 1, end_index + 1))
         # 初始化一个新的mismatch_list
     # 初始化新的mismatch_list
     refined_mismatch_list = []
@@ -164,7 +180,8 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
     # 遍历mismatch_list，只保留不在adjusted_sequences指定范围内的页码
     for page in mismatch_list:
         # 检查当前页码是否在任一adjusted_sequences的范围内
-        in_range = any(start <= page <= end for start, end in adjusted_sequences)
+        in_range = any(start <= page <= end for start,
+                       end in adjusted_sequences)
         # 如果不在范围内，或者是adjusted_sequences的起始页码，则保留
         if not in_range or page in pages_to_keep:
             refined_mismatch_list.append(page)
@@ -172,6 +189,8 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
     return adjusted_sequences, refined_mismatch_list
 
 # 主函数
+
+
 def compare(pdf1_path, pdf2_path):
     pdf1_path = fitz.open(stream=BytesIO(pdf1_path))
     pdf2_path = fitz.open(stream=BytesIO(pdf2_path))
@@ -188,7 +207,8 @@ def compare(pdf1_path, pdf2_path):
     mismatch_list = []  # 用于记录不匹配的页号
 
     # 获取image1文件夹中的所有图片文件名
-    images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(os.path.join(PDF1_IMAGE, f))]
+    images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(
+        os.path.join(PDF1_IMAGE, f))]
 
     # 对每一对同名图片执行对比和标注操作
     for img_name in images:
@@ -203,7 +223,8 @@ def compare(pdf1_path, pdf2_path):
             if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
                 mismatch_list.append(page_number)
         else:
-            print(f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
+            print(
+                f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
            # 假设页码从1开始
             # 确保列表长度足够
             while len(similarity_list) <= page_number:
@@ -213,16 +234,15 @@ def compare(pdf1_path, pdf2_path):
             mark_image_with_green_border(image1_path, RESULT_IMAGE)
             mismatch_list.append(page_number)
 
-
     print("Mismatched pages:", mismatch_list)
     print("Specified directories have been cleared.")
     # 对mismatch_list进行排序
     mismatch_list = sorted(mismatch_list)
     print(mismatch_list)
 
-
     print(len(similarity_list))
-    adjusted_sequences, mismatch_list = adjust_sequences_based_on_similarity(mismatch_list, similarity_list)
+    adjusted_sequences, mismatch_list = adjust_sequences_based_on_similarity(
+        mismatch_list, similarity_list)
     print(f"adjusted_sequences={adjusted_sequences}")
     print(f"mismathch_list={mismatch_list}")
     base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
@@ -236,7 +256,7 @@ def compare(pdf1_path, pdf2_path):
             summaries.append(summary)
         continuous = " ".join(summaries)
     print(continuous)
-    dir_paths = [PDF1_IMAGE, PDF2_IMAGE,RESULT_IMAGE]
+    dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
     return mismatch_list, base64_strings, continuous
 
@@ -245,4 +265,3 @@ def compare(pdf1_path, pdf2_path):
 # pdf1_path = 'pdf/1.pdf'  # 请根据实际情况修改路径
 # pdf2_path = 'pdf/2.pdf'  # 请根据实际情况修改路径
 # compare(pdf1_path, pdf2_path)
-
