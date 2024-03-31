@@ -3,7 +3,8 @@ from PIL import Image
 import base64
 import fitz
 import re
-
+CODE_SUCCESS = 0
+CODE_ERROR = 1
 
 def annotate_page_number_issues(doc, physical_page_numbers, issues):
     # 检查页码问题
@@ -122,4 +123,4 @@ def check_page_number(file):
 
     doc.close()
 
-    return is_error, issues, error_pages_base64
+    return CODE_SUCCESS, is_error, issues, error_pages_base64, None

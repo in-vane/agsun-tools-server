@@ -12,9 +12,11 @@ from collections import defaultdict
 from ppocronnx.predict_system import TextSystem
 
 
-PDF_PATH = './assets/pdf/temp.pdf'
-IMAGE_PATH = './assets/image'
-CSV_PATH = './assets/csv/selected_table.csv'
+PDF_PATH = 'temp.pdf'
+IMAGE_PATH = 'image'
+CSV_PATH = 'selected_table.csv'
+CODE_SUCCESS = 0
+CODE_ERROR = 1
 
 
 def find_target_table(doc):
@@ -30,6 +32,7 @@ def find_target_table(doc):
             if all(x in df.columns for x in ['A', 'B', 'C']) and 'x' in ''.join(df.iloc[:, 1].astype(str)):
                 df.to_csv(CSV_PATH, index=False)  # 找到符合条件的表格，保存为CSV文件
                 return page_num
+    return None
 
 
 # 处理每个单元格数据
@@ -86,13 +89,7 @@ def read_csv_to_dict():
     return result_dict
 
 
-# 获取总的螺丝表
-def get_total_screw(doc):
-    page_num = find_target_table(doc)
-    manage_csv()
-    result_dict = read_csv_to_dict()
 
-    return result_dict, page_num
 
 
 # 提取步骤图里的螺丝表
@@ -205,11 +202,11 @@ def get_step_screw(doc):
     return letter_counts, letter_count, letter_pageNumber
 
 
-def check_total_and_step(doc):
+def check_total_and_step(doc,result_dict,page_num):
     count_mismatch = {}  # 数量不匹配的情况
     extra_chars = {}  # 多余的字符
     missing_chars = {}  # 缺少的字符
-    result_dict, page_num = get_total_screw(doc)
+
     letter_counts, letter_count, letter_pageNumber = get_step_screw(doc)
 
     # 检查两个字典中的数量是否匹配
@@ -265,9 +262,16 @@ def check_screw(file):
     doc.save(PDF_PATH)
     if not os.path.isdir(IMAGE_PATH):
         os.makedirs(IMAGE_PATH)
-
+    # 获取螺丝包
+    page_num = find_target_table(doc)
+    if page_num is None:
+        msg = '未检测到有螺丝包'
+        print(msg)
+        return CODE_ERROR, {}, msg
+    manage_csv()
+    result_dict = read_csv_to_dict()
     count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
-        doc)
+        doc,result_dict, page_num)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
 
@@ -279,7 +283,10 @@ def check_screw(file):
     os.remove(CSV_PATH)
     os.remove(PDF_PATH)
     shutil.rmtree(IMAGE_PATH)
+    data={
+        'mismatch_dict': mismatch_dict,
+        'match_dict': match_dict
+    }
 
-    result = match_dict.extend(mismatch_dict)
+    return CODE_SUCCESS, data, None
 
-    return result

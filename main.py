@@ -12,6 +12,8 @@ from websocket import FileAssembler
 CONTENT_TYPE_PDF = "application/pdf"
 BASE64_PNG = 'data:image/png;base64,'
 BASE64_JPG = 'data:image/jpeg;base64,'
+CODE_SUCCESS = 0
+CODE_ERROR = 1
 
 
 class Application(tornado.web.Application):
@@ -124,11 +126,16 @@ class PageNumberHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        error, error_page, result = tasks.check_page_number(body)
+        code,error, error_page, result, msg = tasks.check_page_number(body)
         custom_data = {
-            "error": error,
-            "error_page": error_page,
-            "result": result
+            'code': code,
+            'data': {
+                "error": error,
+                "error_page": error_page,
+                "result": result
+            },
+            'msg': msg
+
         }
         self.write(custom_data)
 
@@ -152,10 +159,11 @@ class ScrewHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        result = tasks.check_screw(body)
+        code, data, msg = tasks.check_screw(body)
         custom_data = {
-            "error": True,
-            "result": result
+            'code': code,
+            'data': data,
+            'msg': msg
         }
         self.write(custom_data)
 
