@@ -170,10 +170,11 @@ class ScrewHandler(MainHandler):
 
 class LanguageHandler(MainHandler):
     def post(self):
+        limit = int(self.get_argument('limit'))
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, data, msg = tasks.check_language(body)
+        code, data, msg = tasks.check_language(body, limit)
 
         custom_data = {
             'code': code,

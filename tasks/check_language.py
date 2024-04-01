@@ -85,14 +85,17 @@ def get_image_text(extracted_images):
 
 
 # pdf转图像
-def convert_pdf_to_images(doc):
+def convert_pdf_to_images(doc, limit):
     extracted_images = []
+    total = len(doc)
+    if limit > 0:
+        total = min(limit, total)
 
     # 确保文件夹存在
     if not os.path.exists(IMAGE_PATH):
         os.makedirs(IMAGE_PATH)
 
-    for page_num in range(len(doc)):
+    for page_num in range(total):
         page = doc.load_page(page_num)
         pix = page.get_pixmap()
         output_image_path = os.path.join(
@@ -104,9 +107,9 @@ def convert_pdf_to_images(doc):
 
 
 # 提取目录
-def get_directory(doc):
+def get_directory(doc, limit):
     # 将PDF页面转换为图像
-    extracted_images = convert_pdf_to_images(doc)
+    extracted_images = convert_pdf_to_images(doc, limit)
 
     # 从图像中识别文本
     language_index_pages, directory_information = get_image_text(
@@ -119,10 +122,8 @@ def get_directory(doc):
 def extract_text_by_language(doc, language_pages):
     # Initialize the dictionary to hold the text for each language
     language_texts = {}
-
     # Get the total number of pages in the document
     total_pages = doc.page_count
-
     # Sort the languages by the starting page number
     sorted_languages = sorted(language_pages.items(), key=lambda item: item[1])
 
@@ -217,11 +218,11 @@ def find_mismatched_languages(doc, detected_languages, page_number):
 
 
 # 主函数
-def check_language(file):
+def check_language(file, limit=-1):
     doc = fitz.open(stream=BytesIO(file))
-    # doc = fitz.open(file)
     total_pages = doc.page_count
-    language_pages = get_directory(doc)
+
+    language_pages = get_directory(doc, limit)
     if not language_pages[0]:
         print("请仔细检查，该文件无语言目录")
         return CODE_ERROR, {}, '请仔细检查文件无语言目录'
