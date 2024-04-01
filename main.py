@@ -72,10 +72,10 @@ class ExploreHandler(MainHandler):
 
 class FullPageHandler(MainHandler):
     def post(self):
-        files = self.get_files()
-        file_1, file_2 = files
-        body_1, body_2 = file_1["body"], file_2["body"]
-        pages, imgs_base64, error_msg = tasks.check_diff_pdf(body_1, body_2)
+        file_path_1 = self.get_argument('file_path_1')
+        file_path_2 = self.get_argument('file_path_2')
+        pages, imgs_base64, error_msg = tasks.check_diff_pdf(
+            file_path_1, file_path_2)
 
         custom_data = {
             "code": 0,
@@ -86,7 +86,7 @@ class FullPageHandler(MainHandler):
                 'error_msg': error_msg
             }
         }
-        
+
         self.write(custom_data)
 
 
@@ -126,7 +126,7 @@ class PageNumberHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code,error, error_page, result, msg = tasks.check_page_number(body)
+        code, error, error_page, result, msg = tasks.check_page_number(body)
         custom_data = {
             'code': code,
             'data': {
@@ -260,6 +260,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     async def on_message(self, message):
         print("===== get_message =====")
         data = tornado.escape.json_decode(message)
+        type = data.get('type')
         file_name = data.get('fileName')
         file_data = data.get('file')
         total = int(data.get('total'))
@@ -273,11 +274,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         if _file.is_complete():
             file_path = _file.assemble()
-            if file_path:
+            if type == 'pdf2img':
                 await tasks.pdf2img_single(self, file_path, options)
-                del self.files[file_name]
+            if type == 'compare':
+                await tasks.write_file_name(self, file_path, options)
+            del self.files[file_name]
 
-        custom_data = {"data": f"Done {file_name}"}
+        custom_data = {"data": f"{file_name} {current}/{total}"}
         self.write_message(custom_data)
 
     def on_close(self):
