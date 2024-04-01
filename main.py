@@ -277,7 +277,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
                 await tasks.pdf2img_single(self, file_path, options)
                 del self.files[file_name]
 
-        custom_data = {"data": f"Done {type} {file_name}"}
+        custom_data = {"data": f"Done {file_name}"}
         self.write_message(custom_data)
 
     def on_close(self):

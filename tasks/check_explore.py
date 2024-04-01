@@ -37,10 +37,14 @@ def img2base64(img):
 async def pdf2img_single(ws, pdf_path, options):
     doc = fitz.open(pdf_path)
     total = len(doc)
-    if 'limit' in options:
-        total = min(total, options['limit'])
+    start = 0
+    end = total
+    if 'start' in options:
+        start = max(0, int(options['start']) - 1)
+    if 'end' in options:
+        end = min(total, int(options['end']))
 
-    for page_number in range(total):
+    for page_number in range(start, end):
         page = doc.load_page(page_number)
         img_base64 = ''
 
@@ -52,8 +56,8 @@ async def pdf2img_single(ws, pdf_path, options):
 
         img_base64 = "" if not img_base64 else f"{BASE64_PNG}{img_base64}"
         await ws.write_message({
-            "total": total,
-            "current": page_number + 1,
+            "total": end - start,
+            "current": page_number - start + 1,
             "img_base64": img_base64,
             "options": options
         })
