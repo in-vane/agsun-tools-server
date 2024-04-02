@@ -1,19 +1,13 @@
-import json
 import asyncio
 import tornado
 import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
-import gc
-import tasks
-from websocket import FileAssembler
 
-CONTENT_TYPE_PDF = "application/pdf"
-BASE64_PNG = 'data:image/png;base64,'
-BASE64_JPG = 'data:image/jpeg;base64,'
-CODE_SUCCESS = 0
-CODE_ERROR = 1
+import tasks
+from config import CONTENT_TYPE_PDF
+from websocket import FileAssembler
 
 
 class Application(tornado.web.Application):
@@ -66,7 +60,9 @@ class ExploreHandler(MainHandler):
         img_1 = self.get_argument('img_1')
         img_2 = self.get_argument('img_2')
         img_base64 = tasks.compare_explore(img_1, img_2)
-        custom_data = {"result": f"{BASE64_PNG}{img_base64}"}
+        custom_data = {
+            "result": img_base64
+        }
         self.write(custom_data)
 
 
@@ -200,7 +196,7 @@ class CEHandler(MainHandler):
         if mode == 0:
             img_base64 = tasks.check_CE_mode_normal(file_excel, file_pdf)
         custom_data = {
-            "result": f"{BASE64_PNG}{img_base64}"
+            "result": img_base64
         }
         self.write(custom_data)
 
@@ -214,7 +210,7 @@ class SizeHandler(MainHandler):
         custom_data = {
             "error": error,
             "error_msg": error_msg,
-            "result": f"{BASE64_PNG}{img_base64}",
+            "result": img_base64,
         }
         self.write(custom_data)
 

@@ -1,83 +1,19 @@
-import os
-import sys
 import base64
-from io import BytesIO
-
 import cv2
 import fitz
 import numpy as np
-from PIL import Image
 from skimage.metrics import structural_similarity
 
-from .utils import pdf2img
+from ..utils import base642img, img2base64
+from ..config import BASE64_PNG
 
 
-# 常量
 DPI = 300
-BASE64_PNG = 'data:image/png;base64,'
-MODE_NORMAL = 0
-MODE_VECTOR = 1
-
-
-# 判断页面是否是矢量图
-def is_vector_page(page):
-    # 获取页面中的矢量元素数量
-    vector_count = len(page.get_drawings())
-    print(vector_count)
-    # 判断矢量元素数量是否超过阈值
-    return vector_count > 1000
-
-
-def img2base64(img):
-    _, image_buffer = cv2.imencode('.jpg', img)
-    image_base64 = base64.b64encode(image_buffer).decode('utf-8')
-    return image_base64
-
-
-async def pdf2img_single(ws, pdf_path, options):
-    doc = fitz.open(pdf_path)
-    total = len(doc)
-    start = 0
-    end = total
-    if 'start' in options:
-        start = max(0, int(options['start']) - 1)
-    if 'end' in options:
-        end = min(total, int(options['end']))
-
-    for page_number in range(start, end):
-        page = doc.load_page(page_number)
-        img_base64 = ''
-
-        if (options['mode'] == MODE_NORMAL):
-            img_base64 = pdf2img(page, dpi=72)
-        if (options['mode'] == MODE_VECTOR):
-            if is_vector_page(page):
-                img_base64 = pdf2img(page, dpi=300)
-
-        img_base64 = "" if not img_base64 else f"{BASE64_PNG}{img_base64}"
-        await ws.write_message({
-            "total": end - start,
-            "current": page_number - start + 1,
-            "img_base64": img_base64,
-            "options": options
-        })
-
-    print('===== done =====')
-    doc.close()
 
 
 def resize(base64_1, base64_2):
-    # 解码 base64 字符串为图像数据
-    image_data_1 = base64.b64decode(base64_1)
-    image_data_2 = base64.b64decode(base64_2)
-
-    # 将图像数据转换为 numpy 数组
-    nparr_1 = np.frombuffer(image_data_1, np.uint8)
-    nparr_2 = np.frombuffer(image_data_2, np.uint8)
-
-    # 读取图片 A 和 B
-    image_A = cv2.imdecode(nparr_1, cv2.IMREAD_COLOR)
-    image_B = cv2.imdecode(nparr_2, cv2.IMREAD_COLOR)
+    image_A = base642img(base64_1)
+    image_B = base642img(base64_2)
 
     # 计算最大尺寸
     max_height = max(image_A.shape[0], image_B.shape[0])
@@ -143,9 +79,9 @@ def resize(base64_1, base64_2):
     return image_A, image_B_aligned
 
 
-def compare_explore(img_1, img_2):
+def compare_explore(base64_data_old: str, base64_data_new: str):
     # img_[number]: base64
-    before, after = resize(img_1, img_2)
+    before, after = resize(base64_data_old, base64_data_new)
 
     # Convert images to grayscale
     before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
@@ -193,4 +129,4 @@ def compare_explore(img_1, img_2):
     # 图片转base64
     image_base64 = img2base64(filled_after)
 
-    return image_base64
+    return f"{BASE64_PNG}{image_base64}"

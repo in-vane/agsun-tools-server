@@ -9,7 +9,8 @@ import fitz
 from langdetect import detect
 from ppocronnx.predict_system import TextSystem
 
-IMAGE_PATH = './assets/images'
+from ..config import PATH_IMG
+
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -92,14 +93,14 @@ def convert_pdf_to_images(doc, limit):
         total = min(limit, total)
 
     # 确保文件夹存在
-    if not os.path.exists(IMAGE_PATH):
-        os.makedirs(IMAGE_PATH)
+    if not os.path.exists(PATH_IMG):
+        os.makedirs(PATH_IMG)
 
     for page_num in range(total):
         page = doc.load_page(page_num)
         pix = page.get_pixmap()
         output_image_path = os.path.join(
-            IMAGE_PATH, f"output_page_{page_num}.png")
+            PATH_IMG, f"output_page_{page_num}.png")
         pix.save(output_image_path)
         extracted_images.append(output_image_path)
 
@@ -243,7 +244,7 @@ def check_language(file, limit=-1):
         mismatched_languages, language_message, total_pages)
 
     doc.close()
-    shutil.rmtree(IMAGE_PATH)
+    shutil.rmtree(PATH_IMG)
     data = {
         # Assuming language_page is a variable holding some data
         'language_page': language_pages[0][0],

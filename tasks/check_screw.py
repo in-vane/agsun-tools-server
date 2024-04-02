@@ -89,9 +89,6 @@ def read_csv_to_dict():
     return result_dict
 
 
-
-
-
 # 提取步骤图里的螺丝表
 def extract_images_below_steps(doc):
     # 步骤编号的正则表达式，匹配大于0的数字后跟一个点
@@ -202,7 +199,7 @@ def get_step_screw(doc):
     return letter_counts, letter_count, letter_pageNumber
 
 
-def check_total_and_step(doc,result_dict,page_num):
+def check_total_and_step(doc, result_dict, page_num):
     count_mismatch = {}  # 数量不匹配的情况
     extra_chars = {}  # 多余的字符
     missing_chars = {}  # 缺少的字符
@@ -271,7 +268,7 @@ def check_screw(file):
     manage_csv()
     result_dict = read_csv_to_dict()
     count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
-        doc,result_dict, page_num)
+        doc, result_dict, page_num)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
 
@@ -283,10 +280,9 @@ def check_screw(file):
     os.remove(CSV_PATH)
     os.remove(PDF_PATH)
     shutil.rmtree(IMAGE_PATH)
-    data={
+    data = {
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }
 
     return CODE_SUCCESS, data, None
-

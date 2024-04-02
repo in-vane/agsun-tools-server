@@ -5,6 +5,8 @@ import cv2
 import fitz
 import numpy as np
 
+from ..config import BASE64_PNG
+
 
 RESOLUTION = 300
 REG_SIZE = [r'(\d+) x (\d+)', r'(\d+)x(\d+)', r'(\d+)X(\d+)', r'(\d+)\*(\d+)']
@@ -78,4 +80,4 @@ def compare_size(file):
     _, image_buffer = cv2.imencode('.jpg', image)
     image_base64 = base64.b64encode(image_buffer).decode('utf-8')
 
-    return is_error, message, image_base64
+    return is_error, message, f"{BASE64_PNG}{image_base64}"

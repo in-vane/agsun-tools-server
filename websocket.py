@@ -1,21 +1,12 @@
 import os
 import base64
-
-import cv2
-import numpy as np
-
-
-def img2base64(img):
-    _, image_buffer = cv2.imencode('.jpg', img)
-    image_base64 = base64.b64encode(image_buffer).decode('utf-8')
-    return image_base64
+import fitz
+from config import PATH_PDF, BASE64_PNG
+from utils import is_image, page2img
 
 
-def base642cv2img(base64_data):
-    image_data = base64.b64decode(base64_data)
-    nparr = np.frombuffer(image_data, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    return image
+MODE_NORMAL = 0
+MODE_VECTOR = 1
 
 
 class FileAssembler:
@@ -43,15 +34,45 @@ class FileAssembler:
             b64 = slice_data.split(",", 1)
             self.received_data += base64.b64decode(b64[1])
 
-        # output_path = self.file_name
-        output_path = './assets/pdf/'
-        # 如果目录不存在，则创建它
+        output_path = PATH_PDF
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-
-        # 指定文件路径
         output_path = os.path.join(output_path, self.file_name)
         with open(output_path, "wb") as output_file:
             output_file.write(self.received_data)
 
         return output_path
+
+
+async def pdf2img_split(ws, pdf_path, options):
+    print("===== begin pdf2img =====")
+    doc = fitz.open(pdf_path)
+    total = len(doc)
+    start = 0
+    end = total
+    if 'start' in options:
+        start = max(0, int(options['start']) - 1)
+    if 'end' in options:
+        end = min(total, int(options['end']))
+
+    print(f"from {start} to {end}")
+    for page_number in range(start, end):
+        page = doc.load_page(page_number)
+        img_base64 = ""
+
+        if (options['mode'] == MODE_NORMAL):
+            img_base64 = page2img(page, dpi=72)
+        if (options['mode'] == MODE_VECTOR):
+            if is_image(page):
+                img_base64 = page2img(page, dpi=300)
+
+        img_base64 = "" if not img_base64 else f"{BASE64_PNG}{img_base64}"
+        await ws.write_message({
+            "total": end - start,
+            "current": page_number - start + 1,
+            "img_base64": img_base64,
+            "options": options
+        })
+
+    doc.close()
+    print("===== done =====")
