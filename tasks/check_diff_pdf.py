@@ -181,13 +181,6 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
     return adjusted_sequences, refined_mismatch_list
 
 
-async def write_file_name(ws, file_path, options):
-    await ws.write_message({
-        "file_path": file_path,
-        "options": options
-    })
-
-
 def check_diff_pdf(pdf1_path, pdf2_path):
     '''主函数'''
     pdf_1 = fitz.open(pdf1_path)

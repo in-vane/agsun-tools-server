@@ -5,7 +5,9 @@ import cv2
 import fitz
 import numpy as np
 
-from ..config import BASE64_PNG
+import sys
+sys.path.append('..')
+from config import BASE64_PNG
 
 
 RESOLUTION = 300

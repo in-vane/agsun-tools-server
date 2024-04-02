@@ -4,8 +4,10 @@ import fitz
 import numpy as np
 from skimage.metrics import structural_similarity
 
-from ..utils import base642img, img2base64
-from ..config import BASE64_PNG
+import sys
+sys.path.append("..")
+from utils import base642img, img2base64
+from config import BASE64_PNG
 
 
 DPI = 300

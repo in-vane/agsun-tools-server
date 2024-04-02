@@ -45,6 +45,7 @@ class FileAssembler:
 
 
 async def pdf2img_split(ws, pdf_path, options):
+    '''pdf按页转png'''
     print("===== begin pdf2img =====")
     doc = fitz.open(pdf_path)
     total = len(doc)
@@ -76,3 +77,11 @@ async def pdf2img_split(ws, pdf_path, options):
 
     doc.close()
     print("===== done =====")
+
+
+async def write_file_name(ws, file_path, options):
+    '''往前端返回上传文件所在的路径'''
+    await ws.write_message({
+        "file_path": file_path,
+        "options": options
+    })

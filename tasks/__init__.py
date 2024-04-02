@@ -1,5 +1,5 @@
-from .check_explore import img2base64, pdf2img, pdf2img_single, compare_explore
-from .check_diff_pdf import check_diff_pdf, write_file_name
+from .check_explore import img2base64, compare_explore
+from .check_diff_pdf import check_diff_pdf
 from .check_part_count import check_part_count
 from .check_page_number import check_page_number
 from .check_table import compare_table

@@ -1,3 +1,4 @@
+from config import PATH_IMG
 import os
 import shutil
 import base64
@@ -9,7 +10,8 @@ import fitz
 from langdetect import detect
 from ppocronnx.predict_system import TextSystem
 
-from ..config import PATH_IMG
+import sys
+sys.path.append('..')
 
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
 CODE_SUCCESS = 0

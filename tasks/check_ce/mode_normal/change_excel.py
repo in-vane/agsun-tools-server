@@ -8,8 +8,11 @@ import jpype
 import openpyxl
 from openpyxl.styles import Border, Side
 
+import sys
+sys.path.append('....')
+from config import BASE64_PNG
 from .get_table_message import all
-from ....config import BASE64_PNG
+
 
 EXCEL_PATH = './assets/excel/temp.xlsx'
 IMAGE_PATH = './assets/images/temp.png'

@@ -7,7 +7,7 @@ import tornado.ioloop
 
 import tasks
 from config import CONTENT_TYPE_PDF
-from websocket import FileAssembler
+from websocket import FileAssembler, pdf2img_split, write_file_name
 
 
 class Application(tornado.web.Application):
@@ -271,9 +271,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         if _file.is_complete():
             file_path = _file.assemble()
             if type == 'pdf2img':
-                await tasks.pdf2img_single(self, file_path, options)
+                await pdf2img_split(self, file_path, options)
             if type == 'compare':
-                await tasks.write_file_name(self, file_path, options)
+                await write_file_name(self, file_path, options)
             del self.files[file_name]
 
         custom_data = {"data": f"{file_name} {current}/{total}"}
