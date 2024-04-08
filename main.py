@@ -4,7 +4,6 @@ import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
-
 import tasks
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
@@ -14,6 +13,8 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r'/api', MainHandler),
+            (r'/api/login', LoginHandler),
+            (r'/api/logout', LogoutHandler),
             (r'/api/explore', ExploreHandler),
             (r'/api/fullPage', FullPageHandler),
             (r'/api/partCount', PartCountHandler),
@@ -64,23 +65,56 @@ class ExploreHandler(MainHandler):
             "result": img_base64
         }
         self.write(custom_data)
+class LoginHandler(MainHandler):
+    def post(self):
+        username = self.get_argument('username')
+        password = self.get_argument('password')
+        code,username,msg = tasks.login(username,password)
+        custom_data = {
+            'code': code,
+            'data': {
+              'username':username
+            },
+            'msg': msg
 
+        }
+        self.write(custom_data)
+class LogoutHandler(MainHandler):
+    def post(self):
+        code, username, msg = tasks.logout()
+        custom_data = {
+            'code': code,
+            'data': {
+              'username':username
+            },
+            'msg': msg
+
+        }
+        self.write(custom_data)
 
 class FullPageHandler(MainHandler):
     def post(self):
-        file_path_1 = self.get_argument('file_path_1')
-        file_path_2 = self.get_argument('file_path_2')
-        pages, imgs_base64, error_msg = tasks.check_diff_pdf(
-            file_path_1, file_path_2)
+        files = self.get_files()
+        file1 = files[0]
+        body1 = file1["body"]
+        filename1 = file1.get("filename")
+        file2 = files[1]
+        body2 = file2["body"]
+        filename2 = file2.get("filename")
+        page_num1 = int(self.get_argument('page_num1'))
+        page_num2 = int(self.get_argument('page_num2'))
+        code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(
+            body1, body2, filename1, filename2, page_num1, page_num2)
 
         custom_data = {
-            "code": 0,
+            "code": code,
             "msg": "",
             "data": {
                 'pages': pages,
                 'imgs_base64': imgs_base64,
                 'error_msg': error_msg
-            }
+            },
+            "msg": msg
         }
 
         self.write(custom_data)
@@ -122,7 +156,8 @@ class PageNumberHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, error, error_page, result, msg = tasks.check_page_number(body)
+        filename = file.get("filename")
+        code, error, error_page, result, msg = tasks.check_page_number(body,filename)
         custom_data = {
             'code': code,
             'data': {
@@ -155,7 +190,8 @@ class ScrewHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, data, msg = tasks.check_screw(body)
+        filename = file["filename"]
+        code, data, msg = tasks.check_screw(body,filename)
         custom_data = {
             'code': code,
             'data': data,
@@ -170,7 +206,8 @@ class LanguageHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, data, msg = tasks.check_language(body, limit)
+        filename = file["filename"]
+        code, data, msg = tasks.check_language(body,filename, limit)
 
         custom_data = {
             'code': code,

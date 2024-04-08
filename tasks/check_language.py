@@ -1,7 +1,5 @@
-from config import PATH_IMG
 import os
 import shutil
-import base64
 from io import BytesIO
 
 import re
@@ -9,10 +7,9 @@ import cv2
 import fitz
 from langdetect import detect
 from ppocronnx.predict_system import TextSystem
+from save_filesys_db import save_Language
 
-import sys
-sys.path.append('..')
-
+IMAGE_PATH = './assets/images'
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -90,19 +87,18 @@ def get_image_text(extracted_images):
 # pdf转图像
 def convert_pdf_to_images(doc, limit):
     extracted_images = []
-    total = len(doc)
-    if limit > 0:
-        total = min(limit, total)
 
     # 确保文件夹存在
-    if not os.path.exists(PATH_IMG):
-        os.makedirs(PATH_IMG)
+    if not os.path.exists(IMAGE_PATH):
+        os.makedirs(IMAGE_PATH)
 
-    for page_num in range(total):
+    for page_num in range(len(doc)):
+        if page_num > limit - 1:
+            break
         page = doc.load_page(page_num)
         pix = page.get_pixmap()
         output_image_path = os.path.join(
-            PATH_IMG, f"output_page_{page_num}.png")
+            IMAGE_PATH, f"output_page_{page_num}.png")
         pix.save(output_image_path)
         extracted_images.append(output_image_path)
 
@@ -125,8 +121,10 @@ def get_directory(doc, limit):
 def extract_text_by_language(doc, language_pages):
     # Initialize the dictionary to hold the text for each language
     language_texts = {}
+
     # Get the total number of pages in the document
     total_pages = doc.page_count
+
     # Sort the languages by the starting page number
     sorted_languages = sorted(language_pages.items(), key=lambda item: item[1])
 
@@ -136,7 +134,7 @@ def extract_text_by_language(doc, language_pages):
         # If it's not the last language, the end page is the start page of the next language - 1
         # If it's the last language, the end page is the last page of the document
         end_page = sorted_languages[i + 1][1] - 1 if i + \
-            1 < len(sorted_languages) else total_pages
+                                                     1 < len(sorted_languages) else total_pages
 
         # Extract text from the specified page range
         text = ""
@@ -167,7 +165,6 @@ def detect_language_of_texts(texts_by_languages):
 
 
 def generate_language_report(mismatched_languages, language_message, total_pages):
-
     # 使用字典推导式将每个值转换为大写
     mismatched_languages = {key: value.upper()
                             for key, value in mismatched_languages.items()}
@@ -221,15 +218,16 @@ def find_mismatched_languages(doc, detected_languages, page_number):
 
 
 # 主函数
-def check_language(file, limit=-1):
+def check_language(file, filename, limit):
     doc = fitz.open(stream=BytesIO(file))
+    # doc = fitz.open(file)
     total_pages = doc.page_count
-
     language_pages = get_directory(doc, limit)
     if not language_pages[0]:
-        print("请仔细检查，该文件无语言目录")
-        return CODE_ERROR, {}, '请仔细检查文件无语言目录'
-
+        code = "请仔细检查，该文件无语言目录"
+        print(code)
+        save_Language(doc, filename, CODE_ERROR, None, [], code)
+        return CODE_ERROR, {}, code
     language_message = language_pages[1]
     texts_by_languages = extract_text_by_language(doc, language_pages[1])
     detected_languages = detect_language_of_texts(texts_by_languages)
@@ -245,15 +243,21 @@ def check_language(file, limit=-1):
     language = generate_language_report(
         mismatched_languages, language_message, total_pages)
 
-    doc.close()
-    shutil.rmtree(PATH_IMG)
+    shutil.rmtree(IMAGE_PATH)
     data = {
         # Assuming language_page is a variable holding some data
         'language_page': language_pages[0][0],
         'language': language  # A success message
     }
-
+    save_Language(doc, filename, CODE_SUCCESS, language_pages[0][0], language, None)
+    doc.close()
     return CODE_SUCCESS, data, None
 
-
-# check_language('1.pdf')
+# 测试
+# def pdf_to_bytes(file_path):
+#     with open(file_path, 'rb') as file:
+#         bytes_content = file.read()
+#     return bytes_content
+# file1 = 'page_number/lang.pdf'  # 请根据实际情况修改路径
+# file1 = pdf_to_bytes(file1)
+# check_language(file1)

@@ -9,3 +9,5 @@ from .check_ce import check_CE_mode_normal, check_CE_mode_danmark
 from .check_size import compare_size
 from .check_ocr_char import check_ocr_char
 from .check_ocr_icon import check_ocr_icon
+from .login import login,logout
+

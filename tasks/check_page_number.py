@@ -3,6 +3,9 @@ from PIL import Image
 import base64
 import fitz
 import re
+
+
+from save_filesys_db import save_PageNumber
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
@@ -74,7 +77,7 @@ def extract_page_numbers(doc):
     total_pages = len(doc)  # 获取PDF的总页数
 
     # 假设我们想要扩大页脚区域的覆盖范围
-    footer_height = 70  # 从页面底部向上100个单位，增加页脚区域的高度
+    footer_height = 65  # 从页面底部向上60个单位，增加页脚区域的高度
 
     for page_num in range(total_pages):
         page = doc.load_page(page_num)  # 加载当前页
@@ -88,7 +91,8 @@ def extract_page_numbers(doc):
 
         # 使用正则表达式查找所有数字
         numbers = re.findall(r'\d+', footer_text)
-
+        # 在页脚区域添加红色边框
+        page.draw_rect(footer_rect, color=(1, 0, 0), width=1.5)
         # 如果当前页页脚区域有数字，则假设最大的数字是页码
         if numbers:
             probable_page_number = max(numbers, key=int)
@@ -106,13 +110,19 @@ def extract_page_numbers(doc):
 
 
 # 主函数
-def check_page_number(file):
+def check_page_number(file,filename):
+    # doc = fitz.open(file)
+    if not file:
+        code = '文件损坏或者为空文件'
+        print(code)
+        return CODE_ERROR,None,code
     doc = fitz.open(stream=BytesIO(file))
-
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
+    print(f"物理页码:{physical_page_numbers}")
     # 获取文件中的页码表
     printed_page_numbers = extract_page_numbers(doc)
+    print(f"打印页码:{printed_page_numbers}")
     # 对比两个页码表
     issues = check_page_number_issues(
         printed_page_numbers, physical_page_numbers)
@@ -120,7 +130,15 @@ def check_page_number(file):
     # 在错误的页码附近标注错误
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
-
+    save_PageNumber(doc, filename, CODE_SUCCESS, is_error, issues, error_pages_base64, None)
     doc.close()
 
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None
+# 测试
+# def pdf_to_bytes(file_path):
+#     with open(file_path, 'rb') as file:
+#         bytes_content = file.read()
+#     return bytes_content
+# file1 = 'page_number/1.pdf'   # 请根据实际情况修改路径
+# file1 = pdf_to_bytes(file1)
+# check_page_number(file1,'1')
