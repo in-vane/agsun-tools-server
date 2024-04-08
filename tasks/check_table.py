@@ -2,7 +2,7 @@ import os
 import shutil
 import base64
 import io
-from PIL import Image
+from PIL import Image,ImageDraw, ImageFont
 from io import BytesIO
 
 import fitz
