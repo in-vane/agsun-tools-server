@@ -3,18 +3,18 @@ import re
 import csv
 import shutil
 from io import BytesIO
-
-import cv2
 import fitz
 import pandas as pd
 from tabula import read_pdf
-from collections import defaultdict
-from ppocronnx.predict_system import TextSystem
 
 
-PDF_PATH = 'temp.pdf'
-IMAGE_PATH = 'image'
-CSV_PATH = 'selected_table.csv'
+from save_filesys_db import save_Screw
+
+PDF_PATH = './assets/pdf/temp.pdf'
+IMAGE_PATH = './assets/image'
+CSV_PATH = './assets/selected_table.csv'
+
+
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
@@ -92,112 +92,80 @@ def read_csv_to_dict():
 
 
 
-# 提取步骤图里的螺丝表
-def extract_images_below_steps(doc):
-    # 步骤编号的正则表达式，匹配大于0的数字后跟一个点
-    step_pattern = re.compile(r'(?<!\.\d)\b(?<!\d\.)[1-9]\d*\.(?!\d)')
-
-    extracted_images = []
+# 如果连续超过4张页面为矢量页面，认为为步骤页，提取步骤页
+def detect_vector_pages(doc):
+    step_pages = []  # 用于存储步骤页的列表
+    temp_start = None  # 临时变量，用于记录当前连续序列的起始页
+    last_page = None  # 记录上一个矢量图页面的页码
 
     for page_num in range(len(doc)):
-        page = doc[page_num]
-        # 在Python层面上使用正则表达式找到所有步骤编号
-        for match in re.finditer(step_pattern, page.get_text("text")):
-            # 转换匹配的文本为坐标
-            match_rects = page.search_for(match.group(0))
-            for rect in match_rects:
-                # 定义步骤编号下方的矩形区域，此处可能需要调整
-                clip_rect = fitz.Rect(
-                    rect.x0 - 3, rect.y1 - 20, rect.x1 + 800, rect.y1 + 315)
-                # 提取该区域的图像
-                pix = page.get_pixmap(clip=clip_rect)
-                # 定义图像的保存路径
-                image_filename = f"step_{page_num + 1}_{int(rect.x0)}_{int(rect.y1)}.png"
-                image_filepath = os.path.join(IMAGE_PATH, image_filename)
-                # 保存图像
-                pix.save(image_filepath)
-                extracted_images.append(image_filepath)
+        page = doc.load_page(page_num)
+        vector_count = len(page.get_drawings())
 
-    return extracted_images
-
-
-def recognize_text_in_images(image_paths):
-    # Initialize TextSystem for text recognition
-    text_sys = TextSystem()
-
-    # 步骤编号的正则表达式，匹配大于0的数字后跟一个点
-    step_pattern = re.compile(r'(?<!\.\d)\b(?<!\d\.)[1-9]\d*\.(?!\d)')
-
-    # 存储满足步骤编号格式的文本
-    step_texts = []
-
-    # 用于存储更新后的图片路径列表
-    updated_image_paths = []
-
-    for image_path in image_paths:
-        # 使用 OpenCV 读取图像
-        img = cv2.imread(image_path)
-
-        # 进行文字识别
-        res = text_sys.detect_and_ocr(img)
-
-        # 提取识别到的文本
-        matched = False
-        for boxed_result in res:
-            # 如果识别到的文本满足步骤编号格式，则添加到列表中
-            if step_pattern.match(boxed_result.ocr_text):
-                step_texts.append(boxed_result.ocr_text)
-                matched = True
-                break
-
-        # 如果未满足步骤编号格式，删除图片
-        if not matched:
-            os.remove(image_path)
+        # 当前页面是矢量图，并且是连续的
+        if vector_count > 1000:
+            if temp_start is None:
+                temp_start = page_num  # 开始新的连续序列
+            last_page = page_num
         else:
-            updated_image_paths.append(image_path)  # 如果满足条件，则保留图片路径
+            # 不是矢量图或不连续
+            if last_page is not None and (last_page - temp_start) >= 3:
+                # 如果连续序列的长度至少为4，则记录这个范围
+                step_pages.extend(range(temp_start + 1, last_page + 2))  # 页码从1开始
+            # 重置连续序列的起始和结束页
+            temp_start = None
+            last_page = None
+    # 检查最后一段连续序列
+    if last_page is not None and (last_page - temp_start) >= 3:
+        step_pages.extend(range(temp_start + 1, last_page + 2))
+    print(step_pages)
+    return step_pages
+# 提取步骤页，需要的步骤螺丝
+def extract_text_meeting_pattern(doc, pages):
 
-    return updated_image_paths
+    pattern = r'(\d+)\s*[xX]\s*([A-Z])'
+    letter_counts = {}
+    letter_pageNumber = {}
+    letter_count = {}
 
+    for page_num in pages:
+        page = doc.load_page(page_num - 1)  # Page numbering starts from 0
+        text = page.get_text()
+        matches = re.findall(pattern, text)
+        for match in matches:
+            count, letter = match
+            count = int(count)
 
-def get_image_text(extracted_images):
-    text_sys = TextSystem()
-    pattern = r'(\d+)\s*X\s*([A-Z])'
-    page_pattern = r'step_(\d+)_'
+            # Update letter_counts
+            if letter not in letter_counts:
+                letter_counts[letter] = count
+            else:
+                letter_counts[letter] += count
 
-    letter_counts = defaultdict(int)
-    letter_count = defaultdict(list)
-    letter_pageNumber = defaultdict(list)
+            # Update letter_pageNumber
+            if letter not in letter_pageNumber:
+                letter_pageNumber[letter] = [page_num]
+            elif page_num not in letter_pageNumber[letter]:
+                letter_pageNumber[letter].append(page_num)
 
-    for image_path in extracted_images:
-        img = cv2.imread(image_path)
-        res = text_sys.detect_and_ocr(img)
+            # Update letter_count
+            if letter not in letter_count:
+                letter_count[letter] = [count]
+            else:
+                letter_count[letter].append(count)
 
-        # 提取页码
-        page_match = re.search(page_pattern, image_path)
-        if page_match:
-            page_number = int(page_match.group(1))
+    print("letter_counts:", letter_counts)
+    print("letter_pageNumber:", letter_pageNumber)
+    print("letter_count:", letter_count)
 
-        for boxed_result in res:
-            matches = re.findall(pattern, boxed_result.ocr_text)
-            for number_str, letter in matches:
-                number = int(number_str)
-                letter_counts[letter] += number
-                letter_count[letter].append(number)
-
-                # 检查页码是否已经记录在列表中
-                if page_number not in letter_pageNumber[letter]:
-                    letter_pageNumber[letter].append(page_number)
-
-    return dict(letter_counts), dict(letter_count), dict(letter_pageNumber)
+    return letter_counts, letter_count, letter_pageNumber
 
 
 # 获取步骤螺丝
 def get_step_screw(doc):
     # 提取步骤下方的图像
-    extracted_images = extract_images_below_steps(doc)
-    extracted_images = recognize_text_in_images(extracted_images)
-    letter_counts, letter_count, letter_pageNumber = get_image_text(
-        extracted_images)
+    step_page = detect_vector_pages(doc)
+    letter_counts, letter_count, letter_pageNumber = extract_text_meeting_pattern(doc, step_page)
 
     return letter_counts, letter_count, letter_pageNumber
 
@@ -256,7 +224,7 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 
 # 主函数
-def check_screw(file):
+def check_screw(file,filename):
     # doc = fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
     doc.save(PDF_PATH)
@@ -267,6 +235,7 @@ def check_screw(file):
     if page_num is None:
         msg = '未检测到有螺丝包'
         print(msg)
+        save_Screw(doc, filename, CODE_SUCCESS, [], [], msg)
         return CODE_ERROR, {}, msg
     manage_csv()
     result_dict = read_csv_to_dict()
@@ -279,7 +248,7 @@ def check_screw(file):
     print("Mismatch Dict:", mismatch_dict)
     print("Match Dict:", match_dict)
 
-    doc.close()
+
     os.remove(CSV_PATH)
     os.remove(PDF_PATH)
     shutil.rmtree(IMAGE_PATH)
@@ -287,6 +256,14 @@ def check_screw(file):
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }
-
+    save_Screw(doc, filename, CODE_SUCCESS, mismatch_dict, match_dict, None)
+    doc.close()
     return CODE_SUCCESS, data, None
-
+# 测试
+# def pdf_to_bytes(file_path):
+#     with open(file_path, 'rb') as file:
+#         bytes_content = file.read()
+#     return bytes_content
+# file1 = 'page_number/Screw_dui.pdf' # 请根据实际情况修改路径
+# file1 = pdf_to_bytes(file1)
+# check_screw(file1)

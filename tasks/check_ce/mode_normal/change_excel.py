@@ -8,7 +8,11 @@ import jpype
 import openpyxl
 from openpyxl.styles import Border, Side
 
+import sys
+sys.path.append('....')
+from config import BASE64_PNG
 from .get_table_message import all
+
 
 EXCEL_PATH = './assets/excel/temp.xlsx'
 IMAGE_PATH = './assets/images/temp.png'
@@ -143,7 +147,7 @@ def checkTags(excel_file, pdf_file):
 
     os.remove(EXCEL_PATH)
 
-    return image_base64
+    return f"{BASE64_PNG}{image_base64}"
 
 
 # checkTags('2.xlsx','2.pdf')

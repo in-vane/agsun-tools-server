@@ -1,25 +1,20 @@
-import json
 import asyncio
 import tornado
 import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
-import gc
 import tasks
-from websocket import FileAssembler
-
-CONTENT_TYPE_PDF = "application/pdf"
-BASE64_PNG = 'data:image/png;base64,'
-BASE64_JPG = 'data:image/jpeg;base64,'
-CODE_SUCCESS = 0
-CODE_ERROR = 1
+from config import CONTENT_TYPE_PDF
+from websocket import FileAssembler, pdf2img_split, write_file_name
 
 
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r'/api', MainHandler),
+            (r'/api/login', LoginHandler),
+            (r'/api/logout', LogoutHandler),
             (r'/api/explore', ExploreHandler),
             (r'/api/fullPage', FullPageHandler),
             (r'/api/partCount', PartCountHandler),
@@ -66,27 +61,62 @@ class ExploreHandler(MainHandler):
         img_1 = self.get_argument('img_1')
         img_2 = self.get_argument('img_2')
         img_base64 = tasks.compare_explore(img_1, img_2)
-        custom_data = {"result": f"{BASE64_PNG}{img_base64}"}
+        custom_data = {
+            "result": img_base64
+        }
         self.write(custom_data)
+class LoginHandler(MainHandler):
+    def post(self):
+        username = self.get_argument('username')
+        password = self.get_argument('password')
+        code,username,msg = tasks.login(username,password)
+        custom_data = {
+            'code': code,
+            'data': {
+              'username':username
+            },
+            'msg': msg
 
+        }
+        self.write(custom_data)
+class LogoutHandler(MainHandler):
+    def post(self):
+        code, username, msg = tasks.logout()
+        custom_data = {
+            'code': code,
+            'data': {
+              'username':username
+            },
+            'msg': msg
+
+        }
+        self.write(custom_data)
 
 class FullPageHandler(MainHandler):
     def post(self):
         files = self.get_files()
-        file_1, file_2 = files
-        body_1, body_2 = file_1["body"], file_2["body"]
-        pages, imgs_base64, error_msg = tasks.check_diff_pdf(body_1, body_2)
+        file1 = files[0]
+        body1 = file1["body"]
+        filename1 = file1.get("filename")
+        file2 = files[1]
+        body2 = file2["body"]
+        filename2 = file2.get("filename")
+        page_num1 = int(self.get_argument('page_num1'))
+        page_num2 = int(self.get_argument('page_num2'))
+        code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(
+            body1, body2, filename1, filename2, page_num1, page_num2)
 
         custom_data = {
-            "code": 0,
+            "code": code,
             "msg": "",
             "data": {
                 'pages': pages,
                 'imgs_base64': imgs_base64,
                 'error_msg': error_msg
-            }
+            },
+            "msg": msg
         }
-        
+
         self.write(custom_data)
 
 
@@ -126,7 +156,8 @@ class PageNumberHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code,error, error_page, result, msg = tasks.check_page_number(body)
+        filename = file.get("filename")
+        code, error, error_page, result, msg = tasks.check_page_number(body,filename)
         custom_data = {
             'code': code,
             'data': {
@@ -159,7 +190,8 @@ class ScrewHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, data, msg = tasks.check_screw(body)
+        filename = file["filename"]
+        code, data, msg = tasks.check_screw(body,filename)
         custom_data = {
             'code': code,
             'data': data,
@@ -174,7 +206,8 @@ class LanguageHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        code, data, msg = tasks.check_language(body, limit)
+        filename = file["filename"]
+        code, data, msg = tasks.check_language(body,filename, limit)
 
         custom_data = {
             'code': code,
@@ -200,7 +233,7 @@ class CEHandler(MainHandler):
         if mode == 0:
             img_base64 = tasks.check_CE_mode_normal(file_excel, file_pdf)
         custom_data = {
-            "result": f"{BASE64_PNG}{img_base64}"
+            "result": img_base64
         }
         self.write(custom_data)
 
@@ -214,7 +247,7 @@ class SizeHandler(MainHandler):
         custom_data = {
             "error": error,
             "error_msg": error_msg,
-            "result": f"{BASE64_PNG}{img_base64}",
+            "result": img_base64,
         }
         self.write(custom_data)
 
@@ -260,6 +293,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     async def on_message(self, message):
         print("===== get_message =====")
         data = tornado.escape.json_decode(message)
+        type = data.get('type')
         file_name = data.get('fileName')
         file_data = data.get('file')
         total = int(data.get('total'))
@@ -273,11 +307,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         if _file.is_complete():
             file_path = _file.assemble()
-            if file_path:
-                await tasks.pdf2img_single(self, file_path, options)
-                del self.files[file_name]
+            if type == 'pdf2img':
+                await pdf2img_split(self, file_path, options)
+            if type == 'compare':
+                await write_file_name(self, file_path, options)
+            del self.files[file_name]
 
-        custom_data = {"data": f"Done {type} {file_name}"}
+        custom_data = {"data": f"{file_name} {current}/{total}"}
         self.write_message(custom_data)
 
     def on_close(self):
