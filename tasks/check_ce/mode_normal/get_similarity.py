@@ -5,8 +5,8 @@ import hashlib
 from langdetect import detect
 
 
-CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
-MiniLM_PATH = os.path.join(CURRENT_PATH, "all-MiniLM-L6-v2")
+
+MiniLM_PATH = './assets/all-MiniLM-L6-v2'
 
 
 def compute_cosine_similarity(text1, text2):

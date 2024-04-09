@@ -19,16 +19,11 @@ if os.path.exists(USER):
         print(f"Error reading file: {e}")
 else:
     print("未登录")
-# # 全局变量定义
-# BASE_DIR = 'D:\\PrintCmpFile\\009'
-# CURRENT_YEAR = datetime.now().strftime('%Y')
-# CURRENT_MONTH_DAY = datetime.now().strftime('%m%d')
-# CURRENT_TIME = datetime.now().strftime('%H-%M-%S')
-UNIQUE_IDENTIFIER = username  # 这个值应根据实际情况动态赋值
-# pdf_dir = os.path.join(BASE_DIR, CURRENT_YEAR, CURRENT_MONTH_DAY,CURRENT_TIME, UNIQUE_IDENTIFIER)
-# result_dir = os.path.join(pdf_dir, 'result')
-# result_file_path = os.path.join(result_dir, 'result.txt')
-# image_result_dir = os.path.join(result_dir, 'image')
+# 全局变量定义
+# 用户名
+UNIQUE_IDENTIFIER = username
+
+
 ROOT = 'D:\\PrintCmpFile'
 # 动态设置基础目录的函数
 def setup_directory_paths(base_dir):
@@ -210,9 +205,9 @@ def save_CE(doc, excel_file, name1, name2,work_table,code, image_base64,msg):
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}.pdf')
+    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}')
     doc.save(pdf_output_path1)  # 使用动态生成的路径保存文件
-    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}.xlsx')
+    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}')
     wb.save(pdf_output_path2)  # 使用动态生成的路径保存文件
     # 如果存在错误，则保存问题列表
     if code:
@@ -224,10 +219,10 @@ def save_CE(doc, excel_file, name1, name2,work_table,code, image_base64,msg):
         images_to_directory(img_base64, image_result_dir)
     #保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{name1}.pdf')
-    pdf_name = f'{name1}.pdf'
-    excel_path = os.path.join(pdf_dir, f'{name2}.xlsx')
-    excel_name = f'{name2}.xlsx'
+    pdf_path = os.path.join(pdf_dir, f'{name1}')
+    pdf_name = f'{name1}'
+    excel_path = os.path.join(pdf_dir, f'{name2}')
+    excel_name = f'{name2}'
     result_path = result_dir
     # 创建实例并保存到数据库
     check_pagenumber_instance = CheckCE(

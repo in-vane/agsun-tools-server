@@ -220,20 +220,30 @@ class LanguageHandler(MainHandler):
 
 class CEHandler(MainHandler):
     def post(self):
-        mode = int(self.get_argument('mode'))
+        mode = self.get_argument('mode', default='0')
+        mode = int(mode)  # 确保将模式转换为整数
+        work_table = self.get_argument('work_table', default=None)
         files = self.get_files()
         file_1, file_2 = files[0], files[1]
+        name1 = file_1["filename"]
+        name2 = file_2["filename"]
         file_1_type, file_1_body = file_1["content_type"], file_1["body"]
         file_2_body = file_2["body"]
         if file_1_type == CONTENT_TYPE_PDF:
             file_pdf, file_excel = file_1_body, file_2_body
+            pdf_name, excel_name = name1, name2
         else:
             file_pdf, file_excel = file_2_body, file_1_body
+            pdf_name, excel_name = name2, name1
         img_base64 = ''
         if mode == 0:
-            img_base64 = tasks.check_CE_mode_normal(file_excel, file_pdf)
+            code, image_base64, msg = tasks.check_CE_mode_normal(file_excel, file_pdf, pdf_name, excel_name, work_table)
         custom_data = {
-            "result": img_base64
+            "code": code,
+            "data": {
+                "image_base64": image_base64
+            },
+            "msg": msg
         }
         self.write(custom_data)
 

@@ -1,25 +1,28 @@
-import os
 import base64
 from io import BytesIO
-import io
 from PIL import Image
 import fitz
-import jpype
 import openpyxl
+import excel2img
 from openpyxl.styles import Border, Side
+import subprocess
+import os
+import shutil
+import tempfile
 
-import sys
-sys.path.append('....')
-from config import BASE64_PNG
 from .get_table_message import all
+from save_filesys_db import save_CE
 
-
+LIBREOFFICE_PATH = r"C:\Program Files\LibreOffice\program\soffice.exe"
+CODE_SUCCESS = 0
+CODE_ERROR = 1
 EXCEL_PATH = './assets/excel/temp.xlsx'
 IMAGE_PATH = './assets/images/temp.png'
-PDF_PATH_FROM_EXCEL = './assets/pdf/temp_excel.pdf'
 PDF_PATH = './assets/pdf/temp.pdf'
+BASE64_PNG = 'data:image/png;base64,'
 
 
+# 将错误的地方在excel文件框标出
 def change_excel(wb, work_table, message_dict):
     """
     该函数主要是为了，呈现错误信息到吉盛标准ce表上
@@ -65,89 +68,109 @@ def change_excel(wb, work_table, message_dict):
                             row_cell.border = green_border
 
     # 保存文件
-    # wb.save(EXCEL_PATH)
-
-
-# 将ecxel转化pdf
-def convert_excel_sheet_to_pdf(excel_file, sheet_name):
-    # 启动JVM
-    if not jpype.isJVMStarted():
-        jpype.startJVM()
-    from asposecells.api import Workbook, PdfSaveOptions
-
-    # 加载Excel文档
-    workbook = Workbook(excel_file)
-
-    # 获取所有工作表的集合
-    worksheets = workbook.getWorksheets()
-
-    # 遍历所有工作表
-    for sheet in worksheets:
-        print(f"excel中的工作表{sheet}")
-        # 如果工作表不是要转换的工作表，将其隐藏
-        if sheet.getName() != sheet_name:
-            sheet.setVisible(False)
-
-    # 设置PDF保存选项
-    saveOptions = PdfSaveOptions()
-    saveOptions.setOnePagePerSheet(True)
-
-    # 保存为PDF
-    workbook.save(PDF_PATH_FROM_EXCEL, saveOptions)
-
-    # 关闭JVM
-    jpype.shutdownJVM()
-
-# 将pdf的第一页转化图片
-
-
-def convert_pdf_page_to_image_base64(page_number=0):
+    wb.save(EXCEL_PATH)
+# 将excel转化为图片
+def excel_to_iamge(excel_file,sheet_name):
+    excel2img.export_img(excel_file, IMAGE_PATH, sheet_name, None)
+    with Image.open(IMAGE_PATH) as img:
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")  # 或者使用你的图片实际格式
+        image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        return f"{BASE64_PNG}{image_base64}"
+# 将xls文件转化为xlsx文件
+def convert_xls_bytes_to_xlsx(file_bytes):
     """
-    Convert the specified page of a PDF file into a Base64 image string.
-    :param pdf_path: Path to the PDF file.
-    :param page_number: The number of the page to convert (0-based).
-    :return: Base64 encoded string of the image.
+    使用LibreOffice将xls文件的字节流转换为xlsx格式的字节流。
+    :param file_bytes: 要转换的xls文件的字节流。
+    :return: 转换后的xlsx文件的字节流。
     """
-    # 打开PDF文件
-    doc = fitz.open(PDF_PATH_FROM_EXCEL)
+    # 创建一个临时文件来保存字节流
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as tmp_file:
+        tmp_file_name = tmp_file.name
+        tmp_file.write(file_bytes)
+        tmp_file.flush()
 
-    # 选择PDF的指定页
-    page = doc.load_page(page_number)
+    # 获取当前目录作为输出目录
+    output_dir = tempfile.mkdtemp()
 
-    # 将选中的页面转换为图片（pix）
-    pix = page.get_pixmap()
+    try:
+        # 构建转换命令
+        cmd = [
+            LIBREOFFICE_PATH,
+            "--headless",
+            "--convert-to",
+            "xlsx:Calc MS Excel 2007 XML",
+            tmp_file_name,
+            "--outdir",
+            output_dir
+        ]
+        # 调用命令行执行转换
+        subprocess.run(cmd, check=True)
 
-    # 使用pixmap的samples属性来获取像素数据
-    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        # 生成的.xlsx文件路径
+        generated_file_path = os.path.join(output_dir, os.path.splitext(os.path.basename(tmp_file_name))[0] + ".xlsx")
 
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="PNG")  # 使用Pillow保存图像数据到BytesIO对象
-    img_bytes.seek(0)
+        # 读取生成的.xlsx文件的字节流
+        with open(generated_file_path, 'rb') as f:
+            xlsx_bytes = f.read()
 
-    base64_str = base64.b64encode(img_bytes.read()).decode('utf-8')
+        return xlsx_bytes
 
-    # 关闭文档
-    doc.close()
+    except subprocess.CalledProcessError as e:
+        print(f"转换失败: {e}")
+        return None
+    except Exception as e:
+        print(f"发生错误: {e}")
+        return None
+    finally:
+        # 清理临时文件和目录
+        os.remove(tmp_file_name)
+        shutil.rmtree(output_dir)
+# 判断文件是那种excel文件
+def determine_file_type(excel_bytes):
+    # 将前几个字节转换为十六进制表示
+    file_header = excel_bytes[:8].hex()
+    # 判断文件类型
+    if file_header.startswith('d0cf11e0a1b11ae1'):
+        return 'xls'
+    elif file_header.startswith('504b0304'):
+        return 'xlsx'
+    else:
+        return 'Unknown'
 
-    return base64_str
-
-
-def checkTags(excel_file, pdf_file):
-    work_table = '例2'
+def checkTags(excel_file, pdf_file, name1, name2, work_table):
+    excel_type = determine_file_type(excel_file)
+    if excel_type == 'xls':
+        excel_file = convert_xls_bytes_to_xlsx(excel_file)
+    elif excel_type == 'Unknown':
+        code = '该文件不是excel文件'
+        return CODE_ERROR, None, code
     doc = fitz.open(stream=BytesIO(pdf_file))
     doc.save(PDF_PATH)
     wb = openpyxl.load_workbook(filename=BytesIO(excel_file))
-    wb.save(EXCEL_PATH)
+    if work_table is None:
+        sheet_names = wb.sheetnames
+        work_table = sheet_names[1]
+    print(f"工作表为: {work_table}")
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
-    # 将excel转化为pdf，保存到PDF_PATH
-    convert_excel_sheet_to_pdf(EXCEL_PATH, work_table)
-    # 将excel转化为pdf，保存到PDF_PATG
-    image_base64 = convert_pdf_page_to_image_base64()
-
+    image_base64 = excel_to_iamge(EXCEL_PATH, work_table)
+    save_CE(doc, EXCEL_PATH, name1, name2, work_table, CODE_SUCCESS, image_base64, None)
     os.remove(EXCEL_PATH)
+    os.remove(PDF_PATH)
+    doc.close()
+    wb.close()
+    return CODE_SUCCESS, image_base64, None
+# 测试
+# def pdf_to_bytes(file_path):
+#     with open(file_path, 'rb') as file:
+#         bytes_content = file.read()
+#     return bytes_content
+# excel = '1.xls'
+# pdf = 'a.pdf'
+# excel = pdf_to_bytes(excel)
+# pdf = pdf_to_bytes(pdf)
+# code, image_base64, msg = checkTags(excel, pdf, None)
+# print(code)
+# print(msg)
 
-    return f"{BASE64_PNG}{image_base64}"
-
-
-# checkTags('2.xlsx','2.pdf')
