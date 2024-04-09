@@ -140,6 +140,24 @@ class PartCountHandler(MainHandler):
         print(pdf_rect)
         page_number_explore = int(self.get_argument('pageNumberExplore'))
         page_number_table = int(self.get_argument('pageNumberTable'))
+        '''
+        custom_data {
+            code <int>: 状态码，用于表示处理结果的不同情况。
+                0: 表示未检测到错误或者未找到满足条件的表格。
+                1: 表示零件计数和明细表检测均成功。
+                2: 表示零件计数成功，但明细表检测未发现错误。
+                3: 表示零件计数给定页面表格出错，明细表检测成功。
+            mapping_results <list>: 与零件计数相关的详细匹配结果.
+                key     <string>: 被检测的数字文本。
+                matched <bool>: 指示是否成功匹配。 True 表示匹配成功， False 表示失败。 
+                found   <int>: 实际发现的匹配数量。
+                expected<int | None>: 预期匹配的数量，如果第三列没有找到数字，则为 None 。
+            error_pages <list>: 错误页的图片信息和相应的页面编号。
+                images_base64 <list>: 错误页面的图片, 以Base64编码的字符串形式表示。
+                page_numbers <list>: 对应的PDF页面编号。
+            messages <string>: 一个字符串消息，提供关于处理结果的额外信息或错误消息。
+        }
+        '''
         custom_data = tasks.check_part_count(
             filename, pdf_rect, page_number_explore, page_number_table)
 
