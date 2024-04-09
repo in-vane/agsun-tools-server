@@ -134,7 +134,7 @@ def extract_text_by_language(doc, language_pages):
         # If it's not the last language, the end page is the start page of the next language - 1
         # If it's the last language, the end page is the last page of the document
         end_page = sorted_languages[i + 1][1] - 1 if i + \
-                                                     1 < len(sorted_languages) else total_pages
+            1 < len(sorted_languages) else total_pages
 
         # Extract text from the specified page range
         text = ""
@@ -249,7 +249,8 @@ def check_language(file, filename, limit):
         'language_page': language_pages[0][0],
         'language': language  # A success message
     }
-    save_Language(doc, filename, CODE_SUCCESS, language_pages[0][0], language, None)
+    save_Language(doc, filename, CODE_SUCCESS,
+                  language_pages[0][0], language, None)
     doc.close()
     return CODE_SUCCESS, data, None
 

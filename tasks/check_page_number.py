@@ -9,6 +9,7 @@ from save_filesys_db import save_PageNumber
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
+
 def annotate_page_number_issues(doc, physical_page_numbers, issues):
     # 检查页码问题
     error_pages_base64 = []
@@ -110,12 +111,12 @@ def extract_page_numbers(doc):
 
 
 # 主函数
-def check_page_number(file,filename):
+def check_page_number(file, filename):
     # doc = fitz.open(file)
     if not file:
         code = '文件损坏或者为空文件'
         print(code)
-        return CODE_ERROR,None,code
+        return CODE_ERROR, None, code
     doc = fitz.open(stream=BytesIO(file))
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
@@ -130,7 +131,8 @@ def check_page_number(file,filename):
     # 在错误的页码附近标注错误
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
-    save_PageNumber(doc, filename, CODE_SUCCESS, is_error, issues, error_pages_base64, None)
+    save_PageNumber(doc, filename, CODE_SUCCESS, is_error,
+                    issues, error_pages_base64, None)
     doc.close()
 
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None

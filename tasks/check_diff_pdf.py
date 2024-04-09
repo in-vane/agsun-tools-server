@@ -194,7 +194,7 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
     for page in mismatch_list:
         # 检查当前页码是否在任一adjusted_sequences的范围内
         in_range = any(start <= page <= end for start,
-        end in adjusted_sequences)
+                       end in adjusted_sequences)
         # 如果不在范围内，或者是adjusted_sequences的起始页码，则保留
         if not in_range or page in pages_to_keep:
             refined_mismatch_list.append(page)
@@ -257,7 +257,8 @@ def check_diff_pdf(file1, file2, file1_name, file2_name, page_num1, page_num2):
     base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
     print(len(mismatch_list))
     if not adjusted_sequences:
-        save_Diffpdf(doc1, doc2, file1_name, file2_name, CODE_SUCCESS, mismatch_list, base64_strings, None, None)
+        save_Diffpdf(doc1, doc2, file1_name, file2_name,
+                     CODE_SUCCESS, mismatch_list, base64_strings, None, None)
         return CODE_SUCCESS, mismatch_list, base64_strings, '', None
     else:
         summaries = []
@@ -276,9 +277,12 @@ def check_diff_pdf(file1, file2, file1_name, file2_name, page_num1, page_num2):
 
             # 只处理image1中页码大于等于page_num1的图片
             if current_page_num >= page_num1:
-                corresponding_page_num = current_page_num + (page_num2 - page_num1)
-                image1_path = os.path.join(PDF1_IMAGE, f"{current_page_num}.png")
-                image2_path = os.path.join(PDF2_IMAGE, f"{corresponding_page_num}.png")
+                corresponding_page_num = current_page_num + \
+                    (page_num2 - page_num1)
+                image1_path = os.path.join(
+                    PDF1_IMAGE, f"{current_page_num}.png")
+                image2_path = os.path.join(
+                    PDF2_IMAGE, f"{corresponding_page_num}.png")
 
                 if os.path.exists(image2_path):
                     # 这里调用找出和标记两张图片差异的函数
@@ -305,7 +309,8 @@ def check_diff_pdf(file1, file2, file1_name, file2_name, page_num1, page_num2):
     dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
     print(len(base64_strings))
-    save_Diffpdf(doc1, doc2, file1_name, file2_name, CODE_SUCCESS, mismatch_list, base64_strings, continuous, None)
+    save_Diffpdf(doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
+                 mismatch_list, base64_strings, continuous, None)
     doc1.close()
     doc2.close()
     return CODE_SUCCESS, mismatch_list, base64_strings, continuous, None

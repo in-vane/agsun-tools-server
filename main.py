@@ -65,32 +65,37 @@ class ExploreHandler(MainHandler):
             "result": img_base64
         }
         self.write(custom_data)
+
+
 class LoginHandler(MainHandler):
     def post(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
-        code,username,msg = tasks.login(username,password)
+        code, username, msg = tasks.login(username, password)
         custom_data = {
             'code': code,
             'data': {
-              'username':username
+                'username': username
             },
             'msg': msg
 
         }
         self.write(custom_data)
+
+
 class LogoutHandler(MainHandler):
     def post(self):
         code, username, msg = tasks.logout()
         custom_data = {
             'code': code,
             'data': {
-              'username':username
+                'username': username
             },
             'msg': msg
 
         }
         self.write(custom_data)
+
 
 class FullPageHandler(MainHandler):
     def post(self):
@@ -138,7 +143,6 @@ class PartCountHandler(MainHandler):
         custom_data = tasks.check_part_count(
             filename, pdf_rect, page_number_explore, page_number_table)
 
-
         # custom_data = {
         #     "error": error,
         #     "result": result,
@@ -157,7 +161,8 @@ class PageNumberHandler(MainHandler):
         file = files[0]
         body = file["body"]
         filename = file.get("filename")
-        code, error, error_page, result, msg = tasks.check_page_number(body,filename)
+        code, error, error_page, result, msg = tasks.check_page_number(
+            body, filename)
         custom_data = {
             'code': code,
             'data': {
@@ -191,7 +196,7 @@ class ScrewHandler(MainHandler):
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_screw(body,filename)
+        code, data, msg = tasks.check_screw(body, filename)
         custom_data = {
             'code': code,
             'data': data,
@@ -207,7 +212,7 @@ class LanguageHandler(MainHandler):
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_language(body,filename, limit)
+        code, data, msg = tasks.check_language(body, filename, limit)
 
         custom_data = {
             'code': code,
@@ -237,7 +242,8 @@ class CEHandler(MainHandler):
             pdf_name, excel_name = name2, name1
         img_base64 = ''
         if mode == 0:
-            code, image_base64, msg = tasks.check_CE_mode_normal(file_excel, file_pdf, pdf_name, excel_name, work_table)
+            code, image_base64, msg = tasks.check_CE_mode_normal(
+                file_excel, file_pdf, pdf_name, excel_name, work_table)
         custom_data = {
             "code": code,
             "data": {

@@ -4,9 +4,8 @@ import fitz
 import numpy as np
 
 
-DPI=300
+DPI = 300
 BASE64_JPG = 'data:image/jpeg;base64,'
-
 
 
 def detect_and_filter_contours(img1, area_threshold=200):
@@ -50,8 +49,10 @@ def match_and_align_images(img1, img2):
     # 应用比率测试
     good_matches = [m for m, n in matches if m.distance < 0.75 * n.distance]
     if len(good_matches) >= 4:
-        pts_src = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        pts_dst = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        pts_src = np.float32(
+            [keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        pts_dst = np.float32(
+            [keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
         M, _ = cv2.findHomography(pts_src, pts_dst, cv2.RANSAC, 5.0)
         if M is not None:
@@ -74,6 +75,7 @@ def match_and_align_images(img1, img2):
         }
 
     return custom_data
+
 
 def pyr_down_image(image, levels=1):
     """
@@ -158,7 +160,8 @@ def highlight_unmatched_contours(img1, img2, large_contours1, large_contours2, s
 
     return img1, img2
 
-def check_ocr_icon(filename,img1, page_num):
+
+def check_ocr_icon(filename, img1, page_num):
     pdf_path = f"./assets/pdf/{filename}"
     # 解码 base64 字符串为图像数据
     image_data_1 = base64.b64decode(img1.split(',')[-1])
@@ -169,25 +172,26 @@ def check_ocr_icon(filename,img1, page_num):
     doc = fitz.open(pdf_path)
     page = doc.load_page(page_num - 1)
     image = page.get_pixmap(matrix=fitz.Matrix(DPI / 72, DPI / 72))
-    img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape((image.height, image.width, 3))
+    img_array = np.frombuffer(image.samples, dtype=np.uint8).reshape(
+        (image.height, image.width, 3))
     doc.close()
     img2 = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
     custom_data = match_and_align_images(img1, img2)
     if custom_data['error']:
         large_contours1 = detect_and_filter_contours(custom_data['result'][0])
         large_contours2 = detect_and_filter_contours(custom_data['result'][1])
-        img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(cv2.cvtColor(custom_data['result'][0], cv2.COLOR_GRAY2BGR), cv2.cvtColor(custom_data['result'][1], cv2.COLOR_GRAY2BGR), large_contours1, large_contours2)
-        cv2.imwrite('D:/PycharmProjects/part_count/material/result1.png',img1_aligned_highlighted)
-        cv2.imwrite('D:/PycharmProjects/part_count/material/result2.png',img2_highlighted)
+        img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(cv2.cvtColor(
+            custom_data['result'][0], cv2.COLOR_GRAY2BGR), cv2.cvtColor(custom_data['result'][1], cv2.COLOR_GRAY2BGR), large_contours1, large_contours2)
+        cv2.imwrite(
+            'D:/PycharmProjects/part_count/material/result1.png', img1_aligned_highlighted)
+        cv2.imwrite(
+            'D:/PycharmProjects/part_count/material/result2.png', img2_highlighted)
         _, image_buffer = cv2.imencode('.jpeg', img1_aligned_highlighted)
         image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
         _, image_buffer = cv2.imencode('.jpeg', img2_highlighted)
         image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
-        custom_data['result'][0]=f"{BASE64_JPG}{image_base64_1}"
-        custom_data['result'][1]=f"{BASE64_JPG}{image_base64_2}"
+        custom_data['result'][0] = f"{BASE64_JPG}{image_base64_1}"
+        custom_data['result'][1] = f"{BASE64_JPG}{image_base64_2}"
         return custom_data
     else:
         return custom_data
-
-
-

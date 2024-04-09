@@ -1,3 +1,4 @@
+from config import BASE64_PNG
 import re
 import base64
 from io import BytesIO
@@ -7,7 +8,6 @@ import numpy as np
 
 import sys
 sys.path.append('..')
-from config import BASE64_PNG
 
 
 RESOLUTION = 300

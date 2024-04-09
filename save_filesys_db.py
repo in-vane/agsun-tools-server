@@ -26,18 +26,23 @@ UNIQUE_IDENTIFIER = username
 
 ROOT = 'D:\\PrintCmpFile'
 # 动态设置基础目录的函数
+
+
 def setup_directory_paths(base_dir):
     current_year = datetime.now().strftime('%Y')
     current_month_day = datetime.now().strftime('%m%d')
     current_time = datetime.now().strftime('%H-%M-%S')
     unique_identifier = UNIQUE_IDENTIFIER  # 根据实际情况动态赋值
-    pdf_dir = os.path.join(base_dir, current_year, current_month_day, current_time, unique_identifier)
+    pdf_dir = os.path.join(base_dir, current_year,
+                           current_month_day, current_time, unique_identifier)
     result_dir = os.path.join(pdf_dir, 'result')
     result_file_path = os.path.join(result_dir, 'result.txt')
     image_result_dir = os.path.join(result_dir, 'image')
 
     return pdf_dir, result_dir, result_file_path, image_result_dir
-def images_to_directory(base64_images,image_result_dir):
+
+
+def images_to_directory(base64_images, image_result_dir):
     """
     将Base64编码的图像列表转换为图像并保存到指定目录。
 
@@ -61,9 +66,12 @@ def images_to_directory(base64_images,image_result_dir):
         # 保存图像到文件系统
         image.save(output_path)
         print(f"Saved: {output_path}")
+
+
 def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
     base_dir = f'{ROOT}\\001'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -89,15 +97,15 @@ def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
                     step_page_no = item['step_page_no']
                     # Construct the string for the current item
                     result = f"型号{model_type}螺丝，螺丝包螺丝有{total_screws}个，而步骤螺丝总和有{step_total}，分别在" + \
-                             "，".join(f"{page}页出现{count}个" for page, count in zip(step_page_no, step_counts))
+                             "，".join(f"{page}页出现{count}个" for page,
+                                      count in zip(step_page_no, step_counts))
                     result_file.write(result)
         else:
             is_error = 0
             with open(result_file_path, 'w') as result_file:
                 result_file.write(f'该文件螺丝包没错\n')
 
-
-    #保存数据库
+    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
     pdf_name = f'{base_file_name}.pdf'
@@ -113,9 +121,12 @@ def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
         is_error=is_error
     )
     check_pagenumber_instance.save_to_db()
+
+
 def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
     base_dir = f'{ROOT}\\002'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -132,11 +143,11 @@ def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_bas
             with open(result_file_path, 'w') as result_file:
                 for issue in issues:
                     result_file.write(f'{issue}\n')
-            images_to_directory(error_pages_base64,image_result_dir)
+            images_to_directory(error_pages_base64, image_result_dir)
         else:
             with open(result_file_path, 'w') as result_file:
                 result_file.write(f'该文件页码没错\n')
-    #保存数据库
+    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
     pdf_name = f'{base_file_name}.pdf'
@@ -152,9 +163,12 @@ def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_bas
         is_error=is_error
     )
     check_pagenumber_instance.save_to_db()
+
+
 def save_Language(doc, base_file_name, code, language_page, language, msg):
     base_dir = f'{ROOT}\\003'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -174,8 +188,8 @@ def save_Language(doc, base_file_name, code, language_page, language, msg):
             else:
                 result_str += f"错误语言{lang['language']}，{lang['page_number'][0]}页到{lang['page_number'][1]}页，而正文为{lang['actual_language']}\n"
         with open(result_file_path, 'w') as result_file:
-                result_file.write(result_str)
-    #保存数据库
+            result_file.write(result_str)
+    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
     pdf_name = f'{base_file_name}.pdf'
@@ -196,9 +210,12 @@ def save_Language(doc, base_file_name, code, language_page, language, msg):
         is_error=is_error
     )
     check_pagenumber_instance.save_to_db()
-def save_CE(doc, excel_file, name1, name2,work_table,code, image_base64,msg):
+
+
+def save_CE(doc, excel_file, name1, name2, work_table, code, image_base64, msg):
     base_dir = f'{ROOT}\\004'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        base_dir)
     # 确保PDF和结果目录存在
     wb = load_workbook(excel_file)
     os.makedirs(pdf_dir, exist_ok=True)
@@ -217,7 +234,7 @@ def save_CE(doc, excel_file, name1, name2,work_table,code, image_base64,msg):
         img_base64 = []
         img_base64.append(image_base64)
         images_to_directory(img_base64, image_result_dir)
-    #保存数据库
+    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{name1}')
     pdf_name = f'{name1}'
@@ -238,9 +255,11 @@ def save_CE(doc, excel_file, name1, name2,work_table,code, image_base64,msg):
     )
     check_pagenumber_instance.save_to_db()
 
-def save_Diffpdf(doc1, doc2, name1, name2, code, mismatch_list, base64_strings,continuous,msg):
+
+def save_Diffpdf(doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
     base_dir = f'{ROOT}\\005'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -265,15 +284,15 @@ def save_Diffpdf(doc1, doc2, name1, name2, code, mismatch_list, base64_strings,c
             with open(result_file_path, 'w') as result_file:
                 for mismatch in mismatch_list:
                     result_file.write(f"{mismatch}\n")
-                images_to_directory(base64_strings,image_result_dir)
+                images_to_directory(base64_strings, image_result_dir)
             if continuous:
                 with open(result_file_path, 'w') as result_file:
                     for mismatch in mismatch_list:
                         result_file.write(f"{mismatch}\n")
                     result_file.write(continuous)
-                    images_to_directory(base64_strings,image_result_dir)
+                    images_to_directory(base64_strings, image_result_dir)
 
-    #保存数据库
+    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path1 = os.path.join(pdf_dir, f'{name1}.pdf')
     pdf_path2 = os.path.join(pdf_dir, f'{name2}.pdf')

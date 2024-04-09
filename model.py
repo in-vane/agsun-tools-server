@@ -8,6 +8,8 @@ DB_CONFIG = {
     'database': 'jisen',
     'charset': 'utf8'
 }
+
+
 class User:
     def __init__(self, username, password):
         self.username = username
@@ -31,8 +33,10 @@ class User:
                     return False
         finally:
             connection.close()
+
+
 class CheckDiffpdf:
-    def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1,pdf_path2, pdf_name2, result, is_error):
+    def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1, pdf_path2, pdf_name2, result, is_error):
         self.username = username
         self.dataline = dataline
         self.work_num = work_num
@@ -56,10 +60,13 @@ class CheckDiffpdf:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path1, self.pdf_name1,self.pdf_path2, self.pdf_name2, self.result, self.is_error))
+                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path1,
+                               self.pdf_name1, self.pdf_path2, self.pdf_name2, self.result, self.is_error))
                 connection.commit()
         finally:
             connection.close()
+
+
 class CheckLanguage:
     def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result, is_error):
         self.username = username
@@ -83,10 +90,13 @@ class CheckLanguage:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path, self.pdf_name, self.result, self.is_error))
+                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
             connection.close()
+
+
 class CheckScrew:
     def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result, is_error):
         self.username = username
@@ -110,12 +120,15 @@ class CheckScrew:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path, self.pdf_name, self.result, self.is_error))
+                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
             connection.close()
+
+
 class CheckCE:
-    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, excel_path, excel_name,work_table,result):
+    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, excel_path, excel_name, work_table, result):
         self.username = username
         self.dataline = dataline
         self.work_num = work_num
@@ -125,7 +138,6 @@ class CheckCE:
         self.excel_name = excel_name
         self.work_table = work_table
         self.result = result
-
 
     def save_to_db(self):
         connection = pymysql.connect(host=DB_CONFIG['host'],
@@ -140,10 +152,13 @@ class CheckCE:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path, self.pdf_name,self.excel_path,self.excel_name,self.work_table, self.result))
+                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path,
+                               self.pdf_name, self.excel_path, self.excel_name, self.work_table, self.result))
                 connection.commit()
         finally:
             connection.close()
+
+
 class CheckPageNumber:
     def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result, is_error):
         self.username = username
@@ -167,11 +182,8 @@ class CheckPageNumber:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path, self.pdf_name, self.result, self.is_error))
+                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
             connection.close()
-
-
-
-
