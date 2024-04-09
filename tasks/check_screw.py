@@ -89,9 +89,6 @@ def read_csv_to_dict():
     return result_dict
 
 
-
-
-
 # 如果连续超过4张页面为矢量页面，认为为步骤页，提取步骤页
 def detect_vector_pages(doc):
     step_pages = []  # 用于存储步骤页的列表
@@ -111,7 +108,8 @@ def detect_vector_pages(doc):
             # 不是矢量图或不连续
             if last_page is not None and (last_page - temp_start) >= 3:
                 # 如果连续序列的长度至少为4，则记录这个范围
-                step_pages.extend(range(temp_start + 1, last_page + 2))  # 页码从1开始
+                step_pages.extend(
+                    range(temp_start + 1, last_page + 2))  # 页码从1开始
             # 重置连续序列的起始和结束页
             temp_start = None
             last_page = None
@@ -121,6 +119,8 @@ def detect_vector_pages(doc):
     print(step_pages)
     return step_pages
 # 提取步骤页，需要的步骤螺丝
+
+
 def extract_text_meeting_pattern(doc, pages):
 
     pattern = r'(\d+)\s*[xX]\s*([A-Z])'
@@ -165,12 +165,13 @@ def extract_text_meeting_pattern(doc, pages):
 def get_step_screw(doc):
     # 提取步骤下方的图像
     step_page = detect_vector_pages(doc)
-    letter_counts, letter_count, letter_pageNumber = extract_text_meeting_pattern(doc, step_page)
+    letter_counts, letter_count, letter_pageNumber = extract_text_meeting_pattern(
+        doc, step_page)
 
     return letter_counts, letter_count, letter_pageNumber
 
 
-def check_total_and_step(doc,result_dict,page_num):
+def check_total_and_step(doc, result_dict, page_num):
     count_mismatch = {}  # 数量不匹配的情况
     extra_chars = {}  # 多余的字符
     missing_chars = {}  # 缺少的字符
@@ -224,7 +225,7 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 
 # 主函数
-def check_screw(file,filename):
+def check_screw(file, filename):
     # doc = fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
     doc.save(PDF_PATH)
@@ -240,7 +241,7 @@ def check_screw(file,filename):
     manage_csv()
     result_dict = read_csv_to_dict()
     count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
-        doc,result_dict, page_num)
+        doc, result_dict, page_num)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
 
@@ -248,11 +249,10 @@ def check_screw(file,filename):
     print("Mismatch Dict:", mismatch_dict)
     print("Match Dict:", match_dict)
 
-
     os.remove(CSV_PATH)
     os.remove(PDF_PATH)
     shutil.rmtree(IMAGE_PATH)
-    data={
+    data = {
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }

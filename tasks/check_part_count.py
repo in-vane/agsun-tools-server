@@ -35,17 +35,21 @@ def get_error_pages_as_base64(mismatched_details, pdf_path):
     mismatched_page = []
     # 遍历有错误的页码
     for page_number, line_indices in mismatched_details.items():
-        images = convert_from_path(pdf_path, first_page=page_number - 1, last_page=page_number - 1, fmt='PNG')
+        images = convert_from_path(
+            pdf_path, first_page=page_number - 1, last_page=page_number - 1, fmt='PNG')
 
         for image in images:
             draw = ImageDraw.Draw(image)
             font = ImageFont.load_default()
 
             # 将所有错误行的信息合并成一条信息
-            error_lines_info_cn = "序号 " + ",".join(map(str, line_indices)) + " 有误"
-            error_lines_info_en = "Entry numbers " + ",".join(map(str, line_indices)) + " are incorrect"
+            error_lines_info_cn = "序号 " + \
+                ",".join(map(str, line_indices)) + " 有误"
+            error_lines_info_en = "Entry numbers " + \
+                ",".join(map(str, line_indices)) + " are incorrect"
             text_position = (30, 10)  # 在左上角显示信息
-            draw.text(text_position, error_lines_info_en, fill=(255, 0, 0), font=font)
+            draw.text(text_position, error_lines_info_en,
+                      fill=(255, 0, 0), font=font)
             # 将图片直接保存到磁盘
             save_path = f"/home/zhanghantao/agsun-tools-server/tasks/page_{page_number}.png"
             image.save(save_path)
@@ -63,7 +67,8 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
     mismatched_pages_list = {}
     # 遍历每一页
     for page_number in range(exact_pagenumber + 1, len(doc.pages)):
-        tables = tabula.read_pdf(pdf_path, pages=str(page_number), multiple_tables=True)
+        tables = tabula.read_pdf(pdf_path, pages=str(
+            page_number), multiple_tables=True)
 
         # 先过滤出尺寸接近要求的表格
         for table_data in tables:
@@ -93,14 +98,16 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
                     else:
                         # 将第一行设置为表头
                         table_data.columns = table_data.iloc[0]  # 第一行的值成为列名
-                        table_data = table_data.drop(table_data.index[0])  # 删除原始的第一行
+                        table_data = table_data.drop(
+                            table_data.index[0])  # 删除原始的第一行
                         table_data = table_data.reset_index(drop=True)  # 重置索引
                     # 检查调整后的DataFrame的尺寸是否精确符合要求
                     if table_data.shape[0] == num_rows and table_data.shape[1] == num_columns:
                         # 这里添加具体的内容比较逻辑
                         # 假设我们已经处于需要比较的页面中
                         # 计算需要比较的列索引列表
-                        compare_columns_indices = [i for i in range(len(table_data.columns)) if i % 3 == 0]
+                        compare_columns_indices = [i for i in range(
+                            len(table_data.columns)) if i % 3 == 0]
 
                         # 初始化一个列表来记录当前页的不匹配行索引
                         current_page_mismatches = []
@@ -114,14 +121,18 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
                                 if expected_value != actual_value:
                                     # 如果不相等，记录行索引
                                     if expected_value not in current_page_mismatches:
-                                        current_page_mismatches.append(expected_value)
+                                        current_page_mismatches.append(
+                                            expected_value)
                         # 如果当前页有不匹配的行，更新mismatched_details字典
                         if current_page_mismatches:
-                            mismatched_pages_list[page_number + 1] = current_page_mismatches  # 页面编号从1开始
+                            # 页面编号从1开始
+                            mismatched_pages_list[page_number +
+                                                  1] = current_page_mismatches
 
     # 获取不匹配页面的图片
     if mismatched_pages_list:
-        images_base64, mismatched_pages, error_lines_info = get_error_pages_as_base64(mismatched_pages_list, pdf_path)
+        images_base64, mismatched_pages, error_lines_info = get_error_pages_as_base64(
+            mismatched_pages_list, pdf_path)
         return images_base64, mismatched_pages, error_lines_info
     else:
         return [], [], ""
@@ -554,7 +565,8 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
             }
             return custom_data
         # 尝试从指定页面提取表格
-        tables = tabula.read_pdf(pdf_path, pages=str(page_number), multiple_tables=True)
+        tables = tabula.read_pdf(pdf_path, pages=str(
+            page_number), multiple_tables=True)
         # 如果页面上没有表格，返回错误信息
         if not tables:
             custom_data = {
@@ -574,7 +586,8 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                     # 直接使用iloc对DataFrame进行切片获取子表格
                     sub_table = table.iloc[:, i:i + 3]
                     # 计算每一行的非 NaN 值的数量
-                    thresh = math.ceil(len(sub_table.columns) * 0.5)  # 设置阈值为列数的一半
+                    thresh = math.ceil(len(sub_table.columns)
+                                       * 0.5)  # 设置阈值为列数的一半
 
                     # 删除非 NaN 值少于阈值的行
                     sub_table = sub_table.dropna(thresh=thresh)
@@ -598,7 +611,8 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                         # df.iloc[:, 0] = pd.to_numeric(df.iloc[:, 0], errors='coerce').astype(int)
                         sub_table[sub_table.columns[0]] = pd.to_numeric(
                             sub_table.iloc[:, 0], errors='coerce').astype(int)
-                        sub_table = sub_table.dropna(subset=[sub_table.columns[0]])
+                        sub_table = sub_table.dropna(
+                            subset=[sub_table.columns[0]])
                     except ValueError:
                         continue  # 无法转换第一列为整数，跳过此子表格
 
@@ -622,7 +636,8 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                                 third_column_value = row.iloc[0, 2]
                                 if isinstance(third_column_value, str):
                                     # 如果是字符串，使用正则表达式提取数字
-                                    numbers_in_third_column = re.findall(r'\d+', third_column_value)
+                                    numbers_in_third_column = re.findall(
+                                        r'\d+', third_column_value)
                                 else:
                                     # 如果不是字符串，直接将值放入列表
                                     numbers_in_third_column = [third_column_value] if pd.notnull(

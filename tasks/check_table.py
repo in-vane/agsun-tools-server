@@ -2,7 +2,7 @@ import os
 import shutil
 import base64
 import io
-from PIL import Image,ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 
 import fitz
@@ -10,12 +10,10 @@ import pandas as pd
 from tabula import read_pdf
 
 
-
-
 PDF_PATH = './assets/pdf/temp.pdf'
 
 CSV_PATH = './assets/csv/'
-CSV_NAME="exact_table.csv"
+CSV_NAME = "exact_table.csv"
 SUCCESS = 0
 ERROR_NO_EXPLORED_VIEW = 1
 BASE64_PNG = 'data:image/png;base64,'

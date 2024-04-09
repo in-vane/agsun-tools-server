@@ -1,3 +1,5 @@
+from config import BASE64_PNG
+from utils import base642img, img2base64
 import base64
 import cv2
 import fitz
@@ -6,8 +8,6 @@ from skimage.metrics import structural_similarity
 
 import sys
 sys.path.append("..")
-from utils import base642img, img2base64
-from config import BASE64_PNG
 
 
 DPI = 300
