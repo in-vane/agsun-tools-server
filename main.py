@@ -10,26 +10,7 @@ from websocket import FileAssembler, pdf2img_split, write_file_name
 from tornado.web import HTTPError
 from auth import decode_jwt
 
-# 创建一个新的基础处理器，包含JWT验证逻辑
-class BaseHandler(tornado.web.RequestHandler):
-    def prepare(self):
-        # 登录和注销请求不需要Token验证
-        if self.request.path in ["/api/login", "/api/logout"]:
-            return
 
-        # 其他API请求都需要Token验证
-        auth_header = self.request.headers.get('Authorization')
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            user_info = decode_jwt(token)
-            if user_info:
-                self.current_user = user_info
-            else:
-                # Token无效，抛出一个403 Forbidden异常
-                raise HTTPError(403, "Invalid token")
-        else:
-            # 如果没有提供Token，抛出一个401 Unauthorized异常
-            raise HTTPError(401, "Token not provided")
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
