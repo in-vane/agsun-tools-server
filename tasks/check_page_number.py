@@ -4,7 +4,7 @@ import base64
 import fitz
 import re
 
-
+from logger import logger
 from save_filesys_db import save_PageNumber
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -38,10 +38,6 @@ def annotate_page_number_issues(doc, physical_page_numbers, issues):
         buffer.close()
         error_pages_base64.append(f"data:image/jpeg;base64,{img_base64}")
 
-    # 将文档转换成字节流
-    # doc_bytes = doc.write()
-    # 将字节流进行base64编码
-    # doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
 
     return error_pages_base64
 
@@ -113,34 +109,32 @@ def extract_page_numbers(doc):
 # 主函数
 def check_page_number(username, file, filename):
     # doc = fitz.open(file)
+    logger.info("---begin check_page_number---")
+    logger.info(f"username : {username}")
     if not file:
         code = '文件损坏或者为空文件'
-        print(code)
+        logger.info(code)
         return CODE_ERROR, None, code
     doc = fitz.open(stream=BytesIO(file))
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
-    print(f"物理页码:{physical_page_numbers}")
+    logger.info(f"physical_page_numbers:{physical_page_numbers}")
     # 获取文件中的页码表
     printed_page_numbers = extract_page_numbers(doc)
-    print(f"打印页码:{printed_page_numbers}")
+    logger.info(f"printed_page_numbers:{printed_page_numbers}")
     # 对比两个页码表
     issues = check_page_number_issues(
         printed_page_numbers, physical_page_numbers)
     is_error = False if len(issues) == 0 else True
     # 在错误的页码附近标注错误
+
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
+    logger.info(f"error page number:{issues}")
+    logger.info("save file")
     save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
                     issues, error_pages_base64, None)
     doc.close()
-
+    logger.info("---end check_page_number---")
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None
-# 测试
-# def pdf_to_bytes(file_path):
-#     with open(file_path, 'rb') as file:
-#         bytes_content = file.read()
-#     return bytes_content
-# file1 = 'page_number/1.pdf'   # 请根据实际情况修改路径
-# file1 = pdf_to_bytes(file1)
-# check_page_number(file1,'1')
+
