@@ -111,7 +111,7 @@ def extract_page_numbers(doc):
 
 
 # 主函数
-def check_page_number(file, filename):
+def check_page_number(username, file, filename):
     # doc = fitz.open(file)
     if not file:
         code = '文件损坏或者为空文件'
@@ -131,7 +131,7 @@ def check_page_number(file, filename):
     # 在错误的页码附近标注错误
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
-    save_PageNumber(doc, filename, CODE_SUCCESS, is_error,
+    save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
                     issues, error_pages_base64, None)
     doc.close()
 

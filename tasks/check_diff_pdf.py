@@ -203,7 +203,7 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
 
 
 # 主函数
-def check_diff_pdf(file1, file2, file1_name, file2_name, page_num1, page_num2):
+def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, page_num2):
     doc1 = fitz.open(stream=BytesIO(file1))
     doc2 = fitz.open(stream=BytesIO(file2))
     pdf_to_images(doc1, PDF1_IMAGE)
@@ -309,7 +309,7 @@ def check_diff_pdf(file1, file2, file1_name, file2_name, page_num1, page_num2):
     dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
     print(len(base64_strings))
-    save_Diffpdf(doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
+    save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
                  mismatch_list, base64_strings, continuous, None)
     doc1.close()
     doc2.close()

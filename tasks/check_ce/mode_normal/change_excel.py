@@ -138,7 +138,7 @@ def determine_file_type(excel_bytes):
     else:
         return 'Unknown'
 
-def checkTags(excel_file, pdf_file, name1, name2, work_table):
+def checkTags(username, excel_file, pdf_file, name1, name2, work_table):
     excel_type = determine_file_type(excel_file)
     if excel_type == 'xls':
         excel_file = convert_xls_bytes_to_xlsx(excel_file)
@@ -155,7 +155,7 @@ def checkTags(excel_file, pdf_file, name1, name2, work_table):
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
     image_base64 = excel_to_iamge(EXCEL_PATH, work_table)
-    save_CE(doc, EXCEL_PATH, name1, name2, work_table, CODE_SUCCESS, image_base64, None)
+    save_CE(username, doc, EXCEL_PATH, name1, name2, work_table, CODE_SUCCESS, image_base64, None)
     os.remove(EXCEL_PATH)
     os.remove(PDF_PATH)
     doc.close()

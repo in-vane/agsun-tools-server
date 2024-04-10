@@ -225,7 +225,7 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 
 # 主函数
-def check_screw(file, filename):
+def check_screw(username, file, filename):
     # doc = fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
     doc.save(PDF_PATH)
@@ -256,7 +256,7 @@ def check_screw(file, filename):
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }
-    save_Screw(doc, filename, CODE_SUCCESS, mismatch_dict, match_dict, None)
+    save_Screw(username, doc, filename, CODE_SUCCESS, mismatch_dict, match_dict, None)
     doc.close()
     return CODE_SUCCESS, data, None
 # 测试

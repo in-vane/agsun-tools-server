@@ -4,35 +4,16 @@ import base64
 import os
 from datetime import datetime
 from model import *
-import json
 from openpyxl import load_workbook
-USER = './assets/user/user.txt'
-if os.path.exists(USER):
-    try:
-        # 打开并读取文件内容
-        with open(USER, 'r') as f:
-            user_info = json.load(f)
-            # 获取并打印username
-            username = user_info.get('username', 'Unknown')
-            print(f"Logged in user: {username}")
-    except Exception as e:
-        print(f"Error reading file: {e}")
-else:
-    print("未登录")
+
 # 全局变量定义
-# 用户名
-UNIQUE_IDENTIFIER = username
-
-
 ROOT = 'D:\\PrintCmpFile'
 # 动态设置基础目录的函数
-
-
-def setup_directory_paths(base_dir):
+def setup_directory_paths(username, base_dir):
     current_year = datetime.now().strftime('%Y')
     current_month_day = datetime.now().strftime('%m%d')
     current_time = datetime.now().strftime('%H-%M-%S')
-    unique_identifier = UNIQUE_IDENTIFIER  # 根据实际情况动态赋值
+    unique_identifier = username  # 根据实际情况动态赋值
     pdf_dir = os.path.join(base_dir, current_year,
                            current_month_day, current_time, unique_identifier)
     result_dir = os.path.join(pdf_dir, 'result')
@@ -68,16 +49,16 @@ def images_to_directory(base64_images, image_result_dir):
         print(f"Saved: {output_path}")
 
 
-def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
+def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, msg):
     base_dir = f'{ROOT}\\001'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        base_dir)
+        username,base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
     doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
     # 如果存在错误，则保存问题列表
     if code == 1:
@@ -107,12 +88,12 @@ def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
 
     # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
-    pdf_name = f'{base_file_name}.pdf'
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
     result_path = result_dir
     # 创建实例并保存到数据库
     check_pagenumber_instance = CheckScrew(
-        username=UNIQUE_IDENTIFIER,
+        username=username,
         dataline=dataline,
         work_num='001',  # 这里需要根据实际情况赋值
         pdf_path=pdf_path,
@@ -123,16 +104,16 @@ def save_Screw(doc, base_file_name, code, mismatch_dict, match_dict, msg):
     check_pagenumber_instance.save_to_db()
 
 
-def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
+def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
     base_dir = f'{ROOT}\\002'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
         base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
     doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
     # 如果存在错误，则保存问题列表
     if code == 1:
@@ -149,12 +130,12 @@ def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_bas
                 result_file.write(f'该文件页码没错\n')
     # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
-    pdf_name = f'{base_file_name}.pdf'
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
     result_path = result_dir
     # 创建实例并保存到数据库
     check_pagenumber_instance = CheckPageNumber(
-        username=UNIQUE_IDENTIFIER,
+        username=username,
         dataline=dataline,
         work_num='002',  # 这里需要根据实际情况赋值
         pdf_path=pdf_path,
@@ -165,16 +146,16 @@ def save_PageNumber(doc, base_file_name, code, is_error, issues, error_pages_bas
     check_pagenumber_instance.save_to_db()
 
 
-def save_Language(doc, base_file_name, code, language_page, language, msg):
+def save_Language(username, doc, base_file_name, code, language_page, language, msg):
     base_dir = f'{ROOT}\\003'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        base_dir)
+        username,base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
     doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
     # 如果存在错误，则保存问题列表
     if code == 1:
@@ -191,8 +172,8 @@ def save_Language(doc, base_file_name, code, language_page, language, msg):
             result_file.write(result_str)
     # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
-    pdf_name = f'{base_file_name}.pdf'
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
     result_path = result_dir
     # 创建实例并保存到数据库
     if code == 1:
@@ -201,7 +182,7 @@ def save_Language(doc, base_file_name, code, language_page, language, msg):
         # Check if any language has error=True
         is_error = any(lang['error'] for lang in language)
     check_pagenumber_instance = CheckLanguage(
-        username=UNIQUE_IDENTIFIER,
+        username=username,
         dataline=dataline,
         work_num='003',  # 这里需要根据实际情况赋值
         pdf_path=pdf_path,
@@ -212,10 +193,10 @@ def save_Language(doc, base_file_name, code, language_page, language, msg):
     check_pagenumber_instance.save_to_db()
 
 
-def save_CE(doc, excel_file, name1, name2, work_table, code, image_base64, msg):
+def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_base64, msg):
     base_dir = f'{ROOT}\\004'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        base_dir)
+        username,base_dir)
     # 确保PDF和结果目录存在
     wb = load_workbook(excel_file)
     os.makedirs(pdf_dir, exist_ok=True)
@@ -243,7 +224,7 @@ def save_CE(doc, excel_file, name1, name2, work_table, code, image_base64, msg):
     result_path = result_dir
     # 创建实例并保存到数据库
     check_pagenumber_instance = CheckCE(
-        username=UNIQUE_IDENTIFIER,
+        username=username,
         dataline=dataline,
         work_num='004',  # 这里需要根据实际情况赋值
         pdf_path=pdf_path,
@@ -256,17 +237,17 @@ def save_CE(doc, excel_file, name1, name2, work_table, code, image_base64, msg):
     check_pagenumber_instance.save_to_db()
 
 
-def save_Diffpdf(doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
+def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
     base_dir = f'{ROOT}\\005'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        base_dir)
+        username, base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}.pdf')
-    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}.pdf')
+    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}')
+    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}')
     doc1.save(pdf_output_path1)  # 使用动态生成的路径保存文件
     doc2.save(pdf_output_path2)  # 使用动态生成的路径保存文件
     # 如果存在错误，则保存问题列表
@@ -294,14 +275,14 @@ def save_Diffpdf(doc1, doc2, name1, name2, code, mismatch_list, base64_strings, 
 
     # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path1 = os.path.join(pdf_dir, f'{name1}.pdf')
-    pdf_path2 = os.path.join(pdf_dir, f'{name2}.pdf')
-    pdf_name1 = f'{name1}.pdf'
-    pdf_name2 = f'{name2}.pdf'
+    pdf_path1 = os.path.join(pdf_dir, f'{name1}')
+    pdf_path2 = os.path.join(pdf_dir, f'{name2}')
+    pdf_name1 = f'{name1}'
+    pdf_name2 = f'{name2}'
     result_path = result_dir
     # 创建实例并保存到数据库
     check_pagenumber_instance = CheckDiffpdf(
-        username=UNIQUE_IDENTIFIER,
+        username=username,
         dataline=dataline,
         work_num='005',  # 这里需要根据实际情况赋值
         pdf_path1=pdf_path1,

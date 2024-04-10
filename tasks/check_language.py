@@ -218,7 +218,7 @@ def find_mismatched_languages(doc, detected_languages, page_number):
 
 
 # 主函数
-def check_language(file, filename, limit):
+def check_language(username, file, filename, limit):
     doc = fitz.open(stream=BytesIO(file))
     # doc = fitz.open(file)
     total_pages = doc.page_count
@@ -249,7 +249,7 @@ def check_language(file, filename, limit):
         'language_page': language_pages[0][0],
         'language': language  # A success message
     }
-    save_Language(doc, filename, CODE_SUCCESS,
+    save_Language(username, doc, filename, CODE_SUCCESS,
                   language_pages[0][0], language, None)
     doc.close()
     return CODE_SUCCESS, data, None

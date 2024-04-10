@@ -7,8 +7,29 @@ import tornado.ioloop
 import tasks
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
+from tornado.web import HTTPError
+from auth import decode_jwt
 
+# 创建一个新的基础处理器，包含JWT验证逻辑
+class BaseHandler(tornado.web.RequestHandler):
+    def prepare(self):
+        # 登录和注销请求不需要Token验证
+        if self.request.path in ["/api/login", "/api/logout"]:
+            return
 
+        # 其他API请求都需要Token验证
+        auth_header = self.request.headers.get('Authorization')
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            user_info = decode_jwt(token)
+            if user_info:
+                self.current_user = user_info
+            else:
+                # Token无效，抛出一个403 Forbidden异常
+                raise HTTPError(403, "Invalid token")
+        else:
+            # 如果没有提供Token，抛出一个401 Unauthorized异常
+            raise HTTPError(401, "Token not provided")
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
@@ -55,9 +76,29 @@ class MainHandler(tornado.web.RequestHandler):
     def save_results(self):
         pass
 
+    def prepare(self):
+        # 登录和注销请求不需要Token验证
+        if self.request.path in ["/api/login", "/api/logout"]:
+            return
+
+        # 其他API请求都需要Token验证
+        auth_header = self.request.headers.get('Authorization')
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            user_info = decode_jwt(token)
+            if user_info:
+                self.current_user = user_info
+            else:
+                # Token无效，抛出一个403 Forbidden异常
+                raise HTTPError(403, "Invalid token")
+        else:
+            # 如果没有提供Token，抛出一个401 Unauthorized异常
+            raise HTTPError(401, "Token not provided")
+
 
 class ExploreHandler(MainHandler):
     def post(self):
+        username = self.current_user
         img_1 = self.get_argument('img_1')
         img_2 = self.get_argument('img_2')
         img_base64 = tasks.compare_explore(img_1, img_2)
@@ -71,11 +112,11 @@ class LoginHandler(MainHandler):
     def post(self):
         username = self.get_argument('username')
         password = self.get_argument('password')
-        code, username, msg = tasks.login(username, password)
+        code, token, msg = tasks.login(username, password)
         custom_data = {
             'code': code,
             'data': {
-                'username': username
+                'user_info': token
             },
             'msg': msg
 
@@ -99,6 +140,7 @@ class LogoutHandler(MainHandler):
 
 class FullPageHandler(MainHandler):
     def post(self):
+        username = self.current_user
         files = self.get_files()
         file1 = files[0]
         body1 = file1["body"]
@@ -109,11 +151,10 @@ class FullPageHandler(MainHandler):
         page_num1 = int(self.get_argument('page_num1'))
         page_num2 = int(self.get_argument('page_num2'))
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(
-            body1, body2, filename1, filename2, page_num1, page_num2)
+            username, body1, body2, filename1, filename2, page_num1, page_num2)
 
         custom_data = {
             "code": code,
-            "msg": "",
             "data": {
                 'pages': pages,
                 'imgs_base64': imgs_base64,
@@ -127,6 +168,7 @@ class FullPageHandler(MainHandler):
 
 class PartCountHandler(MainHandler):
     def post(self):
+        username = self.current_user
         filename = self.get_argument('filename')
         rect = self.get_arguments('rect')
         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
@@ -175,11 +217,12 @@ class PartCountHandler(MainHandler):
 
 class PageNumberHandler(MainHandler):
     def post(self):
+        username = self.current_user
         files = self.get_files()
         file = files[0]
         body = file["body"]
         filename = file.get("filename")
-        code, error, error_page, result, msg = tasks.check_page_number(
+        code, error, error_page, result, msg = tasks.check_page_number(username,
             body, filename)
         custom_data = {
             'code': code,
@@ -196,6 +239,7 @@ class PageNumberHandler(MainHandler):
 
 class TableHandler(MainHandler):
     def post(self):
+        username = self.current_user
         page_number = int(self.get_argument('pageNumber'))
         files = self.get_files()
         file = files[0]
@@ -210,11 +254,12 @@ class TableHandler(MainHandler):
 
 class ScrewHandler(MainHandler):
     def post(self):
+        username = self.current_user
         files = self.get_files()
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_screw(body, filename)
+        code, data, msg = tasks.check_screw(username, body, filename)
         custom_data = {
             'code': code,
             'data': data,
@@ -225,12 +270,13 @@ class ScrewHandler(MainHandler):
 
 class LanguageHandler(MainHandler):
     def post(self):
+        username = self.current_user
         limit = int(self.get_argument('limit'))
         files = self.get_files()
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_language(body, filename, limit)
+        code, data, msg = tasks.check_language(username, body, filename, limit)
 
         custom_data = {
             'code': code,
@@ -243,6 +289,7 @@ class LanguageHandler(MainHandler):
 
 class CEHandler(MainHandler):
     def post(self):
+        username = self.current_user
         mode = self.get_argument('mode', default='0')
         mode = int(mode)  # 确保将模式转换为整数
         work_table = self.get_argument('work_table', default=None)
@@ -260,7 +307,7 @@ class CEHandler(MainHandler):
             pdf_name, excel_name = name2, name1
         img_base64 = ''
         if mode == 0:
-            code, image_base64, msg = tasks.check_CE_mode_normal(
+            code, image_base64, msg = tasks.check_CE_mode_normal(username,
                 file_excel, file_pdf, pdf_name, excel_name, work_table)
         custom_data = {
             "code": code,
@@ -274,6 +321,7 @@ class CEHandler(MainHandler):
 
 class SizeHandler(MainHandler):
     def post(self):
+        username = self.current_user
         files = self.get_files()
         file = files[0]
         filename, content_type, body = file["filename"], file["content_type"], file["body"]
@@ -293,6 +341,7 @@ class OcrHandler(MainHandler):
         self.MODE_ICON = 1
 
     def post(self):
+        username = self.current_user
         filename = self.get_argument('filename')
         mode = int(self.get_argument('mode'))
         page_num = int(self.get_argument('page'))
