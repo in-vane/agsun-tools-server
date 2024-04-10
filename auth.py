@@ -2,6 +2,7 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 SECRET_KEY = "your_secret_key_here"
+MOCK_TOKEN = 'eyJ1c2VybmFtZSI6ImFkbWluIiwicGFzc3dvcmQiOiJhZG1pbiIsImFsZyI6IkhTMjU2In0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.siWUAvcuC7TtFJIAW1qX4CMbPNpg92eeZ3SKDilNNGE'
 
 def decode_jwt(token):
     try:

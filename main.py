@@ -7,8 +7,16 @@ import tornado.ioloop
 import tasks
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
-from tornado.web import HTTPError
-from auth import decode_jwt
+from auth import decode_jwt, MOCK_TOKEN
+
+
+def need_auth(method):
+    def wrapper(self, *args, **kwargs):
+        is_auth = getattr(self, 'is_auth', True)
+        if not is_auth:
+            return
+        return method(self, *args, **kwargs)
+    return wrapper
 
 
 class Application(tornado.web.Application):
@@ -39,10 +47,11 @@ class Application(tornado.web.Application):
 class MainHandler(tornado.web.RequestHandler):
     def set_default_headers(self):
         self.set_header('Access-Control-Allow-Origin', '*')
-        self.set_header('Access-Control-Allow-Methods',
-                        'POST, GET, PUT, DELETE, OPTIONS')
-        self.set_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.set_header('Access-Control-Expose-Headers', 'Content-Type')
+        self.set_header('Access-Control-Allow-Methods', '*')
+        self.set_header('Access-Control-Allow-Headers',
+                        'Content-Type, Authorization')
+        self.set_header('Access-Control-Expose-Headers',
+                        'Content-Type, Authorization')
 
     def options(self):
         self.set_status(200)
@@ -57,49 +66,44 @@ class MainHandler(tornado.web.RequestHandler):
     def save_results(self):
         pass
 
-    #def prepare(self):
-        ## 登录和注销请求不需要Token验证
-        #if self.request.path in ["/api/login", "/api/logout"]:
-            #return
+    def prepare(self):
+        # 登录和注销请求不需要Token验证
+        if self.request.path in ["/api/login", "/api/logout"]:
+            return
 
-        ## 其他API请求都需要Token验证
-        #auth_header = self.request.headers.get('Authorization')
-        #if auth_header and auth_header.startswith("Bearer "):
-            #token = auth_header.split(" ")[1]
-            #user_info = decode_jwt(token)
-            #if user_info:
-                #self.current_user = user_info
-            #else:
-                ## Token无效，抛出一个403 Forbidden异常
-                #raise HTTPError(403, "Invalid token")
-        #else:
-            ## 如果没有提供Token，抛出一个401 Unauthorized异常
-            #raise HTTPError(401, "Token not provided")
-
-
-class ExploreHandler(MainHandler):
-    def post(self):
-        username = self.current_user
-        img_1 = self.get_argument('img_1')
-        img_2 = self.get_argument('img_2')
-        img_base64 = tasks.compare_explore(img_1, img_2)
-        custom_data = {
-            "result": img_base64
-        }
-        self.write(custom_data)
+        # 其他API请求都需要Token验证
+        auth_header = self.request.headers.get('Authorization')
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            user_info = decode_jwt(token)
+            return
+            if user_info:
+                self.current_user = user_info
+            else:
+                # Token无效，抛出一个403 Forbidden异常
+                self.is_auth = False
+                self.set_status(403)
+                self.write({"error": "Invalid token"})
+        else:
+            # 如果没有提供Token，抛出一个401 Unauthorized异常
+            self.is_auth = False
+            self.set_status(401)
+            self.write({"error": "Token not provided"})
 
 
 class LoginHandler(MainHandler):
     def post(self):
-        username = self.get_argument('username')
-        password = self.get_argument('password')
-        code, token, msg = tasks.login(username, password)
+        param = tornado.escape.json_decode(self.request.body)
+        username = param['username']
+        password = param['password']
+        # code, token, msg = tasks.login(username, password)
+        code, token, message = 0, MOCK_TOKEN, 'ok'
         custom_data = {
             'code': code,
             'data': {
-                'user_info': token
+                'access_token': token
             },
-            'msg': msg
+            'message': message
 
         }
         self.write(custom_data)
@@ -119,7 +123,21 @@ class LogoutHandler(MainHandler):
         self.write(custom_data)
 
 
+class ExploreHandler(MainHandler):
+    @need_auth
+    def post(self):
+        username = self.current_user
+        img_1 = self.get_argument('img_1')
+        img_2 = self.get_argument('img_2')
+        img_base64 = tasks.compare_explore(img_1, img_2)
+        custom_data = {
+            "result": img_base64
+        }
+        self.write(custom_data)
+
+
 class FullPageHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         files = self.get_files()
@@ -148,6 +166,7 @@ class FullPageHandler(MainHandler):
 
 
 class PartCountHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         filename = self.get_argument('filename')
@@ -163,24 +182,7 @@ class PartCountHandler(MainHandler):
         print(pdf_rect)
         page_number_explore = int(self.get_argument('pageNumberExplore'))
         page_number_table = int(self.get_argument('pageNumberTable'))
-        '''
-        custom_data {
-            code <int>: 状态码，用于表示处理结果的不同情况。
-                0: 表示未检测到错误或者未找到满足条件的表格。
-                1: 表示零件计数和明细表检测均成功。
-                2: 表示零件计数成功，但明细表检测未发现错误。
-                3: 表示零件计数给定页面表格出错，明细表检测成功。
-            mapping_results <list>: 与零件计数相关的详细匹配结果.
-                key     <string>: 被检测的数字文本。
-                matched <bool>: 指示是否成功匹配。 True 表示匹配成功， False 表示失败。 
-                found   <int>: 实际发现的匹配数量。
-                expected<int | None>: 预期匹配的数量，如果第三列没有找到数字，则为 None 。
-            error_pages <list>: 错误页的图片信息和相应的页面编号。
-                images_base64 <list>: 错误页面的图片, 以Base64编码的字符串形式表示。
-                page_numbers <list>: 对应的PDF页面编号。
-            messages <string>: 一个字符串消息，提供关于处理结果的额外信息或错误消息。
-        }
-        '''
+
         custom_data = tasks.check_part_count(
             filename, pdf_rect, page_number_explore, page_number_table)
 
@@ -197,6 +199,7 @@ class PartCountHandler(MainHandler):
 
 
 class PageNumberHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         files = self.get_files()
@@ -204,7 +207,7 @@ class PageNumberHandler(MainHandler):
         body = file["body"]
         filename = file.get("filename")
         code, error, error_page, result, msg = tasks.check_page_number(username,
-            body, filename)
+                                                                       body, filename)
         custom_data = {
             'code': code,
             'data': {
@@ -219,6 +222,7 @@ class PageNumberHandler(MainHandler):
 
 
 class TableHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         page_number = int(self.get_argument('pageNumber'))
@@ -234,6 +238,7 @@ class TableHandler(MainHandler):
 
 
 class ScrewHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         files = self.get_files()
@@ -250,6 +255,7 @@ class ScrewHandler(MainHandler):
 
 
 class LanguageHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         limit = int(self.get_argument('limit'))
@@ -269,6 +275,7 @@ class LanguageHandler(MainHandler):
 
 
 class CEHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         mode = self.get_argument('mode', default='0')
@@ -289,7 +296,7 @@ class CEHandler(MainHandler):
         img_base64 = ''
         if mode == 0:
             code, image_base64, msg = tasks.check_CE_mode_normal(username,
-                file_excel, file_pdf, pdf_name, excel_name, work_table)
+                                                                 file_excel, file_pdf, pdf_name, excel_name, work_table)
         custom_data = {
             "code": code,
             "data": {
@@ -301,6 +308,7 @@ class CEHandler(MainHandler):
 
 
 class SizeHandler(MainHandler):
+    @need_auth
     def post(self):
         username = self.current_user
         files = self.get_files()
@@ -321,6 +329,7 @@ class OcrHandler(MainHandler):
         self.MODE_CHAR = 0
         self.MODE_ICON = 1
 
+    @need_auth
     def post(self):
         username = self.current_user
         filename = self.get_argument('filename')
@@ -393,7 +402,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 async def main():
     tornado.options.define("port", default=8888,
                            help="run on the given port", type=int)
-    print('启动成功')
+    print('ready')
     tornado.options.parse_command_line()
     app = Application()
     app.listen(tornado.options.options.port)

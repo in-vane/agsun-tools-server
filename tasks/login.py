@@ -1,10 +1,11 @@
 from model import User
 import jwt
-import datetime
+from datetime import datetime, timezone, timedelta
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
-SECRET_KEY = "your_secret_key_here" # 你应该选择一个复杂的秘钥
+SECRET_KEY = "your_secret_key_here"  # 你应该选择一个复杂的秘钥
+
 
 def login(username, password):
     if username is None or password is None:
@@ -15,8 +16,8 @@ def login(username, password):
     if user.select():
         # 登录成功，创建JWT
         payload = {
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=12),   # 设置过期时间
-            'iat': datetime.datetime.utcnow(),  # 签发时间
+            'exp': datetime.now(timezone.utc) + timedelta(hours=12),   # 设置过期时间
+            'iat': datetime.now(timezone.utc),  # 签发时间
             'sub': username  # 主题（这里用用户名）
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
@@ -25,6 +26,3 @@ def login(username, password):
     else:
         print("登录失败，用户名或密码错误。")
         return CODE_SUCCESS, None, None
-
-
-
