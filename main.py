@@ -57,24 +57,24 @@ class MainHandler(tornado.web.RequestHandler):
     def save_results(self):
         pass
 
-    def prepare(self):
-        # 登录和注销请求不需要Token验证
-        if self.request.path in ["/api/login", "/api/logout"]:
-            return
+    #def prepare(self):
+        ## 登录和注销请求不需要Token验证
+        #if self.request.path in ["/api/login", "/api/logout"]:
+            #return
 
-        # 其他API请求都需要Token验证
-        auth_header = self.request.headers.get('Authorization')
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            user_info = decode_jwt(token)
-            if user_info:
-                self.current_user = user_info
-            else:
-                # Token无效，抛出一个403 Forbidden异常
-                raise HTTPError(403, "Invalid token")
-        else:
-            # 如果没有提供Token，抛出一个401 Unauthorized异常
-            raise HTTPError(401, "Token not provided")
+        ## 其他API请求都需要Token验证
+        #auth_header = self.request.headers.get('Authorization')
+        #if auth_header and auth_header.startswith("Bearer "):
+            #token = auth_header.split(" ")[1]
+            #user_info = decode_jwt(token)
+            #if user_info:
+                #self.current_user = user_info
+            #else:
+                ## Token无效，抛出一个403 Forbidden异常
+                #raise HTTPError(403, "Invalid token")
+        #else:
+            ## 如果没有提供Token，抛出一个401 Unauthorized异常
+            #raise HTTPError(401, "Token not provided")
 
 
 class ExploreHandler(MainHandler):
@@ -393,6 +393,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 async def main():
     tornado.options.define("port", default=8888,
                            help="run on the given port", type=int)
+    print('启动成功')
     tornado.options.parse_command_line()
     app = Application()
     app.listen(tornado.options.options.port)

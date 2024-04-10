@@ -44,16 +44,12 @@ def get_error_pages_as_base64(mismatched_details, pdf_path):
 
             # 将所有错误行的信息合并成一条信息
             error_lines_info_cn = "序号 " + \
-                ",".join(map(str, line_indices)) + " 有误"
+                                  ",".join(map(str, line_indices)) + " 有误"
             error_lines_info_en = "Entry numbers " + \
-                ",".join(map(str, line_indices)) + " are incorrect"
+                                  ",".join(map(str, line_indices)) + " are incorrect"
             text_position = (30, 10)  # 在左上角显示信息
             draw.text(text_position, error_lines_info_en,
                       fill=(255, 0, 0), font=font)
-            # 将图片直接保存到磁盘
-            save_path = f"/home/zhanghantao/agsun-tools-server/tasks/page_{page_number}.png"
-            image.save(save_path)
-            print(f"Saved: {save_path}")
             # 将图片转换为Base64编码的字符串
             buffered = io.BytesIO()
             image.save(buffered, format="PNG")
@@ -554,26 +550,34 @@ def revalidate_matches(image, failed_matches, digit_to_part_mapping, threshold=1
 def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, custom_data):
     results = []  # 用于存储比对结果
     table_results = [[], []]
+    # 尝试打开PDF文件
+    # try:
     with pdfplumber.open(pdf_path) as pdf:
+        print(1)
         # 确保页面号码在PDF文档范围内
         if page_number > len(pdf.pages) or page_number < 1:
             custom_data = {
                 'code': 0,
-                'mapping_results': {},
-                'error_pages': [[], []],
-                'messages': '明细表页码超出范围',
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '明细表页码超出范围',
+                },
+                'msg': '',
             }
             return custom_data
         # 尝试从指定页面提取表格
-        tables = tabula.read_pdf(pdf_path, pages=str(
-            page_number), multiple_tables=True)
+        tables = tabula.read_pdf(pdf_path, pages=str(page_number), multiple_tables=True)
         # 如果页面上没有表格，返回错误信息
         if not tables:
             custom_data = {
                 'code': 0,
-                'mapping_results': {},
-                'error_pages': [[], []],
-                'messages': '在页{}未检测到表格'.format(page_number),
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '在页{}未检测到表格'.format(page_number),
+                },
+                'msg': '',
             }
             return custom_data
         found_valid_table = False  # 追踪是否找到满足条件的表格
@@ -586,8 +590,7 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                     # 直接使用iloc对DataFrame进行切片获取子表格
                     sub_table = table.iloc[:, i:i + 3]
                     # 计算每一行的非 NaN 值的数量
-                    thresh = math.ceil(len(sub_table.columns)
-                                       * 0.5)  # 设置阈值为列数的一半
+                    thresh = math.ceil(len(sub_table.columns) * 0.5)  # 设置阈值为列数的一半
 
                     # 删除非 NaN 值少于阈值的行
                     sub_table = sub_table.dropna(thresh=thresh)
@@ -611,8 +614,7 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                         # df.iloc[:, 0] = pd.to_numeric(df.iloc[:, 0], errors='coerce').astype(int)
                         sub_table[sub_table.columns[0]] = pd.to_numeric(
                             sub_table.iloc[:, 0], errors='coerce').astype(int)
-                        sub_table = sub_table.dropna(
-                            subset=[sub_table.columns[0]])
+                        sub_table = sub_table.dropna(subset=[sub_table.columns[0]])
                     except ValueError:
                         continue  # 无法转换第一列为整数，跳过此子表格
 
@@ -627,17 +629,19 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
                                 # 如果有多于一行匹配，记录错误信息
                                 custom_data = {
                                     'code': 0,
-                                    'mapping_results': {},
-                                    'error_pages': [[], []],
-                                    'messages': '明细表序号重复，无法匹配',
+                                    'data': {
+                                        'mapping_results': {},
+                                        'error_pages': [],
+                                        'note': '明细表序号重复，无法匹配',
+                                    },
+                                    'msg': '',
                                 }
                                 return custom_data
                             elif len(row) == 1:
                                 third_column_value = row.iloc[0, 2]
                                 if isinstance(third_column_value, str):
                                     # 如果是字符串，使用正则表达式提取数字
-                                    numbers_in_third_column = re.findall(
-                                        r'\d+', third_column_value)
+                                    numbers_in_third_column = re.findall(r'\d+', third_column_value)
                                 else:
                                     # 如果不是字符串，直接将值放入列表
                                     numbers_in_third_column = [third_column_value] if pd.notnull(
@@ -694,54 +698,89 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
         if (not digit_to_part_mapping) and (all(len(inner) == 0 for inner in table_results)):
             custom_data = {
                 'code': 0,
-                'mapping_results': {},
-                'error_pages': [[], []],
-                'messages': '零件计数：爆炸图未检测到数字\n明细表检测：未发现错误',
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '零件计数：爆炸图未检测到数字\n明细表检测：未发现错误',
+                },
+                'msg': '',
             }
         elif (not digit_to_part_mapping) and (not all(len(inner) == 0 for inner in table_results)):
             custom_data = {
                 'code': 0,
-                'mapping_results': {},
-                'error_pages': table_results,
-                'messages': f'零件计数：爆炸图未检测到数字\n明细表检测：检测成功,{error_lines_info}',
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': table_results,
+                    'note': f'零件计数：爆炸图未检测到数字\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
             }
         elif (not results) and (all(len(inner) == 0 for inner in table_results)):
             custom_data = {
                 'code': 0,
-                'mapping_results': {},
-                'error_pages': [[], []],
-                'messages': '零件计数：给定页面表格出错\n明细表检测：未发现错误',
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '零件计数：给定页面表格出错\n明细表检测：未发现错误',
+                },
+                'msg': '',
             }
         elif (results) and (all(len(inner) == 0 for inner in table_results)):
             custom_data = {
-                'code': 2,
-                'mapping_results': results,
-                'error_pages': [[], []],
-                'messages': '零件计数：检测成功\n明细表检测：未发现错误',
+                'code': 0,
+                'data': {
+                    'mapping_results': results,
+                    'error_pages': [],
+                    'note': '零件计数：检测成功\n明细表检测：未发现错误',
+                },
+                'msg': '',
             }
         elif (not results) and (not all(len(inner) == 0 for inner in table_results)):
             custom_data = {
-                'code': 3,
-                'mapping_results': {},
-                'error_pages': table_results,
-                'messages': f'零件计数：给定页面表格出错\n明细表检测：检测成功,{error_lines_info}',
+                'code': 0,
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': table_results,
+                    'note': f'零件计数：给定页面表格出错\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
             }
         elif (results) and (not all(len(inner) == 0 for inner in table_results)):
             custom_data = {
-                'code': 1,
-                'mapping_results': results,
-                'error_pages': table_results,
-                'messages': f'零件计数：检测成功\n明细表检测：检测成功,{error_lines_info}',
+                'code': 0,
+                'data': {
+                    'mapping_results': results,
+                    'error_pages': table_results,
+                    'note': f'零件计数：检测成功\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
             }
+    # except Exception as e:
+    #     custom_data = {
+    #         'code': 1,
+    #         'data': {
+    #             'mapping_results': {},
+    #             'error_pages': [],
+    #             'note': '',
+    #         },
+    #         'msg': 'pdf有误，无法打开',
+    #     }
+    return custom_data
+
+
     if not found_valid_table:
         # 所有表格处理完毕，没有找到满足条件的表格
         custom_data = {
             'code': 0,
-            'mapping_results': {},
-            'error_pages': [[], []],
-            'messages': '没有找到满足条件的表格',
+            'data': {
+                'mapping_results': {},
+                'error_pages': [],
+                'note': '没有找到满足条件的表格',
+            },
+            'msg': '',
         }
         return custom_data
+    print(custom_data)
     return custom_data
 
 
@@ -753,18 +792,22 @@ def check_part_count(filename, rect=[20, 60, 550, 680], page_number_explore=6, p
     # images_base64, error_pages = compare_table(pdf, page_number_table)
     pdf.close()
     custom_data = {
-        'code': '',
-        'mapping_results': {},
-        'error_pages': [[], []],
-        'messages': '',
+        'code': 0,
+        'data': {
+            'mapping_results': {},
+            'error_pages': [],
+            'note': '',
+        },
+        'msg': '',
     }
     digit_to_part_mapping = get_results(image, bbox)
 
     custom_data = form_extraction_and_compare(
         pdf_path, page_number_table, digit_to_part_mapping, custom_data)
-    if custom_data['mapping_results'] is not None:
+    if custom_data['data']['mapping_results'] is not None:
         revalidated_results = revalidate_matches(
-            image, custom_data['mapping_results'], digit_to_part_mapping, threshold=0.9)
-    custom_data['mapping_results'] = revalidated_results
-    print(custom_data["messages"])
+            image, custom_data['data']['mapping_results'], digit_to_part_mapping, threshold=0.9)
+    custom_data['data']['mapping_results'] = revalidated_results
+    print(custom_data['data']["note"])
+    print(custom_data)
     return custom_data
