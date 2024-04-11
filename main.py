@@ -75,8 +75,8 @@ class MainHandler(tornado.web.RequestHandler):
         auth_header = self.request.headers.get('Authorization')
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            #user_info = decode_jwt(token)
-            userinfo={'username':'admin'}
+            # user_info = decode_jwt(token)
+            userinfo = {'username': 'admin'}
             if userinfo:
                 self.current_user = userinfo
             else:
@@ -140,18 +140,19 @@ class FullPageHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-        files = self.get_files()
-        file1 = files[0]
-        body1 = file1["body"]
-        filename1 = file1.get("filename")
-        file2 = files[1]
-        body2 = file2["body"]
-        filename2 = file2.get("filename")
+        file_path_1 = self.get_argument('file_path_1')
+        file_path_2 = self.get_argument('file_path_2')
         page_num1 = int(self.get_argument('page_num1'))
         page_num2 = int(self.get_argument('page_num2'))
-        code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(
-            username, body1, body2, filename1, filename2, page_num1, page_num2)
-
+        code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
+                                                                        file_path_1, file_path_2, '1', '2', page_num1, page_num2)
+        # files = self.get_files()
+        # file1 = files[0]
+        # body1 = file1["body"]
+        # filename1 = file1.get("filename")
+        # file2 = files[1]
+        # body2 = file2["body"]
+        # filename2 = file2.get("filename")
         custom_data = {
             "code": code,
             "data": {
