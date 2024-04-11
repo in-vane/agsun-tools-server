@@ -8,7 +8,7 @@ from PIL import Image
 
 def is_image(page):
     '''通过页面矢量元素的数量判断是否为图'''
-    vector_count = len(page.get_drawings())
+    vector_count = len(page.get_cdrawings())
     return vector_count > 1000
 
 
