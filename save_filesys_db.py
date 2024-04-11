@@ -7,13 +7,15 @@ from model import *
 from openpyxl import load_workbook
 
 # 全局变量定义
-ROOT = 'D:\\PrintCmpFile'
+ROOT = '/home/zhanghantao/agsun-tools-server/db'
 # 动态设置基础目录的函数
-def setup_directory_paths(username, base_dir):
+def setup_directory_paths(userinfo, base_dir):
     current_year = datetime.now().strftime('%Y')
     current_month_day = datetime.now().strftime('%m%d')
     current_time = datetime.now().strftime('%H-%M-%S')
-    unique_identifier = username  # 根据实际情况动态赋值
+    unique_identifier = userinfo['username']  # 根据实际情况动态赋值
+    print(base_dir, current_year,
+                           current_month_day, current_time, unique_identifier)
     pdf_dir = os.path.join(base_dir, current_year,
                            current_month_day, current_time, unique_identifier)
     result_dir = os.path.join(pdf_dir, 'result')
@@ -50,7 +52,7 @@ def images_to_directory(base64_images, image_result_dir):
 
 
 def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, msg):
-    base_dir = f'{ROOT}\\001'
+    base_dir = f'{ROOT}/001'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username,base_dir)
     # 确保PDF和结果目录存在
@@ -105,7 +107,7 @@ def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, m
 
 
 def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
-    base_dir = f'{ROOT}\\002'
+    base_dir = f'{ROOT}/002'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
         base_dir)
     # 确保PDF和结果目录存在
@@ -143,11 +145,12 @@ def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error
         result=result_path,
         is_error=is_error
     )
+    
     check_pagenumber_instance.save_to_db()
 
 
 def save_Language(username, doc, base_file_name, code, language_page, language, msg):
-    base_dir = f'{ROOT}\\003'
+    base_dir = f'{ROOT}/003'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username,base_dir)
     # 确保PDF和结果目录存在
@@ -194,7 +197,7 @@ def save_Language(username, doc, base_file_name, code, language_page, language, 
 
 
 def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_base64, msg):
-    base_dir = f'{ROOT}\\004'
+    base_dir = f'{ROOT}/004'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username,base_dir)
     # 确保PDF和结果目录存在
@@ -238,7 +241,7 @@ def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_bas
 
 
 def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
-    base_dir = f'{ROOT}\\005'
+    base_dir = f'{ROOT}/005'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在

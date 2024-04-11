@@ -4,7 +4,7 @@ import pymysql
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'root',
+    'password': 'admin',
     'database': 'jisen',
     'charset': 'utf8'
 }
@@ -90,7 +90,7 @@ class CheckLanguage:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
                                self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
@@ -120,7 +120,7 @@ class CheckScrew:
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
                                self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
@@ -181,8 +181,7 @@ class CheckPageNumber:
                 INSERT INTO `check_pagenumber` (`username`, `dataline`, `work_num`, `pdf_path`, `pdf_name`, `result`, `is_error`) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num,
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
                                self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:

@@ -222,11 +222,13 @@ def check_language(username, file, filename, limit):
     doc = fitz.open(stream=BytesIO(file))
     # doc = fitz.open(file)
     total_pages = doc.page_count
+    if limit==0:
+      limit=15
     language_pages = get_directory(doc, limit)
     if not language_pages[0]:
         code = "请仔细检查，该文件无语言目录"
         print(code)
-        save_Language(doc, filename, CODE_ERROR, None, [], code)
+        save_Language(username,doc, filename, CODE_ERROR, None, [], code)
         return CODE_ERROR, {}, code
     language_message = language_pages[1]
     texts_by_languages = extract_text_by_language(doc, language_pages[1])
