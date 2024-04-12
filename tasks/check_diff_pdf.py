@@ -81,7 +81,7 @@ def mark_image_with_green_border(image_path, output_folder):
 # 找两张图片不同的地方
 
 
-def find_and_mark_differences(image1_path, image2_path, output_folder):
+def find_and_mark_differences(image2_path, image1_path, output_folder):
     global similarity_list
     exists_difference = False  # 确保在引用之前已经定义并初始化
     # 读取两张图片
@@ -200,119 +200,107 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
             refined_mismatch_list.append(page)
 
     return adjusted_sequences, refined_mismatch_list
+# 当page_num1, page_num2有值时
+def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RESULT_IMAGE):
+    mismatch_list = []
+    # 直接对比部分
+    for page_num in range(1, start_page_doc1):
+        if page_num < len(doc1) and page_num < len(doc2):
+            image1_path = os.path.join(PDF1_IMAGE, f"{page_num}.png")
+            image2_path = os.path.join(PDF2_IMAGE, f"{page_num}.png")
+            print(f"{image1_path}与{image2_path}对比")
+            if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
+                mismatch_list.append(page_num )  # 页码从1开始
+        else:
+            break  # 如果任一文档页码超出范围，停止对比
+
+    # 第一份文档的第start_page_doc1页（从0开始计数）以及之后的页面，都与第二份文档的第start_page_doc2-1页（从0开始计数）对比
+    num = start_page_doc1-start_page_doc2
+    for page_num1 in range(start_page_doc1, len(doc1)):
+        page_num2 = page_num1-num
+        if page_num2 < len(doc2):
+            image1_path = os.path.join(PDF1_IMAGE, f"{page_num1}.png")
+            image2_path = os.path.join(PDF2_IMAGE, f"{page_num2}.png")
+            print(f"{image1_path}与{image2_path}对比")
+            if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
+                mismatch_list.append(page_num1)  # 页码从1开始
+        else:
+            print(f"No corresponding page in Document 2 for further comparison. Comparison stopped at page {page_num1 + 1} of Document 1.")
+            break
+
+    return mismatch_list, ''
 
 
 # 主函数
 def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, page_num2):
-    doc1 = fitz.open(stream=BytesIO(file1))
-    doc2 = fitz.open(stream=BytesIO(file2))
+    #doc1 = fitz.open(stream=BytesIO(file1))
+    #doc2 = fitz.open(stream=BytesIO(file2))
+    doc1 = fitz.open(file1)
+    doc2 = fitz.open(file2)
     pdf_to_images(doc1, PDF1_IMAGE)
     pdf_to_images(doc2, PDF2_IMAGE)
     print("PDF转换并保存图片完成。")
-
     if not os.path.exists(RESULT_IMAGE):
         os.makedirs(RESULT_IMAGE)
-
-    mismatch_list = []  # 用于记录不匹配的页号
-
-    # 获取image1文件夹中的所有图片文件名
-    images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(
-        os.path.join(PDF1_IMAGE, f))]
-
-    # 对每一对同名图片执行对比和标注操作
-    for img_name in images:
-        image1_path = os.path.join(PDF1_IMAGE, img_name)
-        image2_path = os.path.join(PDF2_IMAGE, img_name)
-
-        # 解析页号
-        # 从image1_path中直接提取页码
-        page_number = int(os.path.splitext(os.path.basename(image1_path))[0])
-
-        # 检查image2中是否存在对应的图片
-        if os.path.exists(image2_path):
-            if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
-                mismatch_list.append(page_number)
-        else:
-            print(
-                f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
-            # 假设页码从1开始
-            # 确保列表长度足够
-            while len(similarity_list) <= page_number:
-                similarity_list.append(None)
-            # 存储相似度值
-            similarity_list[page_number - 1] = 0
-            mark_image_with_green_border(image1_path, RESULT_IMAGE)
-            mismatch_list.append(page_number)
-
-    print("Mismatched pages:", mismatch_list)
-    # 对mismatch_list进行排序
-    mismatch_list = sorted(mismatch_list)
-    print(mismatch_list)
-
-    print(len(similarity_list))
-    adjusted_sequences, mismatch_list = adjust_sequences_based_on_similarity(
-        mismatch_list, similarity_list)
-    print(f"adjusted_sequences={adjusted_sequences}")
-    print(f"mismathch_list={mismatch_list}")
-    base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
-    print(len(mismatch_list))
-    if not adjusted_sequences:
-        save_Diffpdf(doc1, doc2, file1_name, file2_name,
-                     CODE_SUCCESS, mismatch_list, base64_strings, None, None)
-        return CODE_SUCCESS, mismatch_list, base64_strings, '', None
+    if page_num1 != -1 and page_num2 != -1:
+        # 使用调整后的页码进行对比
+        mismatch_list, continuous = adjust_pages_for_comparison(page_num1, page_num2, doc1, doc2, RESULT_IMAGE)
     else:
-        summaries = []
-        for start, end in adjusted_sequences:
-            summary = f"从{start}页开始到{end}页，两个文档格式相比变化很大。"
-            summaries.append(summary)
-        continuous = " ".join(summaries)
-    print(continuous)
+        mismatch_list = []  # 用于记录不匹配的页号
+        # 获取image1文件夹中的所有图片文件名
+        images = [f for f in os.listdir(PDF1_IMAGE) if os.path.isfile(
+            os.path.join(PDF1_IMAGE, f))]
+        # 对每一对同名图片执行对比和标注操作
+        for img_name in images:
+            image1_path = os.path.join(PDF1_IMAGE, img_name)
+            image2_path = os.path.join(PDF2_IMAGE, img_name)
 
-    if (page_num1 != -1):
-        image1_files = sorted([f for f in os.listdir(PDF1_IMAGE) if f.endswith('.png')],
-                              key=lambda x: int(os.path.splitext(x)[0]))
+            # 解析页号
+            # 从image1_path中直接提取页码
+            page_number = int(os.path.splitext(os.path.basename(image1_path))[0])
 
-        for img_file in image1_files:
-            current_page_num = int(os.path.splitext(img_file)[0])
-
-            # 只处理image1中页码大于等于page_num1的图片
-            if current_page_num >= page_num1:
-                corresponding_page_num = current_page_num + \
-                    (page_num2 - page_num1)
-                image1_path = os.path.join(
-                    PDF1_IMAGE, f"{current_page_num}.png")
-                image2_path = os.path.join(
-                    PDF2_IMAGE, f"{corresponding_page_num}.png")
-
-                if os.path.exists(image2_path):
-                    # 这里调用找出和标记两张图片差异的函数
-                    # 假设这个函数已经定义好了，函数的实现需要根据你之前的代码适当调整
-                    if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
-                        mismatch_list.append(current_page_num)
-                else:
-                    print(
-                        f"No corresponding image found for {image2_path} in {PDF2_IMAGE}. Marking with green border.")
-                    # 假设页码从1开始
-                    # 确保列表长度足够
-                    while len(similarity_list) <= current_page_num:
-                        similarity_list.append(None)
-                    # 存储相似度值
-                    similarity_list[current_page_num - 1] = 0
-                    mark_image_with_green_border(image1_path, RESULT_IMAGE)
-                    mismatch_list.append(current_page_num)
-        continuous = None
-
-    print(f"mismathch_list={mismatch_list}")
-    print(continuous)
+            # 检查image2中是否存在对应的图片
+            if os.path.exists(image2_path):
+                if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
+                    mismatch_list.append(page_number)
+            else:
+                print(
+                    f"No corresponding image found for {img_name} in {PDF2_IMAGE}. Marking with green border.")
+                # 假设页码从1开始
+                # 确保列表长度足够
+                while len(similarity_list) <= page_number:
+                    similarity_list.append(None)
+                # 存储相似度值
+                similarity_list[page_number - 1] = 0
+                mark_image_with_green_border(image1_path, RESULT_IMAGE)
+                mismatch_list.append(page_number)
+        # 对mismatch_list进行排序
+        mismatch_list = sorted(mismatch_list)
+        adjusted_sequences, mismatch_list = adjust_sequences_based_on_similarity(
+            mismatch_list, similarity_list)
+        base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
+        print(len(mismatch_list))
+        if not adjusted_sequences:
+            save_Diffpdf(doc1, doc2, file1_name, file2_name,
+                         CODE_SUCCESS, mismatch_list, base64_strings, None, None)
+            return CODE_SUCCESS, mismatch_list, base64_strings, '', None
+        else:
+            summaries = []
+            for start, end in adjusted_sequences:
+                summary = f"从{start}页开始到{end}页，两个文档格式相比变化很大。"
+                summaries.append(summary)
+            continuous = " ".join(summaries)
 
     base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
     dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
-    print(len(base64_strings))
     save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
                  mismatch_list, base64_strings, continuous, None)
     doc1.close()
     doc2.close()
+    print(mismatch_list)
+    print(len(base64_strings))
+    print(continuous)
     return CODE_SUCCESS, mismatch_list, base64_strings, continuous, None
 
 
@@ -322,9 +310,10 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
 #         bytes_content = file.read()
 #     return bytes_content
 #
-#
-# file1 = 'pdf2/3.pdf'  # 请根据实际情况修改路径
-# file2 = 'pdf2/4.pdf'  # 请根据实际情况修改路径
+# file1 = '7.pdf'  # 请根据实际情况修改路径
+# file2 = '8.pdf'  # 请根据实际情况修改路径
 # file1 = pdf_to_bytes(file1)
 # file2 = pdf_to_bytes(file2)
-# check_diff_pdf(file1, file2, -1, -1)
+# code, mismatch_list, base64_strings, continuous, msg = check_diff_pdf("username", file1, file2, "file1_name", "file2_name", -1, -1)
+
+

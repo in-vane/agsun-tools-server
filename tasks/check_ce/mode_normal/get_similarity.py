@@ -6,7 +6,7 @@ from langdetect import detect
 
 
 
-MiniLM_PATH = './assets/all-MiniLM-L6-v2'
+MiniLM_PATH = "/home/zhanghantao/agsun-tools-server/tasks/check_ce/mode_normal/all-MiniLM-L6-v2/"
 
 
 def compute_cosine_similarity(text1, text2):
@@ -21,6 +21,7 @@ def compute_cosine_similarity(text1, text2):
     translated_sentence1 = baidu_translate(text1)
     translated_sentence2 = baidu_translate(text2)
     # 判断语义相似度的模型
+    print(MiniLM_PATH)
     model = SentenceTransformer(MiniLM_PATH)
     sentences = []
     sentences.append(translated_sentence1)

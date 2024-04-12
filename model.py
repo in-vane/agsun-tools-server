@@ -5,7 +5,7 @@ DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
     'password': 'admin',
-    'database': 'jisen',
+    'database': 'jishen',
     'charset': 'utf8'
 }
 
@@ -33,7 +33,33 @@ class User:
                     return False
         finally:
             connection.close()
+class CheckPartCount:
+    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result):
+        self.username = username
+        self.dataline = dataline
+        self.work_num = work_num
+        self.pdf_path = pdf_path
+        self.pdf_name = pdf_name
+        self.result = result
 
+    def save_to_db(self):
+        connection = pymysql.connect(host=DB_CONFIG['host'],
+                                     user=DB_CONFIG['user'],
+                                     password=DB_CONFIG['password'],
+                                     database=DB_CONFIG['database'],
+                                     charset=DB_CONFIG['charset'])
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                INSERT INTO `check_part_count` (`username`, `dataline`, `work_num`, `pdf_path`, `pdf_name`, `result`) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """
+                print(sql)
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result))
+                connection.commit()
+        finally:
+            connection.close()
 
 class CheckDiffpdf:
     def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1, pdf_path2, pdf_name2, result, is_error):
@@ -60,7 +86,7 @@ class CheckDiffpdf:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path1,
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num, self.pdf_path1,
                                self.pdf_name1, self.pdf_path2, self.pdf_name2, self.result, self.is_error))
                 connection.commit()
         finally:
@@ -152,7 +178,7 @@ class CheckCE:
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 print(sql)
-                cursor.execute(sql, (self.username, self.dataline, self.work_num, self.pdf_path,
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num, self.pdf_path,
                                self.pdf_name, self.excel_path, self.excel_name, self.work_table, self.result))
                 connection.commit()
         finally:

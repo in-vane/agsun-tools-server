@@ -29,5 +29,6 @@ coverage
 assets/images/*
 assets/pdf/*
 assets/csv/*
-
+db/
+assets/
 *.tsbuildinfo

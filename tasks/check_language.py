@@ -222,7 +222,7 @@ def check_language(username, file, filename, limit):
     doc = fitz.open(stream=BytesIO(file))
     # doc = fitz.open(file)
     total_pages = doc.page_count
-    if limit==0:
+    if limit==-1:
       limit=15
     language_pages = get_directory(doc, limit)
     if not language_pages[0]:
