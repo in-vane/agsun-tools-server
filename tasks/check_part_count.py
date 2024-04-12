@@ -13,9 +13,9 @@ import os
 from PIL import ImageDraw, ImageFont
 from save_filesys_db import save_Part_count
 os.environ["JAVA_TOOL_OPTIONS"] = "-Djava.awt.headless=true"
+
 DPI = 600
 ZOOM = DPI / 72
-
 BASE64_PNG = 'data:image/png;base64,'
 
 
@@ -788,13 +788,13 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
     return custom_data
 
 
-def check_part_count(username,filename, rect=[20, 60, 550, 680], page_number_explore=6, page_number_table=7):
+def check_part_count(username, filename, rect=[20, 60, 550, 680], page_number_explore=6, page_number_table=7):
     pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
     pdf = fitz.open(pdf_path)  # 打开PDF文件
     image, bbox = get_image(pdf, page_number_explore, crop_rect)
     # images_base64, error_pages = compare_table(pdf, page_number_table)
-    
+
     custom_data = {
         'code': 0,
         'data': {
@@ -812,6 +812,7 @@ def check_part_count(username,filename, rect=[20, 60, 550, 680], page_number_exp
         revalidated_results = revalidate_matches(
             image, custom_data['data']['mapping_results'], digit_to_part_mapping, threshold=0.9)
     custom_data['data']['mapping_results'] = revalidated_results
-    save_Part_count(username, pdf, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
+    save_Part_count(username, pdf, filename, custom_data['code'], custom_data['data']['mapping_results'],
+                    custom_data['data']['note'], custom_data['data']['error_pages'], custom_data['msg'])
     pdf.close()
     return custom_data

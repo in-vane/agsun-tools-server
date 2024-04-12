@@ -75,8 +75,8 @@ class MainHandler(tornado.web.RequestHandler):
         auth_header = self.request.headers.get('Authorization')
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            #user_info = decode_jwt(token)
-            userinfo={'username':'admin'}
+            # user_info = decode_jwt(token)
+            userinfo = {'username': 'admin'}
             if userinfo:
                 self.current_user = userinfo
             else:
@@ -97,7 +97,7 @@ class LoginHandler(MainHandler):
         username = param['username']
         password = param['password']
         code, token, message = tasks.login(username, password)
-        #code, token, message = 0, MOCK_TOKEN, 'ok'
+        # code, token, message = 0, MOCK_TOKEN, 'ok'
         custom_data = {
             'code': code,
             'data': {
@@ -146,7 +146,7 @@ class FullPageHandler(MainHandler):
         page_num1 = int(param['start_1'])
         page_num2 = int(param['start_2'])
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
-            file_path_1, file_path_2, '1', '2', page_num1, page_num2)
+                                                                        file_path_1, file_path_2, '1', '2', page_num1, page_num2)
         # files = self.get_files()
         # file1 = files[0]
         # body1 = file1["body"]
@@ -186,7 +186,7 @@ class PartCountHandler(MainHandler):
         page_number_table = int(self.get_argument('pageNumberTable'))
 
         custom_data = tasks.check_part_count(
-            username,filename, pdf_rect, page_number_explore, page_number_table)
+            username, filename, pdf_rect, page_number_explore, page_number_table)
 
         # custom_data = {
         #     "error": error,

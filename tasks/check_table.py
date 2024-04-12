@@ -11,7 +11,6 @@ from tabula import read_pdf
 
 
 PDF_PATH = './assets/pdf/temp.pdf'
-
 CSV_PATH = './assets/csv/'
 CSV_NAME = "exact_table.csv"
 SUCCESS = 0
@@ -329,5 +328,7 @@ def compare_table(file, page_number):
     # shutil.rmtree(IMAGE_PATH)
 
     return images_base64, error_pages
+
+
 # 测试接口
 # compare_table('1.pdf',2)

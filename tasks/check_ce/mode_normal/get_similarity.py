@@ -5,7 +5,6 @@ import hashlib
 from langdetect import detect
 
 
-
 MiniLM_PATH = "/home/zhanghantao/agsun-tools-server/tasks/check_ce/mode_normal/all-MiniLM-L6-v2/"
 
 
@@ -168,9 +167,8 @@ def baidu_translate(query, app_id='20240303001981368', secret_key='0_Nq4RdREx1L3
         # print("Input is not a string.")
         return "Input is not a string"
 
+
 # 测试上面函数
 # red_text_data = {'CE-sign': ['2575-24'], 'Model Number': ['K103M1EGM2'], 'Product Identification Number': ['2575XXXXXXX'], 'Main Burner Injector Size': ['Ø 0.92mm', 'Ø 0.92mm', 'Ø 0.86mm', 'Ø 0.81mm'], 'Side Burner Injector Size ': ['Ø 0.88mm', 'Ø 0.88mm', 'Ø 0.79mm', 'Ø 0.75mm'], 'Side Burner （infrared）Injector Size ': ['Ø 0.92mm', 'Ø 0.92mm', 'Ø 0.86mm', 'Ø 0.81mm'], 'Infrared Burner Injector Size ': ['Ø 0.91mm', 'Ø 0.91mm', 'Ø 0.83mm', 'Ø 0.79mm'], 'Total Nominal Heat Inputs (Hs)': ['Main 13.5kW(983g/h ) ；'], 'Electric energy': ['5×1.5V']}
-
 # table_data = {'Product name': ['Outdoor gas grill'], 'Model number': ['Cliff 3500 Beast(K103M1BEGM2)'], 'Gas category': ['I3+(28-30/37)', 'I3B/P(30)', 'I3B/P(37)', 'I3B/P(50)'], 'Gas and supply pressure': ['Butane (G30)', 'Propane (G31)', 'Butane/Propane'], 'Country of destination': ['I3+(28-30/37): BE, CH, CY, CZ, ES, FR, GB, GR, IE, IT, LT, LU, LV, PT, SK, SI, TR\\nI3B/P(30): AL, CY, CZ, DK, EE, FI, FR, HU, IT, LT, NL, NO, RO, SE, SI, SK, HR, TR, BG, IS, LU, MT, MK, GB, GR, LV, IS\\nI3B/P(50): AT, CH, CZ, DE, SK, LU\\nI3B/P(37): PL'], 'Main burner injector size': ['Ø 0.92 mm', 'Ø 0.92 mm', 'Ø 0.92 mm', 'Ø 0.86 mm', 'Ø 0.81 mm'], 'Side burner injector size': ['Ø 0.88 mm', 'Ø 0.88 mm', 'Ø 0.88 mm', 'Ø 0.79 mm', 'Ø 0.75 mm'], 'Total output:': ['13,5 kW / 983 (g/h)'], 'Electric energy(V / DC)': ['–'], 'Serial number': ['Can be found on the right side of the fire box'], 'Use outdoors only': [], 'Read the instructions before using the appliance.': [], 'Warning : Accessible parts may be very hot. Keep young children away. Made in China': [], 'CE-sign': ['2575-24']}
-
 # compare_dictionaries(red_text_data, table_data)

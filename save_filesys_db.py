@@ -8,6 +8,8 @@ from openpyxl import load_workbook
 
 # 全局变量定义
 ROOT = '/home/zhanghantao/agsun-tools-server/db'
+
+
 # 动态设置基础目录的函数
 def setup_directory_paths(userinfo, base_dir):
     current_year = datetime.now().strftime('%Y')
@@ -15,7 +17,7 @@ def setup_directory_paths(userinfo, base_dir):
     current_time = datetime.now().strftime('%H-%M-%S')
     unique_identifier = userinfo['username']  # 根据实际情况动态赋值
     print(base_dir, current_year,
-                           current_month_day, current_time, unique_identifier)
+          current_month_day, current_time, unique_identifier)
     pdf_dir = os.path.join(base_dir, current_year,
                            current_month_day, current_time, unique_identifier)
     result_dir = os.path.join(pdf_dir, 'result')
@@ -48,13 +50,12 @@ def images_to_directory(base64_images, image_result_dir):
 
         # 保存图像到文件系统
         image.save(output_path)
-        
 
 
 def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, msg):
     base_dir = f'{ROOT}/001'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username,base_dir)
+        username, base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -109,7 +110,7 @@ def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, m
 def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
     base_dir = f'{ROOT}/002'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-        base_dir)
+                                                                                    base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -145,14 +146,14 @@ def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error
         result=result_path,
         is_error=is_error
     )
-    
+
     check_pagenumber_instance.save_to_db()
 
 
 def save_Language(username, doc, base_file_name, code, language_page, language, msg):
     base_dir = f'{ROOT}/003'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username,base_dir)
+        username, base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -199,7 +200,7 @@ def save_Language(username, doc, base_file_name, code, language_page, language, 
 def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_base64, msg):
     base_dir = f'{ROOT}/004'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username,base_dir)
+        username, base_dir)
     # 确保PDF和结果目录存在
     wb = load_workbook(excel_file)
     os.makedirs(pdf_dir, exist_ok=True)
@@ -297,11 +298,13 @@ def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64
     )
     check_pagenumber_instance.save_to_db()
 
-def save_Part_count(username, doc, base_file_name, code,mapping_results,note,error_pages,msg):
+
+def save_Part_count(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
     base_dir = f'{ROOT}/006'
-    print(username, doc, base_file_name, code,mapping_results,note,error_pages,msg)
+    print(username, doc, base_file_name, code,
+          mapping_results, note, error_pages, msg)
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-        base_dir)
+                                                                                    base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -320,9 +323,11 @@ def save_Part_count(username, doc, base_file_name, code,mapping_results,note,err
         for result in mapping_results:
             serial, is_correct, explosion_count, detail_count = result
             if not is_correct:
-                print(f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
+                print(
+                    f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
                 with open(result_file_path, 'w') as result_file:
-                    result_file.write(f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
+                    result_file.write(
+                        f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
                 has_error = True  # 发现错误，更新错误标志
 
         # 检查 error_pages 是否不为空

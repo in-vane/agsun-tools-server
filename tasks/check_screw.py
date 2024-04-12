@@ -236,7 +236,7 @@ def check_screw(username, file, filename):
     if page_num is None:
         msg = '未检测到有螺丝包'
         print(msg)
-        save_Screw(username,doc, filename, CODE_SUCCESS, [], [], msg)
+        save_Screw(username, doc, filename, CODE_SUCCESS, [], [], msg)
         return CODE_ERROR, {}, msg
     manage_csv()
     result_dict = read_csv_to_dict()
@@ -256,9 +256,12 @@ def check_screw(username, file, filename):
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }
-    save_Screw(username, doc, filename, CODE_SUCCESS, mismatch_dict, match_dict, None)
+    save_Screw(username, doc, filename, CODE_SUCCESS,
+               mismatch_dict, match_dict, None)
     doc.close()
     return CODE_SUCCESS, data, None
+
+
 # 测试
 # def pdf_to_bytes(file_path):
 #     with open(file_path, 'rb') as file:

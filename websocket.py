@@ -64,10 +64,9 @@ async def pdf2img_split(ws, pdf_path, options):
         if (options['mode'] == MODE_NORMAL):
             img_base64 = page2img(page, dpi=72)
         if (options['mode'] == MODE_VECTOR):
-            # if is_image(page):
-            #     img_base64 = page2img(page, dpi=300)
-            img_base64 = page2img(page, dpi=300)
-        
+            if is_image(page):
+                img_base64 = page2img(page, dpi=300)
+
         img_base64 = "" if not img_base64 else f"{BASE64_PNG}{img_base64}"
         await ws.write_message({
             "total": end - start,

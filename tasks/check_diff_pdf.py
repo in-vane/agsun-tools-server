@@ -201,6 +201,8 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
 
     return adjusted_sequences, refined_mismatch_list
 # 当page_num1, page_num2有值时
+
+
 def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RESULT_IMAGE):
     mismatch_list = []
     # 直接对比部分
@@ -210,7 +212,7 @@ def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RE
             image2_path = os.path.join(PDF2_IMAGE, f"{page_num}.png")
             print(f"{image1_path}与{image2_path}对比")
             if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
-                mismatch_list.append(page_num )  # 页码从1开始
+                mismatch_list.append(page_num)  # 页码从1开始
         else:
             break  # 如果任一文档页码超出范围，停止对比
 
@@ -225,7 +227,8 @@ def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RE
             if find_and_mark_differences(image1_path, image2_path, RESULT_IMAGE):
                 mismatch_list.append(page_num1)  # 页码从1开始
         else:
-            print(f"No corresponding page in Document 2 for further comparison. Comparison stopped at page {page_num1 + 1} of Document 1.")
+            print(
+                f"No corresponding page in Document 2 for further comparison. Comparison stopped at page {page_num1 + 1} of Document 1.")
             break
 
     return mismatch_list, ''
@@ -233,8 +236,8 @@ def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RE
 
 # 主函数
 def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, page_num2):
-    #doc1 = fitz.open(stream=BytesIO(file1))
-    #doc2 = fitz.open(stream=BytesIO(file2))
+    # doc1 = fitz.open(stream=BytesIO(file1))
+    # doc2 = fitz.open(stream=BytesIO(file2))
     doc1 = fitz.open(file1)
     doc2 = fitz.open(file2)
     pdf_to_images(doc1, PDF1_IMAGE)
@@ -244,7 +247,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
         os.makedirs(RESULT_IMAGE)
     if page_num1 != -1 and page_num2 != -1:
         # 使用调整后的页码进行对比
-        mismatch_list, continuous = adjust_pages_for_comparison(page_num1, page_num2, doc1, doc2, RESULT_IMAGE)
+        mismatch_list, continuous = adjust_pages_for_comparison(
+            page_num1, page_num2, doc1, doc2, RESULT_IMAGE)
     else:
         mismatch_list = []  # 用于记录不匹配的页号
         # 获取image1文件夹中的所有图片文件名
@@ -257,7 +261,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
 
             # 解析页号
             # 从image1_path中直接提取页码
-            page_number = int(os.path.splitext(os.path.basename(image1_path))[0])
+            page_number = int(os.path.splitext(
+                os.path.basename(image1_path))[0])
 
             # 检查image2中是否存在对应的图片
             if os.path.exists(image2_path):
@@ -315,5 +320,3 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
 # file1 = pdf_to_bytes(file1)
 # file2 = pdf_to_bytes(file2)
 # code, mismatch_list, base64_strings, continuous, msg = check_diff_pdf("username", file1, file2, "file1_name", "file2_name", -1, -1)
-
-

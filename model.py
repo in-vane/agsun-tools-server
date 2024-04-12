@@ -33,6 +33,8 @@ class User:
                     return False
         finally:
             connection.close()
+
+
 class CheckPartCount:
     def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result):
         self.username = username
@@ -60,6 +62,7 @@ class CheckPartCount:
                 connection.commit()
         finally:
             connection.close()
+
 
 class CheckDiffpdf:
     def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1, pdf_path2, pdf_name2, result, is_error):

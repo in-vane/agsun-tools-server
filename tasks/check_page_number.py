@@ -6,6 +6,7 @@ import re
 
 from logger import logger
 from save_filesys_db import save_PageNumber
+
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
@@ -37,7 +38,6 @@ def annotate_page_number_issues(doc, physical_page_numbers, issues):
         img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         buffer.close()
         error_pages_base64.append(f"data:image/jpeg;base64,{img_base64}")
-
 
     return error_pages_base64
 
@@ -137,4 +137,3 @@ def check_page_number(username, file, filename):
     doc.close()
     logger.info("---end check_page_number---")
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None
-

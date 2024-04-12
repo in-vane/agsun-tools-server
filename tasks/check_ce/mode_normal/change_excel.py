@@ -22,6 +22,7 @@ IMAGE_PATH = './assets/images/temp.png'
 PDF_PATH = './assets/pdf/temp.pdf'
 BASE64_PNG = 'data:image/png;base64,'
 
+
 # 将错误的地方在excel文件框标出
 def change_excel(wb, work_table, message_dict):
     """
@@ -69,9 +70,12 @@ def change_excel(wb, work_table, message_dict):
 
     # 保存文件
     wb.save(EXCEL_PATH)
+
+
 # 将excel转化为图片
 def excel_to_iamge(excel_path, num):
-    output_pdf_path = os.path.splitext(os.path.basename(excel_path))[0] + ".pdf"
+    output_pdf_path = os.path.splitext(
+        os.path.basename(excel_path))[0] + ".pdf"
 
     # 使用LibreOffice将Excel文件转换为PDF
     try:
@@ -92,13 +96,14 @@ def excel_to_iamge(excel_path, num):
         img_bytes = pix.tobytes("png")
         img_base64 = base64.b64encode(img_bytes).decode("utf-8")
     else:
-        img_base64 =None
+        img_base64 = None
         print("Specified page number exceeds the PDF's page count.")
 
     doc.close()
     # 删除生成的PDF文件
     os.remove(output_pdf_path)
     return f"{BASE64_PNG}{img_base64}"
+
 
 # 将xls文件转化为xlsx文件
 def convert_xls_bytes_to_xlsx(file_bytes):
@@ -130,7 +135,8 @@ def convert_xls_bytes_to_xlsx(file_bytes):
         # 调用命令行执行转换
         subprocess.run(cmd, check=True)
         # 生成的.xlsx文件路径
-        generated_file_path = os.path.join(output_dir, os.path.splitext(os.path.basename(tmp_file_name))[0] + ".xlsx")
+        generated_file_path = os.path.join(output_dir, os.path.splitext(
+            os.path.basename(tmp_file_name))[0] + ".xlsx")
         # 读取生成的.xlsx文件的字节流
         with open(generated_file_path, 'rb') as f:
             xlsx_bytes = f.read()
@@ -146,6 +152,8 @@ def convert_xls_bytes_to_xlsx(file_bytes):
         # 清理临时文件和目录
         os.remove(tmp_file_name)
         shutil.rmtree(output_dir)
+
+
 # 判断文件是那种excel文件
 def determine_file_type(excel_bytes):
     # 将前几个字节转换为十六进制表示
@@ -158,12 +166,13 @@ def determine_file_type(excel_bytes):
     else:
         return 'Unknown'
 
+
 def checkTags(username, excel_file, pdf_file, name1, name2, num):
     # 获取文件的目录路径
     directory = os.path.dirname(EXCEL_PATH)
     # 检查这个目录是否存在
     if not os.path.exists(directory):
-    # 如果目录不存在，则创建它
+        # 如果目录不存在，则创建它
         os.makedirs(directory)
         print(f"目录 {directory} 已创建。")
     else:
@@ -186,15 +195,17 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
     image_base64 = excel_to_iamge(EXCEL_PATH, num)
-    save_CE(username, doc, EXCEL_PATH, name1, name2, work_table, CODE_SUCCESS, image_base64, None)
+    save_CE(username, doc, EXCEL_PATH, name1, name2,
+            work_table, CODE_SUCCESS, image_base64, None)
     os.remove(EXCEL_PATH)
     # os.remove(PDF_PATH)
     doc.close()
     wb.close()
     return CODE_SUCCESS, image_base64, None
+
+
 # 测试
 # def pdf_to_bytes(file_path):
   #  with open(file_path, 'rb') as file:
    #     bytes_content = file.read()
-    #return bytes_content
-
+    # return bytes_content
