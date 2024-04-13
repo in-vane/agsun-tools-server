@@ -316,11 +316,17 @@ class SizeHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         filename, content_type, body = file["filename"], file["content_type"], file["body"]
-        error, error_msg, img_base64 = tasks.compare_size(body)
+        width = int(self.get_argument('width', default='-1'))
+        height = int(self.get_argument('height', default='-1'))
+        
+        error, msg, img_base64 = tasks.check_size(body, width, height)
         custom_data = {
-            "error": error,
-            "error_msg": error_msg,
-            "result": img_base64,
+            "code": 0,
+            "data": {
+                "error": error,
+                "img_base64": img_base64
+            },
+            "msg": msg,
         }
         self.write(custom_data)
 
