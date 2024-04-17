@@ -134,6 +134,7 @@ def check_page_number(username, file, filename):
     logger.info("save file")
     save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
                     issues, error_pages_base64, None)
+    logger.info("save success")
     doc.close()
     logger.info("---end check_page_number---")
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None

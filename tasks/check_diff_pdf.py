@@ -16,8 +16,6 @@ CODE_ERROR = 1
 
 
 # pdf转化为图片，放入output_folder文件夹下
-
-
 def pdf_to_images(doc, output_folder):
     """使用fitz（PyMuPDF）将PDF转换为图片，并保存到指定文件夹"""
     if not os.path.exists(output_folder):
@@ -30,8 +28,6 @@ def pdf_to_images(doc, output_folder):
 
 
 # 清空image1、image2和image3文件夹
-
-
 def clear_directory_contents(dir_paths):
     """清空指定目录下的所有文件（不删除子目录中的内容）"""
     for dir_path in dir_paths:
@@ -49,8 +45,6 @@ def clear_directory_contents(dir_paths):
 
 
 # 根据列表获取image3下的图片，再转化为base64
-
-
 def images_to_base64_list(image_folder, page_numbers):
     """根据页号列表，将对应的图片转换为Base64字符串列表"""
     base64_strings = []
@@ -66,8 +60,6 @@ def images_to_base64_list(image_folder, page_numbers):
 
 
 # 把不同的地方绿色框标注起来
-
-
 def mark_image_with_green_border(image_path, output_folder):
     """在图片周围画一个绿色的大框，并保存到指定的文件夹"""
     img = cv2.imread(image_path)
@@ -79,8 +71,6 @@ def mark_image_with_green_border(image_path, output_folder):
 
 
 # 找两张图片不同的地方
-
-
 def find_and_mark_differences(image2_path, image1_path, output_folder):
     global similarity_list
     exists_difference = False  # 确保在引用之前已经定义并初始化
@@ -200,9 +190,9 @@ def adjust_sequences_based_on_similarity(mismatch_list, similarity_list, thresho
             refined_mismatch_list.append(page)
 
     return adjusted_sequences, refined_mismatch_list
+
+
 # 当page_num1, page_num2有值时
-
-
 def adjust_pages_for_comparison(start_page_doc1, start_page_doc2, doc1, doc2, RESULT_IMAGE):
     mismatch_list = []
     # 直接对比部分

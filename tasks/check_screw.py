@@ -5,6 +5,7 @@ import shutil
 from io import BytesIO
 import fitz
 import pandas as pd
+from logger import logger
 from tabula import read_pdf
 
 
@@ -116,11 +117,9 @@ def detect_vector_pages(doc):
     # 检查最后一段连续序列
     if last_page is not None and (last_page - temp_start) >= 3:
         step_pages.extend(range(temp_start + 1, last_page + 2))
-    print(step_pages)
     return step_pages
+
 # 提取步骤页，需要的步骤螺丝
-
-
 def extract_text_meeting_pattern(doc, pages):
 
     pattern = r'(\d+)\s*[xX]\s*([A-Z])'
@@ -154,9 +153,6 @@ def extract_text_meeting_pattern(doc, pages):
             else:
                 letter_count[letter].append(count)
 
-    print("letter_counts:", letter_counts)
-    print("letter_pageNumber:", letter_pageNumber)
-    print("letter_count:", letter_count)
 
     return letter_counts, letter_count, letter_pageNumber
 
@@ -167,7 +163,9 @@ def get_step_screw(doc):
     step_page = detect_vector_pages(doc)
     letter_counts, letter_count, letter_pageNumber = extract_text_meeting_pattern(
         doc, step_page)
-
+    logger.info(f"letter_counts : {letter_counts}")
+    logger.info(f"letter_count : {letter_count}")
+    logger.info(f"letter_pageNumber : {letter_pageNumber}")
     return letter_counts, letter_count, letter_pageNumber
 
 
@@ -184,16 +182,12 @@ def check_total_and_step(doc, result_dict, page_num):
             if result_dict[key] != letter_counts[key]:
                 count_mismatch[key] = {
                     'expected': result_dict[key], 'actual': letter_counts[key]}
-                print(
-                    f"数量不匹配: {key}, 应有 {result_dict[key]} 个, 实际有 {letter_counts[key]} 个")
         else:
-            print(f"多余的字符: {key} 在 result_dict 中不存在")
             extra_chars[key] = letter_counts[key]
 
     # 检查result_dict是否有letter_counts没有的字符,多余的种类螺丝
     for key in result_dict:
         if key not in letter_counts:
-            print(f"缺少的字符: {key} 在 letter_counts 中不存在")
             missing_chars[key] = result_dict[key]
 
     return count_mismatch, letter_count, letter_pageNumber, result_dict
@@ -226,6 +220,8 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 # 主函数
 def check_screw(username, file, filename):
+    logger.info("---begin check_screw---")
+    logger.info(f"username : {username}")
     # doc = fitz.open(file)
     doc = fitz.open(stream=BytesIO(file))
     doc.save(PDF_PATH)
@@ -235,19 +231,19 @@ def check_screw(username, file, filename):
     page_num = find_target_table(doc)
     if page_num is None:
         msg = '未检测到有螺丝包'
-        print(msg)
+        logger.warning(msg)
         save_Screw(username, doc, filename, CODE_SUCCESS, [], [], msg)
         return CODE_ERROR, {}, msg
     manage_csv()
     result_dict = read_csv_to_dict()
+    logger.info("Screw bag:", result_dict)
     count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
         doc, result_dict, page_num)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
 
-    print(f"count_mismatch = {count_mismatch}")
-    print("Mismatch Dict:", mismatch_dict)
-    print("Match Dict:", match_dict)
+    logger.info("Mismatch Dict:", mismatch_dict)
+    logger.info("Match Dict:", match_dict)
 
     os.remove(CSV_PATH)
     os.remove(PDF_PATH)
@@ -256,9 +252,12 @@ def check_screw(username, file, filename):
         'mismatch_dict': mismatch_dict,
         'match_dict': match_dict
     }
+    logger.info("save file")
     save_Screw(username, doc, filename, CODE_SUCCESS,
                mismatch_dict, match_dict, None)
+    logger.info("save success")
     doc.close()
+    logger.info("---end check_screw---")
     return CODE_SUCCESS, data, None
 
 

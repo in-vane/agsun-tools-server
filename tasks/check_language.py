@@ -7,6 +7,7 @@ import cv2
 import fitz
 from langdetect import detect
 from ppocronnx.predict_system import TextSystem
+from logger import logger
 from save_filesys_db import save_Language
 
 IMAGE_PATH = './assets/images'
@@ -73,13 +74,12 @@ def get_image_text(extracted_images):
 
         # 判断当前页面是否为语言目录页
         is_index, directory = find_language_index_page(page_texts)
-        print(is_index, directory)
+        logger.info(is_index, directory)
         if is_index:
             language_index_pages.append(index + 1)  # 页号是从1开始的
             directory_information = directory
             has_match_index = True
-
-    print(f"directory_information: {directory_information}")
+    logger.info(f"directory_information: {directory_information}")
 
     return language_index_pages, directory_information
 
@@ -117,53 +117,52 @@ def get_directory(doc, limit):
 
     return language_index_pages, directory_information
 
-
+# 从一个文档中按照不同语言的页码范围提取文本，并将这些文本按语言分类存储在一个字典中。
 def extract_text_by_language(doc, language_pages):
-    # Initialize the dictionary to hold the text for each language
+    # 初始化一个字典，用来存储每种语言的文本
     language_texts = {}
 
-    # Get the total number of pages in the document
+    # 总页数
     total_pages = doc.page_count
 
-    # Sort the languages by the starting page number
+    # 按语言的起始页码排序
     sorted_languages = sorted(language_pages.items(), key=lambda item: item[1])
 
-    # Go through each language and its start page
+    # 遍历每种语言及其起始页
     for i, (language, start_page) in enumerate(sorted_languages):
-        # Determine the end page
-        # If it's not the last language, the end page is the start page of the next language - 1
-        # If it's the last language, the end page is the last page of the document
+        # 确定结束页码
+        # 如果不是最后一种语言，则结束页是下一种语言的起始页减1
+        # 如果是最后一种语言，则结束页是文档的最后一页
         end_page = sorted_languages[i + 1][1] - 1 if i + \
             1 < len(sorted_languages) else total_pages
 
-        # Extract text from the specified page range
+        # 从指定的页码范围提取文本
         text = ""
         for page_num in range(start_page, end_page + 1):
-            # Page numbers are zero-indexed in PyMuPDF
+            # 在PyMuPDF中，页码是从零开始索引的
             page_text = doc[page_num - 1].get_text()
             text += page_text
 
-        # Add the extracted text to the dictionary
+        # 将提取的文本添加到字典中
         language_texts[language] = text
 
     return language_texts
 
-
+# 检测并确认文本中的语言。它接收一个包含多种语言文本的字典，然后使用一个语言检测工具langdetect确定每一段文本的语言
 def detect_language_of_texts(texts_by_languages):
     detected_languages = {}
 
     for language_code, text in texts_by_languages.items():
         try:
-            # Detect the language of the text
             detected_language = detect(text)
             detected_languages[language_code] = detected_language
         except Exception as e:
-            # If language detection fails, print an error message
             detected_languages[language_code] = f"Error: {str(e)}"
 
     return detected_languages
 
-
+# 生成一份关于文档中语言标记和实际检测语言是否匹配的详细报告。其目的是辅助用户了解在文档的不同页码范围内，
+# 每种指定的语言是否与实际检测到的语言相符。
 def generate_language_report(mismatched_languages, language_message, total_pages):
     # 使用字典推导式将每个值转换为大写
     mismatched_languages = {key: value.upper()
@@ -208,9 +207,9 @@ def generate_language_report(mismatched_languages, language_message, total_pages
 def find_mismatched_languages(doc, detected_languages, page_number):
     mismatched = {}
 
-    # Iterate over the detected_languages dictionary
+    # 遍历 detected_languages 字典
     for key, value in detected_languages.items():
-        # Compare the key and value ignoring case, add to mismatched if they don't match
+        # 比较键（key）和值（value）是否相同，忽略大小写，如果不匹配则添加到 mismatched 字典中
         if key.lower() != value.lower():
             mismatched[key] = value
 
@@ -219,6 +218,9 @@ def find_mismatched_languages(doc, detected_languages, page_number):
 
 # 主函数
 def check_language(username, file, filename, limit):
+    logger.info("---begin check_language---")
+    logger.info(f"username : {username}")
+    logger.info(f"limit : {limit}")
     doc = fitz.open(stream=BytesIO(file))
     # doc = fitz.open(file)
     total_pages = doc.page_count
@@ -226,22 +228,19 @@ def check_language(username, file, filename, limit):
         limit = 15
     language_pages = get_directory(doc, limit)
     if not language_pages[0]:
-        code = "请仔细检查，该文件无语言目录"
-        print(code)
-        save_Language(username, doc, filename, CODE_ERROR, None, [], code)
-        return CODE_ERROR, {}, code
+        msg = "请仔细检查，该文件无语言目录"
+        logger.info(msg)
+        save_Language(username, doc, filename, CODE_ERROR, None, [], msg)
+        return CODE_ERROR, {}, msg
     language_message = language_pages[1]
     texts_by_languages = extract_text_by_language(doc, language_pages[1])
     detected_languages = detect_language_of_texts(texts_by_languages)
 
     mismatched_languages = find_mismatched_languages(
         doc, detected_languages, language_pages[0])
-    is_error = False if len(mismatched_languages.keys()) == 0 else True
-
     # Printing the new dictionary with mismatched languages
-    print(f"detected_languages: {detected_languages}")
-    print(f"mismatched_languages: {mismatched_languages}")
-
+    logger.info(f"detected_languages: {detected_languages}")
+    logger.info(f"mismatched_languages: {mismatched_languages}")
     language = generate_language_report(
         mismatched_languages, language_message, total_pages)
 
@@ -251,9 +250,12 @@ def check_language(username, file, filename, limit):
         'language_page': language_pages[0][0],
         'language': language  # A success message
     }
+    logger.info("save file")
     save_Language(username, doc, filename, CODE_SUCCESS,
                   language_pages[0][0], language, None)
+    logger.info("save success")
     doc.close()
+    logger.info("---end check_language---")
     return CODE_SUCCESS, data, None
 
 # 测试
