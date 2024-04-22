@@ -247,13 +247,21 @@ class ScrewHandler(MainHandler):
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_screw(username, body, filename)
+        if self.request.path == "/api/screw/bags":
+            code, data, msg = tasks.get_Screw_bags(filename)
+        elif self.request.path == "/api/screw/compare":
+            code, data, msg = tasks.check_screw(username, body, filename)
+        else:
+            code = 1
+            data = {}
+            msg = '请检查你的正确网址'
         custom_data = {
             'code': code,
             'data': data,
             'msg': msg
         }
         self.write(custom_data)
+
 
 
 class LanguageHandler(MainHandler):

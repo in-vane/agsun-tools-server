@@ -87,10 +87,13 @@ def parse_text_to_dict(lines):
             result_dict[letter] = 0
     result = [{'key': key, 'value': value} for key, value in result_dict.items()]
     return result
-def get_count_Screw(byte_data):
+def get_Screw_bags(byte_data):
     lines = group_text_by_lines(byte_data, y_tolerance=10)
     result = parse_text_to_dict(lines)
-    return CODE_SUCCESS, result, ''
+    data ={
+        'result':result
+    }
+    return CODE_SUCCESS, data, ''
 
 
 def extract_text_from_pdf(doc, page_number):
