@@ -55,8 +55,8 @@ def parse_text_to_dict(lines):
     第一个元素为字母行，如果存在，第二个元素为含数字的字符串。
     """
     if not lines:
-        result = [{'key': 'A', 'value': 0}, {'key': 'A', 'value': 0}, {'key': 'A', 'value': 0},
-                  {'key': 'A', 'value': 0}]
+        result = [{'type': 'A', 'count': 0}, {'type': 'A', 'count': 0}, {'type': 'A', 'count': 0},
+                  {'type': 'A', 'count': 0}]
         return result
 
     # 使用正则表达式移除非字母和非空格字符
@@ -85,7 +85,7 @@ def parse_text_to_dict(lines):
     if len(numbers) < len(letters):
         for letter in letters[len(numbers):]:
             result_dict[letter] = 0
-    result = [{'key': key, 'value': value} for key, value in result_dict.items()]
+    result = [{'type': key, 'count': value} for key, value in result_dict.items()]
     return result
 def get_Screw_bags(byte_data):
     lines = group_text_by_lines(byte_data, y_tolerance=10)
@@ -241,12 +241,12 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 
 # 主函数
-def check_screw(username, file, filename, result, start, end):
+def check_screw(username, file, filename, table, start, end):
     print("---begin check_screw---")
     print(f"username : {username}")
     doc = fitz.open(stream=BytesIO(file))
     # 获取螺丝包
-    result_dict = {item['key']: item['value'] for item in result}
+    result_dict = {item['type']: item['count'] for item in table}
     print("Screw bag:", result_dict)
     step_page = list(range(start, end + 1))
     if start<1 or end>doc.page_count:

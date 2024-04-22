@@ -250,11 +250,14 @@ class ScrewHandler(MainHandler):
         if self.request.path == "/api/screw/bags":
             code, data, msg = tasks.get_Screw_bags(filename)
         elif self.request.path == "/api/screw/compare":
-            code, data, msg = tasks.check_screw(username, body, filename)
+            start = int(self.get_argument('start'))
+            end = int(self.get_argument('end'))
+            table = int(self.get_argument('table'))
+            code, data, msg = tasks.check_screw(username, file, filename, table, start, end)
         else:
             code = 1
             data = {}
-            msg = '请检查你的正确网址'
+            msg = '请检查你的网址'
         custom_data = {
             'code': code,
             'data': data,
