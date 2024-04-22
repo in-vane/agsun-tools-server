@@ -242,17 +242,20 @@ class TableHandler(MainHandler):
 class ScrewHandler(MainHandler):
     @need_auth
     def post(self):
-        username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file["filename"]
         if self.request.path == "/api/screw/bags":
-            code, data, msg = tasks.get_Screw_bags(filename)
+            param = tornado.escape.json_decode(self.request.body)
+            img_base64 = param['crop']
+            code, data, msg = tasks.get_Screw_bags(img_base64)
         elif self.request.path == "/api/screw/compare":
-            start = int(self.get_argument('start'))
-            end = int(self.get_argument('end'))
-            table = int(self.get_argument('table'))
+            username = self.current_user
+            files = self.get_files()
+            file = files[0]
+            body = file["body"]
+            filename = file["filename"]
+            params = tornado.escape.json_decode(self.request.body)
+            table = params['table']
+            start = int(params['start'])
+            end = int(params['end'])
             code, data, msg = tasks.check_screw(username, file, filename, table, start, end)
         else:
             code = 1

@@ -4,6 +4,10 @@ import fitz
 # from logger import logger
 import re
 import easyocr
+import base64
+from PIL import Image
+import io
+
 import cv2
 import numpy as np
 import easyocr  # 导入EasyOCR
@@ -15,17 +19,20 @@ CODE_SUCCESS = 0
 CODE_ERROR = 1
 
 # ocr识别螺丝包
-def group_text_by_lines(image_bytes, y_tolerance=10):
+def group_text_by_lines(image_base64, y_tolerance=10):
     """
     将文本按行分组。
-    `image_bytes` 是图片的字节流。
+    `image_base64` 是图片的base64编码字符串。
     `y_tolerance` 是y坐标的容忍度，用于确定两个文本是否属于同一行。
     """
     # 创建reader对象，指定使用的语言
-    reader = easyocr.Reader(['en'], gpu=False)  # 使用gpu=False来强制使用CPU
+    reader = easyocr.Reader(['en'])
+    # 解码base64字符串
+    image_data = base64.b64decode(image_base64)
+    image = Image.open(io.BytesIO(image_data))
 
-    # 直接读取图片的字节流
-    results = reader.readtext(image_bytes)
+    # 读取图片
+    results = reader.readtext(image)
     lines = {}
     for (bbox, text, confidence) in results:
         top_left, _, bottom_right, _ = bbox
@@ -87,8 +94,8 @@ def parse_text_to_dict(lines):
             result_dict[letter] = 0
     result = [{'type': key, 'count': value} for key, value in result_dict.items()]
     return result
-def get_Screw_bags(byte_data):
-    lines = group_text_by_lines(byte_data, y_tolerance=10)
+def get_Screw_bags(img_base64):
+    lines = group_text_by_lines(img_base64, y_tolerance=10)
     result = parse_text_to_dict(lines)
     data ={
         'result':result
