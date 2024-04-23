@@ -19,6 +19,8 @@ CODE_SUCCESS = 0
 CODE_ERROR = 1
 
 # ocr识别螺丝包
+
+
 def group_text_by_lines(image_base64, y_tolerance=10):
     """
     将文本按行分组。
@@ -55,6 +57,8 @@ def group_text_by_lines(image_base64, y_tolerance=10):
         grouped_lines.append(' '.join(lines[key]))
     return grouped_lines
 # 根据获取到的文字组成螺丝包字典
+
+
 def parse_text_to_dict(lines):
     """
     解析文本行并返回字母与其对应数字的字典。
@@ -69,7 +73,8 @@ def parse_text_to_dict(lines):
     # 使用正则表达式移除非字母和非空格字符
     clean_letters_line = re.sub(r'[^A-Za-z\s]', '', lines[0])
     # 筛选只包含单一字母的部分
-    letters = [letter for letter in clean_letters_line.split() if re.fullmatch(r'[A-Za-z]', letter)]
+    letters = [letter for letter in clean_letters_line.split()
+               if re.fullmatch(r'[A-Za-z]', letter)]
     numbers = []
     # 如果存在第二行，处理数字
     if len(lines) > 1:
@@ -92,13 +97,18 @@ def parse_text_to_dict(lines):
     if len(numbers) < len(letters):
         for letter in letters[len(numbers):]:
             result_dict[letter] = 0
-    result = [{'type': key, 'count': value} for key, value in result_dict.items()]
+    result = [{'type': key, 'count': value}
+              for key, value in result_dict.items()]
     return result
+
+
 def get_Screw_bags(img_base64):
-    lines = group_text_by_lines(img_base64, y_tolerance=10)
+    d = img_base64.split(",")[-1]
+    print(d)
+    lines = group_text_by_lines(d, y_tolerance=10)
     result = parse_text_to_dict(lines)
-    data ={
-        'result':result
+    data = {
+        'result': result
     }
     return CODE_SUCCESS, data, ''
 
@@ -110,14 +120,15 @@ def extract_text_from_pdf(doc, page_number):
     image = page.get_pixmap()  # 将PDF页面转换为图像
 
     # 将图像数据转换为OpenCV格式
-    img = cv2.imdecode(np.frombuffer(image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
+    img = cv2.imdecode(np.frombuffer(
+        image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
 
     if img is not None:
         results = ocr_system.detect_and_ocr(img)
         texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
         text_results[page_number] = texts
     else:
-        texts=''
+        texts = ''
 
     return texts
 # easyocr
@@ -142,7 +153,9 @@ def extract_text_from_pdf(doc, page_number):
 #     return texts
 # 提取步骤页，需要的步骤螺丝
 # 提取步骤页，需要的步骤螺丝
-def get_step_screw(doc, pages,result_dict):
+
+
+def get_step_screw(doc, pages, result_dict):
     # 提取字典键并去除空格
     keys = [key.strip() for key in result_dict.keys()]
 
@@ -158,7 +171,7 @@ def get_step_screw(doc, pages,result_dict):
     for page_num in pages:
         page = doc.load_page(page_num - 1)  # Page numbering starts from 0
         # text = page.get_text()
-        text = extract_text_from_pdf(doc,page_num)
+        text = extract_text_from_pdf(doc, page_num)
         # print(text)
         matches = re.findall(pattern, text)
         for match in matches:
@@ -180,7 +193,7 @@ def get_step_screw(doc, pages,result_dict):
             if letter not in letter_pageNumber:
                 letter_pageNumber[letter] = [page_num]
             else:
-            # elif page_num not in letter_pageNumber[letter]:
+                # elif page_num not in letter_pageNumber[letter]:
                 letter_pageNumber[letter].append(page_num)
             # Update letter_count
             if letter not in letter_count:
@@ -195,10 +208,11 @@ def get_step_screw(doc, pages,result_dict):
     return letter_counts, letter_pageNumber, letter_count
 
 
-def check_total_and_step(doc, result_dict,step_page):
+def check_total_and_step(doc, result_dict, step_page):
     count_mismatch = {}  # 数量不匹配的情况
 
-    letter_counts, letter_count, letter_pageNumber = get_step_screw(doc,step_page,result_dict)
+    letter_counts, letter_count, letter_pageNumber = get_step_screw(
+        doc, step_page, result_dict)
 
     # 检查两个字典中的数量是否匹配
     for key in letter_counts:
@@ -217,7 +231,6 @@ def check_total_and_step(doc, result_dict,step_page):
             count_mismatch[key] = {
                 'expected': result_dict[key], 'actual': 0}
             print(f"缺少的字符: {key} 在 letter_counts 中不存在")
-
 
     return count_mismatch, letter_count, letter_pageNumber, result_dict
 
@@ -256,7 +269,7 @@ def check_screw(username, file, filename, table, start, end):
     result_dict = {item['type']: item['count'] for item in table}
     print("Screw bag:", result_dict)
     step_page = list(range(start, end + 1))
-    if start<1 or end>doc.page_count:
+    if start < 1 or end > doc.page_count:
         return CODE_ERROR, {}, '请检查步骤页输入是否正确'
     count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
         doc, result_dict, step_page)
@@ -272,7 +285,7 @@ def check_screw(username, file, filename, table, start, end):
     }
     print("save file")
     save_Screw(username, doc, filename, CODE_SUCCESS,
-                mismatch_dict, match_dict, None)
+               mismatch_dict, match_dict, None)
     print("save success")
     doc.close()
     print("---end check_screw---")
@@ -291,6 +304,3 @@ def check_screw(username, file, filename, table, start, end):
 # start =6
 # end =14
 # check_screw('username', file1, 'filename', result, start, end)
-
-
-
