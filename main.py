@@ -4,6 +4,7 @@ import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
+import os
 import tasks
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
@@ -249,15 +250,19 @@ class ScrewHandler(MainHandler):
             code, data, msg = tasks.get_Screw_bags(img_base64)
         elif self.request.path == "/api/screw/compare":
             username = self.current_user
-            files = self.get_files()
-            file = files[0]
-            body = file["body"]
-            filename = file["filename"]
+            # files = self.get_files()
+            # file = files[0]
+            # body = file["body"]
+            # filename = file["filename"]
             params = tornado.escape.json_decode(self.request.body)
+            print(params)
+            file = params['file_path']
             table = params['table']
             start = int(params['start'])
             end = int(params['end'])
-            code, data, msg = tasks.check_screw(username, file, filename, table, start, end)
+            file_name = os.path.basename(file)
+            print("文件名:", file_name)
+            code, data, msg = tasks.check_screw(username, file, file_name, table, start, end)
         else:
             code = 1
             data = {}

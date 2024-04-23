@@ -19,8 +19,6 @@ CODE_SUCCESS = 0
 CODE_ERROR = 1
 
 # ocr识别螺丝包
-
-
 def group_text_by_lines(image_base64, y_tolerance=10):
     """
     将文本按行分组。
@@ -33,8 +31,11 @@ def group_text_by_lines(image_base64, y_tolerance=10):
     image_data = base64.b64decode(image_base64)
     image = Image.open(io.BytesIO(image_data))
 
+    # 将PIL图像转换为numpy数组
+    img_np = np.array(image)
+
     # 读取图片
-    results = reader.readtext(image)
+    results = reader.readtext(img_np)
     lines = {}
     for (bbox, text, confidence) in results:
         top_left, _, bottom_right, _ = bbox
@@ -57,8 +58,6 @@ def group_text_by_lines(image_base64, y_tolerance=10):
         grouped_lines.append(' '.join(lines[key]))
     return grouped_lines
 # 根据获取到的文字组成螺丝包字典
-
-
 def parse_text_to_dict(lines):
     """
     解析文本行并返回字母与其对应数字的字典。
@@ -104,33 +103,33 @@ def parse_text_to_dict(lines):
 
 def get_Screw_bags(img_base64):
     d = img_base64.split(",")[-1]
-    print(d)
     lines = group_text_by_lines(d, y_tolerance=10)
     result = parse_text_to_dict(lines)
+    print(f"识别到的螺丝包{result}")
     data = {
         'result': result
     }
     return CODE_SUCCESS, data, ''
 
 
-def extract_text_from_pdf(doc, page_number):
-    ocr_system = TextSystem()  # 初始化PPOCR的TextSystem
-    text_results = {}
-    page = doc.load_page(page_number - 1)  # 加载页面，页码从0开始
-    image = page.get_pixmap()  # 将PDF页面转换为图像
-
-    # 将图像数据转换为OpenCV格式
-    img = cv2.imdecode(np.frombuffer(
-        image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
-
-    if img is not None:
-        results = ocr_system.detect_and_ocr(img)
-        texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
-        text_results[page_number] = texts
-    else:
-        texts = ''
-
-    return texts
+# def extract_text_from_pdf(doc, page_number):
+#     ocr_system = TextSystem()  # 初始化PPOCR的TextSystem
+#     text_results = {}
+#     page = doc.load_page(page_number - 1)  # 加载页面，页码从0开始
+#     image = page.get_pixmap()  # 将PDF页面转换为图像
+#
+#     # 将图像数据转换为OpenCV格式
+#     img = cv2.imdecode(np.frombuffer(
+#         image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
+#
+#     if img is not None:
+#         results = ocr_system.detect_and_ocr(img)
+#         texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
+#         text_results[page_number] = texts
+#     else:
+#         texts = ''
+#
+#     return texts
 # easyocr
 # def extract_text_from_pdf(doc, page_number):
 #     reader = easyocr.Reader(['en'])  # 创建一个EasyOCR reader，这里使用英文，可以根据需求添加其他语言
@@ -170,8 +169,8 @@ def get_step_screw(doc, pages, result_dict):
 
     for page_num in pages:
         page = doc.load_page(page_num - 1)  # Page numbering starts from 0
-        # text = page.get_text()
-        text = extract_text_from_pdf(doc, page_num)
+        text = page.get_text()
+        # text = extract_text_from_pdf(doc, page_num)
         # print(text)
         matches = re.findall(pattern, text)
         for match in matches:
@@ -264,7 +263,7 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 def check_screw(username, file, filename, table, start, end):
     print("---begin check_screw---")
     print(f"username : {username}")
-    doc = fitz.open(stream=BytesIO(file))
+    doc = fitz.open(file)
     # 获取螺丝包
     result_dict = {item['type']: item['count'] for item in table}
     print("Screw bag:", result_dict)
@@ -278,14 +277,13 @@ def check_screw(username, file, filename, table, start, end):
 
     print("Mismatch Dict:", mismatch_dict)
     print("Match Dict:", match_dict)
-
+    result = mismatch_dict+match_dict
     data = {
-        'mismatch_dict': mismatch_dict,
-        'match_dict': match_dict
+        'result': result
     }
     print("save file")
-    save_Screw(username, doc, filename, CODE_SUCCESS,
-               mismatch_dict, match_dict, None)
+    # save_Screw(username, doc, filename, CODE_SUCCESS,
+    #            mismatch_dict, match_dict, None)
     print("save success")
     doc.close()
     print("---end check_screw---")
