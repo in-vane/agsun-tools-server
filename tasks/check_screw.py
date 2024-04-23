@@ -62,8 +62,8 @@ def parse_text_to_dict(lines):
     第一个元素为字母行，如果存在，第二个元素为含数字的字符串。
     """
     if not lines:
-        result = [{'type': 'A', 'count': 0}, {'type': 'A', 'count': 0}, {'type': 'A', 'count': 0},
-                  {'type': 'A', 'count': 0}]
+        result = [{'type': 'A', 'count': 0}, {'type': 'B', 'count': 0}, {'type': 'C', 'count': 0},
+                  {'type': 'D', 'count': 0}]
         return result
 
     # 使用正则表达式移除非字母和非空格字符
