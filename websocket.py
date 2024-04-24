@@ -62,7 +62,7 @@ async def pdf2img_split(ws, file_path, options):
         img_base64 = ""
 
         if (options['mode'] == MODE_NORMAL):
-            img_base64 = page2img(page, dpi=72)
+            img_base64 = page2img(page, dpi=300)
         if (options['mode'] == MODE_VECTOR):
             if is_image(page):
                 img_base64 = page2img(page, dpi=300)
