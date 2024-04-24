@@ -44,10 +44,10 @@ class FileAssembler:
         return output_path
 
 
-async def pdf2img_split(ws, pdf_path, options):
+async def pdf2img_split(ws, file_path, options):
     '''pdf按页转png'''
     print("===== begin pdf2img =====")
-    doc = fitz.open(pdf_path)
+    doc = fitz.open(file_path)
     total = len(doc)
     start = 0
     end = total
@@ -72,6 +72,7 @@ async def pdf2img_split(ws, pdf_path, options):
             "total": end - start,
             "current": page_number - start + 1,
             "img_base64": img_base64,
+            "file_path": file_path,
             "options": options
         })
 
