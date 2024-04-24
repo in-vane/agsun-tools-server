@@ -5,7 +5,7 @@ import fitz
 import re
 
 from logger import logger
-from save_filesys_db import save_PageNumber
+# from save_filesys_db import save_PageNumber
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -69,30 +69,28 @@ def check_page_number_issues(printed_page_numbers, physical_page_numbers):
     return issues
 
 
-def extract_page_numbers(doc):
+def extract_page_numbers(doc, rect):
     printed_page_numbers = []  # 初始化打印页码列表
     total_pages = len(doc)  # 获取PDF的总页数
-
-    # 假设我们想要扩大页脚区域的覆盖范围
-    footer_height = 65  # 从页面底部向上60个单位，增加页脚区域的高度
 
     for page_num in range(total_pages):
         page = doc.load_page(page_num)  # 加载当前页
 
-        # 定义页脚区域，从页面底部向上100个单位
-        footer_rect = fitz.Rect(
-            0, page.rect.height - footer_height, page.rect.width, page.rect.height)
+        # 根据传入的列表定义页脚区域
+        # rect[0], rect[1] 是左上角的坐标，rect[0]+rect[2] 和 rect[1]+rect[3] 是右下角的坐标
+        footer_rect = fitz.Rect(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
 
         # 从页脚区域提取文本
         footer_text = page.get_text("text", clip=footer_rect)
 
         # 使用正则表达式查找所有数字
         numbers = re.findall(r'\d+', footer_text)
+
         # 在页脚区域添加红色边框
         page.draw_rect(footer_rect, color=(1, 0, 0), width=1.5)
         # 如果当前页页脚区域有数字，则假设最大的数字是页码
         if numbers:
-            probable_page_number = max(numbers, key=int)
+            probable_page_number = ''.join(reversed(numbers))
         else:
             # 如果没有找到数字，将None添加到列表中
             probable_page_number = None
@@ -107,20 +105,19 @@ def extract_page_numbers(doc):
 
 
 # 主函数
-def check_page_number(username, file, filename):
-    # doc = fitz.open(file)
+def check_page_number(username, file, filename, rect):
     logger.info("---begin check_page_number---")
     logger.info(f"username : {username}")
     if not file:
         code = '文件损坏或者为空文件'
         logger.info(code)
         return CODE_ERROR, None, code
-    doc = fitz.open(stream=BytesIO(file))
+    doc = fitz.open(file)
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
     logger.info(f"physical_page_numbers:{physical_page_numbers}")
     # 获取文件中的页码表
-    printed_page_numbers = extract_page_numbers(doc)
+    printed_page_numbers = extract_page_numbers(doc,rect)
     logger.info(f"printed_page_numbers:{printed_page_numbers}")
     # 对比两个页码表
     issues = check_page_number_issues(
@@ -132,8 +129,8 @@ def check_page_number(username, file, filename):
         doc, physical_page_numbers, issues)
     logger.info(f"error page number:{issues}")
     logger.info("save file")
-    save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
-                    issues, error_pages_base64, None)
+    # save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
+    #                 issues, error_pages_base64, None)
     logger.info("save success")
     doc.close()
     logger.info("---end check_page_number---")

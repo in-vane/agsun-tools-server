@@ -147,8 +147,10 @@ class FullPageHandler(MainHandler):
         file_path_2 = param['file_path_2']
         page_num1 = int(param['start_1'])
         page_num2 = int(param['start_2'])
+        filename1 = os.path.basename(file_path_1)
+        filename2 = os.path.basename(file_path_2)
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
-                                                                        file_path_1, file_path_2, '1', '2', page_num1, page_num2)
+                                                                        file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
         # files = self.get_files()
         # file1 = files[0]
         # body1 = file1["body"]
@@ -206,12 +208,14 @@ class PageNumberHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file.get("filename")
+
+        params = tornado.escape.json_decode(self.request.body)
+        print(params)
+        file = params['file_path']
+        rect = params['rect']
+        filename = os.path.basename(file)
         code, error, error_page, result, msg = tasks.check_page_number(username,
-                                                                       body, filename)
+                                                                       file, filename, rect)
         custom_data = {
             'code': code,
             'data': {
