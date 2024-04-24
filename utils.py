@@ -15,7 +15,7 @@ def is_image(page):
 
 def page2img(page, dpi):
     '''pdf转png'''
-    img = page.get_pixmap(matrix=fitz.Matrix(dpi / 72, dpi / 72))
+    img = page.get_pixmap(matrix=fitz.Matrix(dpi / 300, dpi / 300))
     img_pil = Image.frombytes("RGB", [img.width, img.height], img.samples)
     grayscale_img = img_pil.convert('1')
     buffered = BytesIO()

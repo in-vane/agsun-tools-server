@@ -388,10 +388,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         if _file.is_complete():
             file_path = _file.assemble()
+            if type == 'upload':
+                await write_file_name(self, file_path, options)
             if type == 'pdf2img':
                 await pdf2img_split(self, file_path, options)
-            if type == 'compare':
-                await write_file_name(self, file_path, options)
             del self.files[file_name]
 
         custom_data = {"data": f"{file_name} {current}/{total}"}
