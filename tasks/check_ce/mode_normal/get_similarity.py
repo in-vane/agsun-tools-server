@@ -17,14 +17,14 @@ def compute_cosine_similarity(text1, text2):
     :return: 相似度数值，0到1的数值
     """
     # 将两个句子翻译成英文
-    translated_sentence1 = baidu_translate(text1)
-    translated_sentence2 = baidu_translate(text2)
+    # translated_sentence1 = baidu_translate(text1)
+    # translated_sentence2 = baidu_translate(text2)
     # 判断语义相似度的模型
-    print(MiniLM_PATH)
+    # print(MiniLM_PATH)
     model = SentenceTransformer(MiniLM_PATH)
     sentences = []
-    sentences.append(translated_sentence1)
-    sentences.append(translated_sentence2)
+    sentences.append(text1)
+    sentences.append(text2)
     # Generate embeddings
     embeddings = model.encode(sentences)
 
@@ -79,6 +79,7 @@ def compare_dictionaries(red_text_data, table_data):
     :param table_data: 客户修改版本，读入的字典
     :return:
     """
+    table_data = baidu_translate(table_data)
     message_dict = {}
     for red_key in red_text_data.keys():
         max_similarity = 0
@@ -120,53 +121,60 @@ def compare_dictionaries(red_text_data, table_data):
     return message_dict
 
 
-def baidu_translate(query, app_id='20240303001981368', secret_key='0_Nq4RdREx1L31eWiDbr', from_lang='auto',
-                    to_lang='en'):
+def baidu_translate(data_dict, app_id='20240303001981368', secret_key='0_Nq4RdREx1L31eWiDbr', from_lang='auto', to_lang='en'):
     """
-    用百度翻译平台，把传过来的句子，翻译成英语
-    :param query: 传进来要翻译的句子
-    :param app_id: 百度翻译的id
-    :param secret_key: 百度翻译的密码
-    :param from_lang:
-    :param to_lang: 英语
-    :return: 翻译好的句子
+    使用百度翻译平台，把字典中的键从中文翻译成英文，键如果已是英文则不翻译。
+    :param data_dict: 包含要翻译的键的字典
+    :param app_id: 百度翻译的 App ID
+    :param secret_key: 百度翻译的密钥
+    :param from_lang: 源语言，默认自动检测
+    :param to_lang: 目标语言，默认为英语
+    :return: 翻译后的键与原始值组成的新字典
     """
-    if isinstance(query, str):
-        query = query.strip()
-        if not query:
-            print("Empty string detected.")
-            return query
+    translated_dict = {}
+    base_url = "https://fanyi-api.baidu.com/api/trans/vip/translate"
+    salt = '123456'
 
-        try:
-            detected_lang = detect(query)
-            # print(f"Detected language: {detected_lang}")
-        except Exception as e:
-            print(f"Error in language detection: {str(e)}")
-            return f"Error in language detection: {str(e)}"
+    for key, value in data_dict.items():
+        # 检测语言
+        detect_url = f"https://fanyi-api.baidu.com/api/trans/vip/language"
+        detect_params = {
+            'q': key,
+            'appid': app_id,
+            'salt': salt,
+            'sign': hashlib.md5((app_id + key + salt + secret_key).encode()).hexdigest()
+        }
+        detect_response = requests.get(detect_url, params=detect_params)
+        detect_result = detect_response.json()
 
-        if detected_lang == 'en':
-            return query
+        # 如果检测到英语且目标语言是英语，则不翻译
+        if detect_result.get("data", {}).get("src", "") == 'en' and to_lang == 'en':
+            translated_dict[key] = value
+            continue
 
-        base_url = "https://fanyi-api.baidu.com/api/trans/vip/translate"
-        salt = '123456'
-        sign_str = app_id + query + salt + secret_key
+        # 进行翻译
+        sign_str = app_id + key + salt + secret_key
         sign = hashlib.md5(sign_str.encode()).hexdigest()
-        params = {'q': query, 'appid': app_id, 'salt': salt,
-                  'from': from_lang, 'to': to_lang, 'sign': sign}
+        params = {
+            'q': key,
+            'appid': app_id,
+            'salt': salt,
+            'from': from_lang,
+            'to': to_lang,
+            'sign': sign
+        }
 
         response = requests.get(base_url, params=params)
         result = response.json()
 
-        # print(f"Translation API response: {result}")
-
         if "trans_result" in result:
-            return result["trans_result"][0]["dst"]
+            translated_key = result["trans_result"][0]["dst"]
+            translated_dict[translated_key] = value
         else:
-            print("Error: Unable to translate")
-            return "Error: Unable to translate"
-    else:
-        # print("Input is not a string.")
-        return "Input is not a string"
+            print(f"Error: Unable to translate the key '{key}'")
+            translated_dict[key] = value  # 使用原始键如果翻译失败
+
+    return translated_dict
 
 
 # 测试上面函数
