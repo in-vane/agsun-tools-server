@@ -213,6 +213,7 @@ class PageNumberHandler(MainHandler):
         print(params)
         file = params['file_path']
         rect = params['rect']
+        rect = [value * 72 / 300 for value in rect]
         filename = os.path.basename(file)
         code, error, error_page, result, msg = tasks.check_page_number(username,
                                                                        file, filename, rect)
@@ -250,8 +251,12 @@ class ScrewHandler(MainHandler):
     def post(self):
         if self.request.path == "/api/screw/bags":
             param = tornado.escape.json_decode(self.request.body)
-            img_base64 = param['crop']
-            code, data, msg = tasks.get_Screw_bags(img_base64)
+            rect = param['rect']
+            page = param['page']
+            file = param['file_path']
+            # 修改宽度 (w) 和高度 (h)
+            rect = [value * 72 / 300 for value in rect]
+            code, data, msg = tasks.get_Screw_bags(file, page, rect)
         elif self.request.path == "/api/screw/compare":
             username = self.current_user
             # files = self.get_files()

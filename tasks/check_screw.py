@@ -8,6 +8,7 @@ import base64
 from PIL import Image
 import io
 
+
 import cv2
 import numpy as np
 import easyocr  # 导入EasyOCR
@@ -19,92 +20,67 @@ CODE_SUCCESS = 0
 CODE_ERROR = 1
 
 # ocr识别螺丝包
-def group_text_by_lines(image_base64, y_tolerance=10):
+def extract_Screw_bags(doc, page_number, rect):
     """
-    将文本按行分组。
-    `image_base64` 是图片的base64编码字符串。
-    `y_tolerance` 是y坐标的容忍度，用于确定两个文本是否属于同一行。
+    使用PaddleOCR从PDF的指定页面和区域中提取文字。
+    :param doc: PyMuPDF的文档对象
+    :param page_number: 整数，表示页码（从1开始计数）
+    :param rect: 列表或元组，格式为[x, y, w, h]，代表矩形区域，
+                 其中x, y是矩形左上角的坐标，w是宽度，h是高度
+    :return: 识别的文字
     """
-    # 创建reader对象，指定使用的语言
-    reader = easyocr.Reader(['en'])
-    # 解码base64字符串
-    image_data = base64.b64decode(image_base64)
-    image = Image.open(io.BytesIO(image_data))
+    # 加载指定的页面
+    page = doc.load_page(page_number)
+    print(page_number)
+    print(rect)
+    # 从页面中获取指定矩形区域的图像
+    clip_rect = fitz.Rect(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
+    pix = page.get_pixmap(clip=clip_rect)
 
-    # 将PIL图像转换为numpy数组
-    img_np = np.array(image)
+    # 将图像数据转换为OpenCV格式
+    img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
 
-    # 读取图片
-    results = reader.readtext(img_np)
-    lines = {}
-    for (bbox, text, confidence) in results:
-        top_left, _, bottom_right, _ = bbox
-        # 计算y坐标的中点
-        mid_y = (top_left[1] + bottom_right[1]) / 2
+    # 如果图像是四通道（RGBA），转换为三通道（BGR），因为PaddleOCR默认处理BGR格式
+    if pix.n == 4:
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
 
-        # 检查此文本块应该属于哪一行
-        found_line = False
-        for key in lines.keys():
-            if abs(key - mid_y) <= y_tolerance:
-                lines[key].append(text)
-                found_line = True
-                break
-        if not found_line:
-            lines[mid_y] = [text]
+    # 创建PaddleOCR TextSystem
+    ocr_system = TextSystem()
 
-    # 合并每行的文本，并返回
-    grouped_lines = []
-    for key in sorted(lines.keys()):
-        grouped_lines.append(' '.join(lines[key]))
-    return grouped_lines
-# 根据获取到的文字组成螺丝包字典
-def parse_text_to_dict(lines):
-    """
-    解析文本行并返回字母与其对应数字的字典。
-    `lines` 是一个列表，其中包含至少一个字符串元素。
-    第一个元素为字母行，如果存在，第二个元素为含数字的字符串。
-    """
-    if not lines:
-        result = [{'type': 'A', 'count': 0}, {'type': 'B', 'count': 0}, {'type': 'C', 'count': 0},
-                  {'type': 'D', 'count': 0}]
-        return result
+    # 使用PaddleOCR识别图像中的文字
+    results = ocr_system.detect_and_ocr(img_np)
 
-    # 使用正则表达式移除非字母和非空格字符
-    clean_letters_line = re.sub(r'[^A-Za-z\s]', '', lines[0])
-    # 筛选只包含单一字母的部分
-    letters = [letter for letter in clean_letters_line.split()
-               if re.fullmatch(r'[A-Za-z]', letter)]
-    numbers = []
-    # 如果存在第二行，处理数字
-    if len(lines) > 1:
-        numbers_with_extra = lines[1].split()
-        # 提取数字，如果没有数字则默认为0
-        for num in numbers_with_extra:
-            digits = ''.join(filter(str.isdigit, num))
-            if digits:
-                numbers.append(int(digits))
-            else:
-                numbers.append(0)  # 如果没有数字，添加0
-    else:
-        # 只有一行时，所有字母对应数字默认为0
-        numbers = [0] * len(letters)
+    # 打印results以便理解其结构
 
-    # 创建字母和数字的字典
-    result_dict = {letter: num for letter, num in zip(letters, numbers)}
-
-    # 如果数字不足，为剩余字母分配0
-    if len(numbers) < len(letters):
-        for letter in letters[len(numbers):]:
-            result_dict[letter] = 0
-    result = [{'type': key, 'count': value}
-              for key, value in result_dict.items()]
+    texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
+    # 转换所有小写字母为大写
+    texts = texts.upper()
+    print(texts)
+    # 按空格分割文本为单个元素
+    elements = texts.split()
+    # 初始化结果列表
+    result = []
+    # 遍历每个元素
+    for element in elements:
+        # 检查是否为单个大写字母
+        if re.fullmatch(r'[A-Z]', element):
+            result.append({'type': element, 'count': 0})
+    index = 0
+    # 再次遍历元素，这次寻找包含数字的元素
+    for element in elements:
+        if re.search(r'\d+', element):
+            # 提取第一组数字
+            number = int(re.search(r'\d+', element).group())
+            # 只有当result中还有未分配的条目时，才分配数字
+            if index < len(result):
+                result[index]['count'] = number
+                index += 1  # 移动到下一个大写字母
     return result
 
 
-def get_Screw_bags(img_base64):
-    d = img_base64.split(",")[-1]
-    lines = group_text_by_lines(d, y_tolerance=10)
-    result = parse_text_to_dict(lines)
+def get_Screw_bags(file, page_number, rect):
+    doc = fitz.open(file)
+    result = extract_Screw_bags(doc, page_number, rect)
     print(f"识别到的螺丝包{result}")
     data = {
         'result': result
@@ -243,8 +219,8 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
             'type': key,
             'total': value['expected'],
             'step_total': value['actual'],
-            'step_count': letter_count.get(key, None),
-            'step_page_no': letter_pageNumber.get(key, None)
+            'step_count': letter_count.get(key, []),
+            'step_page_no': letter_pageNumber.get(key, [])
         })
     for key, value in result_dict.items():
         if key not in count_mismatch:
@@ -282,8 +258,8 @@ def check_screw(username, file, filename, table, start, end):
         'result': result
     }
     print("save file")
-    # save_Screw(username, doc, filename, CODE_SUCCESS,
-    #            mismatch_dict, match_dict, None)
+    save_Screw(username, doc, filename, CODE_SUCCESS,
+                mismatch_dict, match_dict, None)
     print("save success")
     doc.close()
     print("---end check_screw---")
