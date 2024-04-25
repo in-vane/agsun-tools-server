@@ -4,6 +4,7 @@ import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
+import os
 import tasks
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
@@ -30,7 +31,8 @@ class Application(tornado.web.Application):
             (r'/api/partCount', PartCountHandler),
             (r'/api/pageNumber', PageNumberHandler),
             (r'/api/table', TableHandler),
-            (r'/api/screw', ScrewHandler),
+            (r'/api/screw/bags', ScrewHandler),
+            (r'/api/screw/compare', ScrewHandler),
             (r'/api/language', LanguageHandler),
             (r'/api/ce', CEHandler),
             (r'/api/size', SizeHandler),
@@ -145,8 +147,10 @@ class FullPageHandler(MainHandler):
         file_path_2 = param['file_path_2']
         page_num1 = int(param['start_1'])
         page_num2 = int(param['start_2'])
+        filename1 = os.path.basename(file_path_1)
+        filename2 = os.path.basename(file_path_2)
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
-                                                                        file_path_1, file_path_2, '1', '2', page_num1, page_num2)
+                                                                        file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
         # files = self.get_files()
         # file1 = files[0]
         # body1 = file1["body"]
@@ -204,12 +208,15 @@ class PageNumberHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file.get("filename")
+
+        params = tornado.escape.json_decode(self.request.body)
+        print(params)
+        file = params['file_path']
+        rect = params['rect']
+        rect = [value * 72 / 300 for value in rect]
+        filename = os.path.basename(file)
         code, error, error_page, result, msg = tasks.check_page_number(username,
-                                                                       body, filename)
+                                                                       file, filename, rect)
         custom_data = {
             'code': code,
             'data': {
@@ -242,18 +249,40 @@ class TableHandler(MainHandler):
 class ScrewHandler(MainHandler):
     @need_auth
     def post(self):
-        username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file["filename"]
-        code, data, msg = tasks.check_screw(username, body, filename)
+        if self.request.path == "/api/screw/bags":
+            param = tornado.escape.json_decode(self.request.body)
+            rect = param['rect']
+            page = param['page']
+            file = param['file_path']
+            # 修改宽度 (w) 和高度 (h)
+            rect = [value * 72 / 300 for value in rect]
+            code, data, msg = tasks.get_Screw_bags(file, page, rect)
+        elif self.request.path == "/api/screw/compare":
+            username = self.current_user
+            # files = self.get_files()
+            # file = files[0]
+            # body = file["body"]
+            # filename = file["filename"]
+            params = tornado.escape.json_decode(self.request.body)
+            print(params)
+            file = params['file_path']
+            table = params['table']
+            start = int(params['start'])
+            end = int(params['end'])
+            file_name = os.path.basename(file)
+            print("文件名:", file_name)
+            code, data, msg = tasks.check_screw(username, file, file_name, table, start, end)
+        else:
+            code = 1
+            data = {}
+            msg = '请检查你的网址'
         custom_data = {
             'code': code,
             'data': data,
             'msg': msg
         }
         self.write(custom_data)
+
 
 
 class LanguageHandler(MainHandler):
