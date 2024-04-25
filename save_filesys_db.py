@@ -301,8 +301,6 @@ def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64
 
 def save_Part_count(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
     base_dir = f'{ROOT}/006'
-    print(username, doc, base_file_name, code,
-          mapping_results, note, error_pages, msg)
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
                                                                                     base_dir)
     # 确保PDF和结果目录存在

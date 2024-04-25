@@ -95,9 +95,9 @@ class MainHandler(tornado.web.RequestHandler):
 
 class LoginHandler(MainHandler):
     def post(self):
-        param = tornado.escape.json_decode(self.request.body)
-        username = param['username']
-        password = param['password']
+        params = tornado.escape.json_decode(self.request.body)
+        username = params['username']
+        password = params['password']
         code, token, message = tasks.login(username, password)
         # code, token, message = 0, MOCK_TOKEN, 'ok'
         custom_data = {
@@ -142,6 +142,7 @@ class FullPageHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
+<<<<<<< Updated upstream
         param = tornado.escape.json_decode(self.request.body)
         file_path_1 = param['file_path_1']
         file_path_2 = param['file_path_2']
@@ -149,6 +150,13 @@ class FullPageHandler(MainHandler):
         page_num2 = int(param['start_2'])
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
+=======
+        params = tornado.escape.json_decode(self.request.body)
+        file_path_1 = params['file_path_1']
+        file_path_2 = params['file_path_2']
+        page_num1 = int(params['start_1'])
+        page_num2 = int(params['start_2'])
+>>>>>>> Stashed changes
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
                                                                         file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
         # files = self.get_files()
@@ -175,8 +183,10 @@ class PartCountHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-        filename = self.get_argument('filename')
-        rect = self.get_arguments('rect')
+        params = tornado.escape.json_decode(self.request.body)
+        filename = params['filename']
+        rect = params['rect']
+        print(rect)
         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
         # rect_int= [int(x) for x in rect[1:]]
         rect_int = [int(x) for x in rect]
@@ -184,13 +194,16 @@ class PartCountHandler(MainHandler):
         ymin = rect_int[1]
         xmax = (rect_int[0] + rect_int[2])
         ymax = (rect_int[1] + rect_int[3])
-        pdf_rect = [xmin, ymin, xmax, ymax]
+        scale_factor=72/300
+        pdf_rect = [xmin* scale_factor, ymin* scale_factor, xmax* scale_factor, ymax* scale_factor]
         print(pdf_rect)
-        page_number_explore = int(self.get_argument('pageNumberExplore'))
-        page_number_table = int(self.get_argument('pageNumberTable'))
-
+        page_number_explore = int(params['page_explore'])
+        page_number_table = int(params['page_table'])
+        page_columns=int(params['columnCount'])
+        page_pair_index=params['pair_index']
+        print(page_columns,page_pair_index)
         custom_data = tasks.check_part_count(
-            username, filename, pdf_rect, page_number_explore, page_number_table)
+            username, filename, pdf_rect, page_number_explore, page_number_table,page_columns,page_pair_index)
 
         # custom_data = {
         #     "error": error,
