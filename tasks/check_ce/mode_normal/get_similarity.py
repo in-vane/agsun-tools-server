@@ -122,37 +122,11 @@ def compare_dictionaries(red_text_data, table_data):
 
 
 def baidu_translate(data_dict, app_id='20240303001981368', secret_key='0_Nq4RdREx1L31eWiDbr', from_lang='auto', to_lang='en'):
-    """
-    使用百度翻译平台，把字典中的键从中文翻译成英文，键如果已是英文则不翻译。
-    :param data_dict: 包含要翻译的键的字典
-    :param app_id: 百度翻译的 App ID
-    :param secret_key: 百度翻译的密钥
-    :param from_lang: 源语言，默认自动检测
-    :param to_lang: 目标语言，默认为英语
-    :return: 翻译后的键与原始值组成的新字典
-    """
     translated_dict = {}
     base_url = "https://fanyi-api.baidu.com/api/trans/vip/translate"
     salt = '123456'
 
     for key, value in data_dict.items():
-        # 检测语言
-        detect_url = f"https://fanyi-api.baidu.com/api/trans/vip/language"
-        detect_params = {
-            'q': key,
-            'appid': app_id,
-            'salt': salt,
-            'sign': hashlib.md5((app_id + key + salt + secret_key).encode()).hexdigest()
-        }
-        detect_response = requests.get(detect_url, params=detect_params)
-        detect_result = detect_response.json()
-
-        # 如果检测到英语且目标语言是英语，则不翻译
-        if detect_result.get("data", {}).get("src", "") == 'en' and to_lang == 'en':
-            translated_dict[key] = value
-            continue
-
-        # 进行翻译
         sign_str = app_id + key + salt + secret_key
         sign = hashlib.md5(sign_str.encode()).hexdigest()
         params = {
@@ -166,16 +140,15 @@ def baidu_translate(data_dict, app_id='20240303001981368', secret_key='0_Nq4RdRE
 
         response = requests.get(base_url, params=params)
         result = response.json()
+        print(f"{key}的语言为:{result.get('from')}")
 
         if "trans_result" in result:
             translated_key = result["trans_result"][0]["dst"]
             translated_dict[translated_key] = value
         else:
-            print(f"Error: Unable to translate the key '{key}'")
             translated_dict[key] = value  # 使用原始键如果翻译失败
 
     return translated_dict
-
 
 # 测试上面函数
 # red_text_data = {'CE-sign': ['2575-24'], 'Model Number': ['K103M1EGM2'], 'Product Identification Number': ['2575XXXXXXX'], 'Main Burner Injector Size': ['Ø 0.92mm', 'Ø 0.92mm', 'Ø 0.86mm', 'Ø 0.81mm'], 'Side Burner Injector Size ': ['Ø 0.88mm', 'Ø 0.88mm', 'Ø 0.79mm', 'Ø 0.75mm'], 'Side Burner （infrared）Injector Size ': ['Ø 0.92mm', 'Ø 0.92mm', 'Ø 0.86mm', 'Ø 0.81mm'], 'Infrared Burner Injector Size ': ['Ø 0.91mm', 'Ø 0.91mm', 'Ø 0.83mm', 'Ø 0.79mm'], 'Total Nominal Heat Inputs (Hs)': ['Main 13.5kW(983g/h ) ；'], 'Electric energy': ['5×1.5V']}
