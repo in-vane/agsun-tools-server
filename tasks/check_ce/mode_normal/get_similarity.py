@@ -46,7 +46,8 @@ def compare_values_containment(list1, list2):
     # 定义替换规则
     replace_rules = {
         "；": ";", "，": ",", "。": ".", "：": ":", "（": "(", "）": ")",
-        "【": "[", "】": "]", "｛": "{", "｝": "}", "？": "?", "！": "!"
+        "【": "[", "】": "]", "｛": "{", "｝": "}", "？": "?", "！": "!",
+        " ": ""
     }
 
     for index, (value1, value2) in enumerate(zip(list1, list2), start=1):

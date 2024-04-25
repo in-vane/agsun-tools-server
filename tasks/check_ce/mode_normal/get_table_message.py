@@ -2,6 +2,7 @@ import re
 import time
 import tabula
 import pandas as pd
+import pdfplumber
 from .get_similarity import compare_dictionaries
 
 
@@ -45,7 +46,7 @@ def get_standard_document_as_dict(wb, sheet_name):
                     # Otherwise, create a new key in the dictionary
                     red_text_dict[first_cell_value] = red_texts
 
-    print(red_text_dict)
+    # print(red_text_dict)
     red_text_dict = update_key_standard_dict(red_text_dict)
     return red_text_dict
 
@@ -57,20 +58,20 @@ def update_key_standard_dict(data_dict):
     :param data_dict:一个字典
     :return:修改后的字典
     """
-    # Define the regex pattern for 'xxxx-xx'
+    # 定义匹配'xxxx-xx'格式的正则表达式
     ce_sign_pattern = re.compile(r'\b\d{4}-\d{2}\b')
 
-    # Create a new dictionary to store updated results
+    # 创建一个新字典用于存储更新后的结果
     updated_dict = {}
 
-    # Iterate over items in the original dictionary
+    # 遍历原始字典中的项
     for key, values in data_dict.items():
-        # Assume each key only has one value in the list
+        # 假设每个键只对应一个值列表中的第一个元素
         if values and ce_sign_pattern.match(values[0]):
-            # If the value matches the pattern, change the key to 'CE-sign'
+            # 如果值符合模式，则将键改为'CE-sign'
             updated_dict['CE-sign'] = values
         else:
-            # Otherwise, keep the original key-value pair
+            # 否则，保持原键值对不变
             updated_dict[key] = values
 
     return updated_dict
@@ -78,34 +79,26 @@ def update_key_standard_dict(data_dict):
 
 def extract_table_from_pdf(pdf_path):
     """
-    从PDF中提取表格并返回字典。
-    键是表格中的第一个单元格的内容，值是随后单元格的内容的列表。
+    使用 pdfplumber 从 PDF 的第一页提取最大的表格。
+    将表格中每行的第一个单元格作为键，其余单元格（非None值）作为值列表存储到字典中。
 
-    :param pdf_path: PDF文件的路径
-    :return: 表格内容的字典
+    :param pdf_path: PDF 文件的路径
+    :return: 包含表格数据的字典
     """
-    # 使用tabula读取PDF文件中的第一页上的表格
-    tables = tabula.read_pdf(pdf_path, pages=1, multiple_tables=True)
+    with pdfplumber.open(pdf_path) as pdf:
+        first_page = pdf.pages[0]  # 获取第一页
+        table = first_page.extract_table()  # 提取表格
 
-    # 如果没有表格被找到，返回一个空字典
-    if not tables:
-        return {}
+        if not table:
+            return {}  # 如果没有表格，返回空字典
 
-    # 提取第一个表格（假设表格在第一页）
-    table = tables[0]
-
-    # 创建一个字典来存储数据
-    table_dict = {}
-
-    # 遍历表格的每一行
-    for index, row in table.iterrows():
-        # 检查第一个单元格是否为空，如果不为空，则作为键
-        if pd.notna(row.iloc[0]):
-            key = row.iloc[0]  # 第一个单元格不为空，作为键
-            # 使用列表推导式创建值列表，过滤掉nan
-            values = [item for item in row.iloc[1:] if pd.notna(item)]
-            table_dict[key] = values
-
+        table_dict = {}
+        for row in table[1:]:  # 假设第一行是表头，从第二行开始处理数据
+            if row[0] is not None:  # 确保键不为None
+                key = row[0].strip()  # 删除可能的前后空白字符
+                values = [item for item in row[1:] if item is not None]  # 过滤掉None值
+                table_dict[key] = values
+    # print(table_dict)
     return table_dict
 
 
@@ -117,7 +110,7 @@ def remove_empty_lists(input_dict):
     :return: 更新后的字典，其中不包含空列表的键值对
     """
     # 使用字典推导式来创建一个新的字典，其中仅包含非空列表的键值对
-    new_dict = {key: value for key, value in input_dict.items() if value}
+    new_dict = {key: [item for item in value if item] for key, value in input_dict.items() if value and any(item for item in value if item)}
 
     return new_dict
 
