@@ -142,7 +142,6 @@ class FullPageHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-<<<<<<< Updated upstream
         param = tornado.escape.json_decode(self.request.body)
         file_path_1 = param['file_path_1']
         file_path_2 = param['file_path_2']
@@ -150,13 +149,6 @@ class FullPageHandler(MainHandler):
         page_num2 = int(param['start_2'])
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
-=======
-        params = tornado.escape.json_decode(self.request.body)
-        file_path_1 = params['file_path_1']
-        file_path_2 = params['file_path_2']
-        page_num1 = int(params['start_1'])
-        page_num2 = int(params['start_2'])
->>>>>>> Stashed changes
         code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
                                                                         file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
         # files = self.get_files()
