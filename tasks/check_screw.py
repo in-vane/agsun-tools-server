@@ -8,7 +8,7 @@ import base64
 from PIL import Image
 import io
 
-
+import time
 import cv2
 import numpy as np
 import easyocr  # 导入EasyOCR
@@ -64,7 +64,7 @@ def extract_Screw_bags(doc, page_number, rect):
     for element in elements:
         # 检查是否为单个大写字母
         if re.fullmatch(r'[A-Z]', element):
-            result.append({'type': element, 'count': 0})
+            result.append({'key': time.time(),'type': element, 'count': 0})
     index = 0
     # 再次遍历元素，这次寻找包含数字的元素
     for element in elements:
@@ -107,27 +107,37 @@ def get_Screw_bags(file, page_number, rect):
 #
 #     return texts
 # easyocr
-# def extract_text_from_pdf(doc, page_number):
-#     reader = easyocr.Reader(['en'])  # 创建一个EasyOCR reader，这里使用英文，可以根据需求添加其他语言
-#     text_results = {}
-#
-#     page = doc.load_page(page_number - 1)  # 加载页面，页码从0开始
-#     image = page.get_pixmap()  # 将PDF页面转换为图像
-#
-#     # 将图像数据转换为OpenCV格式
-#     img = cv2.imdecode(np.frombuffer(image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
-#
-#     if img is not None:
-#         # 使用EasyOCR进行文本识别
-#         results = reader.readtext(img)
-#         # 提取识别的文本内容并合并成一个字符串
-#         texts = ' '.join([result[1] for result in results])
-#         text_results[page_number] = texts
-#     else:
-#         texts = ''
-#     return texts
+def extract_text_from_pdf(doc, page_number):
+    reader = easyocr.Reader(['en'])  # 创建一个EasyOCR reader，这里使用英文，可以根据需求添加其他语言
+    text_results = {}
+
+    page = doc.load_page(page_number - 1)  # 加载页面，页码从0开始
+    image = page.get_pixmap()  # 将PDF页面转换为图像
+
+    # 将图像数据转换为OpenCV格式
+    img = cv2.imdecode(np.frombuffer(image.tobytes(), np.uint8), cv2.IMREAD_COLOR)
+
+    if img is not None:
+        # 使用EasyOCR进行文本识别
+        results = reader.readtext(img)
+        # 提取识别的文本内容并合并成一个字符串
+        texts = ' '.join([result[1] for result in results])
+        text_results[page_number] = texts
+    else:
+        texts = ''
+    return texts
 # 提取步骤页，需要的步骤螺丝
 # 提取步骤页，需要的步骤螺丝
+def replace_special_chars(text):
+    # 替换 'z' 或 'Z' 在 'x' 或 'X' 之后或大写字母前的情况
+    result = re.sub(r'(?i)(z)(?=(x|[A-Z]))', '2', text)
+    result = re.sub(r'(?i)(?<=x)(z)', '2', result)
+
+    # 替换 'i' 在 'x' 或 'X' 之后或大写字母前的情况
+    result = re.sub(r'(?i)(i)(?=(x|[A-Z]))', '1', result)
+    result = re.sub(r'(?i)(?<=x)(i)', '1', result)
+
+    return result
 
 
 def get_step_screw(doc, pages, result_dict):
@@ -137,7 +147,7 @@ def get_step_screw(doc, pages, result_dict):
     # 将键转换为字符类用于正则表达式
     key_pattern = '[' + ''.join(keys) + ']'
     # 构建正则表达式，包括所有提取的键
-    pattern = fr'(\d+)\s*[xX]\s*({key_pattern})|({key_pattern})\s*[xX]\s*(\d+)'
+    pattern = fr'(\d+)\s*[xX*]\s*({key_pattern})|({key_pattern})\s*[xX*]\s*(\d+)'
 
     letter_counts = {}
     letter_pageNumber = {}
@@ -147,8 +157,14 @@ def get_step_screw(doc, pages, result_dict):
         page = doc.load_page(page_num - 1)  # Page numbering starts from 0
         text = page.get_text()
         # text = extract_text_from_pdf(doc, page_num)
-        # print(text)
         matches = re.findall(pattern, text)
+        print(f"matches:{matches}matches")
+        if len(matches) == 0:
+            text = extract_text_from_pdf(doc, page_num)
+            print(f"{page_num}可能是图片，开始ocr识别")
+            text = replace_special_chars(text)
+            print(f"{page_num}:{text}")
+            matches = re.findall(pattern, text)
         for match in matches:
             # 通过检查匹配组来确定是哪种模式
             if match[0] and match[1]:  # 数字在前的模式
@@ -157,7 +173,6 @@ def get_step_screw(doc, pages, result_dict):
                 letter, count = match[2], int(match[3])
             else:
                 continue  # 如果匹配不符合任一模式，则跳过
-
             # Update letter_counts
             if letter in letter_counts:
                 letter_counts[letter] += count
@@ -258,8 +273,8 @@ def check_screw(username, file, filename, table, start, end):
         'result': result
     }
     print("save file")
-    save_Screw(username, doc, filename, CODE_SUCCESS,
-                mismatch_dict, match_dict, None)
+    # save_Screw(username, doc, filename, CODE_SUCCESS,
+    #            mismatch_dict, match_dict, None)
     print("save success")
     doc.close()
     print("---end check_screw---")
@@ -274,7 +289,8 @@ def check_screw(username, file, filename, table, start, end):
 # file1 = '1/AFA/C043544说明书(K114BFI3-AFA-英国30)-A1-YFKL23951.pdf' # 请根据实际情况修改路径
 # file1 = '2/ACE.pdf'
 # file1 = pdf_to_bytes(file1)
-# result = [{'key': 'A', 'value': 17}, {'key': 'B', 'value': 18}, {'key': 'C', 'value': 2}, {'key': 'D', 'value': 4}, {'key': 'E', 'value': 4}]
+# result = [{’key‘:1,'type': 'A', 'count': 17}]
+# , {'key': 'B', 'value': 18}, {'key': 'C', 'value': 2}, {'key': 'D', 'value': 4}, {'key': 'E', 'value': 4}]
 # start =6
 # end =14
 # check_screw('username', file1, 'filename', result, start, end)
