@@ -344,11 +344,19 @@ class SizeHandler(MainHandler):
         username = self.current_user
         files = self.get_files()
         file = files[0]
-        filename, content_type, body = file["filename"], file["content_type"], file["body"]
+        body = file["body"]
+        mode = int(self.get_argument('mode', default=0))
+        active = int(self.get_argument('active', default=0))
         width = int(self.get_argument('width', default='-1'))
         height = int(self.get_argument('height', default='-1'))
+        radius = int(self.get_argument('radius', default='-1'))
+        params = {
+            "width": width,
+            "height": height,
+            "radius": radius,
+        }
         
-        error, msg, img_base64 = tasks.check_size(body, width, height)
+        error, msg, img_base64 = tasks.check_size(body, mode, active, params)
         custom_data = {
             "code": 0,
             "data": {

@@ -1,7 +1,7 @@
 from config import BASE64_PNG
 from utils import img2base64
 import re
-import base64
+import math
 from io import BytesIO
 import cv2
 import fitz
@@ -11,12 +11,15 @@ import sys
 sys.path.append('..')
 
 
-RESOLUTION = 300
-# REG_SIZE = [r'(\d+)x(\d+)', r'(\d+) x (\d+)',  r'(\d+)X(\d+)', r'(\d+)\*(\d+)']
+MODE_RECT = 0  # 检测矩形
+MODE_CIR = 1  # 检测圆形
+MODE_MARK = 0  # 使用标注尺寸
+MODE_USER = 1  # 使用用户输入尺寸
 REG_SIZE = r'(\d+)\s*[xX\*]\s*(\d+)'
 
-def pdf_to_image(page, dpi=300):
-    mat = fitz.Matrix(dpi / 72, dpi / 72)  # 将72 DPI的默认值转换为300 DPI
+
+def pdf_to_image(page, dpi=600):
+    mat = fitz.Matrix(dpi / 72, dpi / 72)
     pix = page.get_pixmap(matrix=mat)
     img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
         pix.height, pix.width, pix.n)
@@ -24,11 +27,12 @@ def pdf_to_image(page, dpi=300):
     return img
 
 
+# 检测矩形
 def find_rectangles(img):
     '''获取最大矩形的尺寸'''
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # 转为灰度图
     # 使用Canny算法检测边缘
-    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    edges = cv2.Canny(gray, 25, 150, apertureSize=3)
     # 寻找轮廓
     contours, _ = cv2.findContours(
         edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -63,7 +67,7 @@ def find_rectangles(img):
         side1 = np.linalg.norm(p1 - p2)
         side2 = np.linalg.norm(p2 - p3)
         # 转换像素到毫米
-        pixels_to_mm = 25.4 / 300
+        pixels_to_mm = 25.4 / 600
         width_mm = max(side1, side2) * pixels_to_mm
         height_mm = min(side1, side2) * pixels_to_mm
 
@@ -74,7 +78,9 @@ def find_rectangles(img):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    return width_mm, height_mm
+    radius_mm = (width_mm + height_mm) * math.sqrt(2) / 2
+
+    return width_mm, height_mm, radius_mm
 
 
 def find_largest_size(sizes):
@@ -96,33 +102,40 @@ def extract_size(page):
         h = int(match[1])
         sizes.append((w, h))
     largest_size = find_largest_size(sizes)
+    r = sum(largest_size) * math.sqrt(2) / 2
 
-    return largest_size[0], largest_size[1]
-
-
-def compare_size(w_1, h_1, w_2, h_2):
-    '''对比检测到的尺寸和标注尺寸'''
-    is_error = False
-    message = '尺寸一致'
-
-    if abs(w_1 - w_2) > 1 or abs(h_1 - h_2) > 1:
-        is_error = True
-        message = f"尺寸不一致: 标注为({w_1} x {h_1}), 检测结果为({w_2} x {h_2})"
-
-    return is_error, message
+    return largest_size[0], largest_size[1], r
 
 
-def check_size(file, width, height):
+def compare(a, b):
+    return abs(a - b) > 1
+
+
+def check_size(file, mode, active, params):
     doc = fitz.open(stream=(BytesIO(file)))
     page = doc.load_page(0)
 
-    if width != -1 and height != -1:
-        w_1, h_1 = width, height
-    else:
-        w_1, h_1 = extract_size(page)
+    if active == MODE_MARK:
+        w_1, h_1, r_1 = extract_size(page)
+    if active == MODE_USER:
+        w_1, h_1, r_1 = params['width'], params['height'], params['radius']
+
+    # 主逻辑
     img = pdf_to_image(page)
-    w_2, h_2 = find_rectangles(img)
-    is_error, message = compare_size(w_1, h_1, w_2, h_2)
+    w_2, h_2, r_2 = find_rectangles(img)
+
+    is_error = False
+    err_msg = ""
+    if mode == MODE_RECT:
+        if abs(w_1 - w_2) > 1 or abs(h_1 - h_2) > 1:
+            is_error = True
+        err_msg = f"标注为({w_1} x {h_1}), 检测结果为({w_2} x {h_2})"
+    if mode == MODE_CIR:
+        if abs(r_1 - r_2) > 1:
+            is_error = True
+        err_msg = f"标注为({r_1}), 检测结果为({r_2})"
+    message = f"尺寸不一致, {err_msg}" if is_error else '尺寸一致'
+
     img_base64 = img2base64(img)
     img_base64 = f"{BASE64_PNG}{img_base64}"
 
