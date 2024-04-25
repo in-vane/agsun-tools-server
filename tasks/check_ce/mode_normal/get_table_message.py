@@ -67,6 +67,7 @@ def update_key_standard_dict(data_dict):
     # 遍历原始字典中的项
     for key, values in data_dict.items():
         # 假设每个键只对应一个值列表中的第一个元素
+        values[0] = str(values[0])
         if values and ce_sign_pattern.match(values[0]):
             # 如果值符合模式，则将键改为'CE-sign'
             updated_dict['CE-sign'] = values

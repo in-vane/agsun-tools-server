@@ -134,14 +134,16 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
                                 # 处理 expected_index 和 actual_index
                                 if not pd.isna(expected_index):
                                     expected_index, actual_index = convert_to_int(expected_index, actual_index)
-                                    if expected_index != actual_index and expected_index not in current_page_mismatches:
-                                        current_page_mismatches.append(expected_index)
+                                    if isinstance(expected_index, int):
+                                        if expected_index != actual_index and expected_index not in current_page_mismatches:
+                                            current_page_mismatches.append(expected_index)
                         
                                 # 处理 expected_count 和 actual_count
                                 if not pd.isna(expected_count):
                                     expected_count, actual_count = convert_to_int(expected_count, actual_count)
-                                    if expected_count != actual_count and expected_index not in current_page_mismatches and not pd.isna(expected_index):
-                                        current_page_mismatches.append(expected_index)
+                                    if isinstance(expected_count, int):
+                                        if expected_count != actual_count and expected_index not in current_page_mismatches and not pd.isna(expected_index):
+                                            current_page_mismatches.append(expected_index)
                         # 如果当前页有不匹配的行，更新mismatched_details字典
                         if current_page_mismatches:
                             print(current_page_mismatches)

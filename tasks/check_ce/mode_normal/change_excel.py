@@ -11,6 +11,10 @@ import shutil
 import tempfile
 import jpype
 
+import asposecells
+jpype.startJVM()
+from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
+
 from .get_table_message import all
 from save_filesys_db import save_CE
 
@@ -72,22 +76,33 @@ def change_excel(wb, work_table, message_dict):
     wb.save(EXCEL_PATH)
 
 
-# 将excel转化为图片
 def excel_to_iamge(excel_path, num):
-    output_pdf_path = os.path.splitext(
-        os.path.basename(excel_path))[0] + ".pdf"
-
-    # 使用LibreOffice将Excel文件转换为PDF
+    # fitz 的索引是从0开始，而用户是从1开始
+    num = num - 1
+    # 构建转换命令
+    command = [
+        LIBREOFFICE_PATH,
+        "--headless",
+        "--convert-to", "xlsx",
+        'vvv',
+        "--outdir", '.',
+        excel_path
+    ]
+    # 执行转换命令
     try:
-        subprocess.run([
-            LIBREOFFICE_PATH, "--headless", "--convert-to", "pdf",
-            "--outdir", os.getcwd(), excel_path
-        ], check=True)
-        print(f"PDF successfully created at {output_pdf_path}")
+        subprocess.run(command, shell=False, check=True)
+        print(f"The file has been converted ")
     except subprocess.CalledProcessError as e:
-        print(f"Failed to convert Excel to PDF: {e}")
-        return
+        print(f"An error occurred: {e}")
+    file_name = os.path.splitext(
+        os.path.basename(excel_path))[0]
+    output_pdf_path = file_name + ".pdf"
+    output_xlsx_path = file_name + ".xlsx"
+    workbook = Workbook(output_xlsx_path)
+    saveOptions = PdfSaveOptions()
+    saveOptions.setOnePagePerSheet(True)
 
+    workbook.save(output_pdf_path, saveOptions)
     # 使用fitz (PyMuPDF)将PDF文件的特定页面转换为Base64编码的图片字符串
     doc = fitz.open(output_pdf_path)
     if num < len(doc):
@@ -102,6 +117,8 @@ def excel_to_iamge(excel_path, num):
     doc.close()
     # 删除生成的PDF文件
     os.remove(output_pdf_path)
+    os.remove(output_xlsx_path)
+    # jpype.shutdownJVM()
     return f"{BASE64_PNG}{img_base64}"
 
 
