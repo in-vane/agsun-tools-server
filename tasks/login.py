@@ -22,7 +22,7 @@ def login(username, password):
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
         print(f"登录成功！欢迎, {username}")
-        return CODE_SUCCESS, token, None
+        return CODE_SUCCESS, token, f"登录成功！欢迎, {username}"
     else:
         print("登录失败，用户名或密码错误。")
-        return CODE_SUCCESS, None, None
+        return CODE_ERROR, None, '登录失败，用户名或密码错误。'

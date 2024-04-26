@@ -99,11 +99,13 @@ class LoginHandler(MainHandler):
         username = params['username']
         password = params['password']
         code, token, message = tasks.login(username, password)
-        # code, token, message = 0, MOCK_TOKEN, 'ok'
         custom_data = {
             'code': code,
             'data': {
-                'access_token': token
+                'access_token': token,
+                'userinfo': {
+                    'name': username
+                }
             },
             'message': message
 
