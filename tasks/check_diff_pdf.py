@@ -276,8 +276,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
         base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
         print(len(mismatch_list))
         if not adjusted_sequences:
-            save_Diffpdf(doc1, doc2, file1_name, file2_name,
-                         CODE_SUCCESS, mismatch_list, base64_strings, None, None)
+            #save_Diffpdf(doc1, doc2, file1_name, file2_name,
+            #             CODE_SUCCESS, mismatch_list, base64_strings, None, None)
             return CODE_SUCCESS, mismatch_list, base64_strings, '', None
         else:
             summaries = []
@@ -289,8 +289,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name, page_num1, pa
     base64_strings = images_to_base64_list(RESULT_IMAGE, mismatch_list)
     dir_paths = [PDF1_IMAGE, PDF2_IMAGE, RESULT_IMAGE]
     clear_directory_contents(dir_paths)
-    save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
-                 mismatch_list, base64_strings, continuous, None)
+    #save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
+    #             mismatch_list, base64_strings, continuous, None)
     doc1.close()
     doc2.close()
     print(mismatch_list)
