@@ -1,14 +1,20 @@
-from config import BASE64_PNG
-from utils import img2base64
+
+import io
 import re
 import math
-from io import BytesIO
+
 import cv2
 import fitz
 import numpy as np
 
+from main import MainHandler, need_auth
+from config import BASE64_PNG
+from utils import img2base64
+
+from tornado.concurrent import run_on_executor
+
 import sys
-sys.path.append('..')
+sys.path.append("..")
 
 
 MODE_RECT = 0  # 检测矩形
@@ -111,13 +117,13 @@ def compare(a, b):
     return abs(a - b) > 1
 
 
-def check_size(file, mode, active, params):
-    doc = fitz.open(stream=(BytesIO(file)))
+def check_size(file, options, params):
+    doc = fitz.open(stream=(io.BytesIO(file)))
     page = doc.load_page(0)
 
-    if active == MODE_MARK:
+    if options["active"] == MODE_MARK:
         w_1, h_1, r_1 = extract_size(page)
-    if active == MODE_USER:
+    if options["active"] == MODE_USER:
         w_1, h_1, r_1 = params['width'], params['height'], params['radius']
 
     # 主逻辑
@@ -126,11 +132,11 @@ def check_size(file, mode, active, params):
 
     is_error = False
     err_msg = ""
-    if mode == MODE_RECT:
+    if options["mode"] == MODE_RECT:
         if abs(w_1 - w_2) > 1 or abs(h_1 - h_2) > 1:
             is_error = True
         err_msg = f"标注为({w_1} x {h_1}), 检测结果为({w_2} x {h_2})"
-    if mode == MODE_CIR:
+    if options["mode"] == MODE_CIR:
         if abs(r_1 - r_2) > 1:
             is_error = True
         err_msg = f"标注为({r_1}), 检测结果为({r_2})"
@@ -142,3 +148,41 @@ def check_size(file, mode, active, params):
     doc.close()
 
     return is_error, message, img_base64
+
+
+class SizeHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, body, options, params):
+        return check_size(body, options, params)
+
+    @need_auth
+    async def post(self):
+        username = self.current_user
+        files = self.get_files()
+        body = files[0]["body"]
+        mode = int(self.get_argument('mode', default=0))
+        active = int(self.get_argument('active', default=0))
+        width = int(self.get_argument('width', default=-1))
+        height = int(self.get_argument('height', default=-1))
+        radius = int(self.get_argument('radius', default=-1))
+
+        options = {
+            "mode": mode,
+            "active": active,
+        }
+        params = {
+            "width": width,
+            "height": height,
+            "radius": radius,
+        }
+
+        error, msg, img_base64 = await self.process_async(body, options, params)
+        custom_data = {
+            "code": 0,
+            "data": {
+                "error": error,
+                "img_base64": img_base64
+            },
+            "msg": msg,
+        }
+        self.write(custom_data)

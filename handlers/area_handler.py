@@ -1,14 +1,15 @@
-from config import BASE64_PNG
-from utils import base642img, img2base64
-import base64
 import cv2
-import fitz
 import numpy as np
 from skimage.metrics import structural_similarity
 
+from main import MainHandler, need_auth
+from config import BASE64_PNG
+from utils import base642img, img2base64
+
+from tornado.concurrent import run_on_executor
+
 import sys
 sys.path.append("..")
-
 
 DPI = 300
 
@@ -107,28 +108,32 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
         thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
-    # mask = np.zeros(before.shape, dtype='uint8')
     filled_after = after.copy()
 
     for c in contours:
         area = cv2.contourArea(c)
         if area > 40:
             x, y, w, h = cv2.boundingRect(c)
-            # cv2.rectangle(before, (x, y), (x + w, y + h), (243,71,24), 2)
-            # cv2.rectangle(after, (x, y), (x + w, y + h), (243,71,24), 2)
             cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
-            # cv2.drawContours(mask, [c], 0, (255,255,255), -1)
             cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
 
-    # cv2.imshow('before', before)
-    # cv2.imshow('after', after)
-    # cv2.imshow('diff', diff)
-    # cv2.imshow('diff_box', diff_box)
-    # cv2.imshow('mask', mask)
-    # cv2.imshow('filled after', filled_after)
-    # cv2.waitKey()
-
-    # 图片转base64
     image_base64 = img2base64(filled_after)
 
     return f"{BASE64_PNG}{image_base64}"
+
+
+class AreaHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, img_1, img_2):
+        return compare_explore(img_1, img_2)
+
+    @need_auth
+    async def post(self):
+        username = self.current_user
+        img_1 = self.get_argument('img_1')
+        img_2 = self.get_argument('img_2')
+        img_base64 = await self.process_async(img_1, img_2)
+        custom_data = {
+            "result": img_base64
+        }
+        self.write(custom_data)

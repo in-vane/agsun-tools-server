@@ -1,14 +1,17 @@
+import os
 import asyncio
 import tornado
 import tornado.web
 import tornado.websocket
 import tornado.options
 import tornado.ioloop
-import os
-import tasks
+
+
+import handlers
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img_split, write_file_name
-from auth import decode_jwt, MOCK_TOKEN
+from auth import decode_jwt
+from concurrent.futures import ThreadPoolExecutor
 
 
 def need_auth(method):
@@ -22,11 +25,11 @@ def need_auth(method):
 
 class Application(tornado.web.Application):
     def __init__(self):
-        handlers = [
+        router = [
             (r'/api', MainHandler),
             (r'/api/login', LoginHandler),
             (r'/api/logout', LogoutHandler),
-            (r'/api/explore', ExploreHandler),
+            (r'/api/area', handlers.AreaHandler),
             (r'/api/fullPage', FullPageHandler),
             (r'/api/partCount', PartCountHandler),
             (r'/api/pageNumber', PageNumberHandler),
@@ -35,7 +38,7 @@ class Application(tornado.web.Application):
             (r'/api/screw/compare', ScrewHandler),
             (r'/api/language', LanguageHandler),
             (r'/api/ce', CEHandler),
-            (r'/api/size', SizeHandler),
+            (r'/api/size', handlers.SizeHandler),
             (r'/api/ocr_char', OcrHandler),
             (r'/api/ocr_icon', OcrHandler),
             (r"/websocket", WebSocketHandler),
@@ -43,10 +46,12 @@ class Application(tornado.web.Application):
         settings = {
             'debug': True
         }
-        super().__init__(handlers, **settings)
+        super().__init__(router, **settings)
 
 
 class MainHandler(tornado.web.RequestHandler):
+    executor = ThreadPoolExecutor(max_workers=10)
+
     def set_default_headers(self):
         self.set_header('Access-Control-Allow-Origin', '*')
         self.set_header('Access-Control-Allow-Methods', '*')
@@ -94,11 +99,11 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class LoginHandler(MainHandler):
-    def post(self):
+    async def post(self):
         params = tornado.escape.json_decode(self.request.body)
         username = params['username']
         password = params['password']
-        code, token, message = tasks.login(username, password)
+        code, token, message = await handlers.login(username, password)
         custom_data = {
             'code': code,
             'data': {
@@ -114,8 +119,8 @@ class LoginHandler(MainHandler):
 
 
 class LogoutHandler(MainHandler):
-    def post(self):
-        code, username, msg = tasks.logout()
+    async def post(self):
+        code, username, msg = await handlers.logout()
         custom_data = {
             'code': code,
             'data': {
@@ -123,19 +128,6 @@ class LogoutHandler(MainHandler):
             },
             'msg': msg
 
-        }
-        self.write(custom_data)
-
-
-class ExploreHandler(MainHandler):
-    @need_auth
-    def post(self):
-        username = self.current_user
-        img_1 = self.get_argument('img_1')
-        img_2 = self.get_argument('img_2')
-        img_base64 = tasks.compare_explore(img_1, img_2)
-        custom_data = {
-            "result": img_base64
         }
         self.write(custom_data)
 
@@ -151,15 +143,8 @@ class FullPageHandler(MainHandler):
         page_num2 = int(param['start_2'])
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
-        code, pages, imgs_base64, error_msg, msg = tasks.check_diff_pdf(username,
-                                                                        file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
-        # files = self.get_files()
-        # file1 = files[0]
-        # body1 = file1["body"]
-        # filename1 = file1.get("filename")
-        # file2 = files[1]
-        # body2 = file2["body"]
-        # filename2 = file2.get("filename")
+        code, pages, imgs_base64, error_msg, msg = handlers.check_diff_pdf(username,
+                                                                           file_path_1, file_path_2, filename1, filename2, page_num1, page_num2)
         custom_data = {
             "code": code,
             "data": {
@@ -188,25 +173,17 @@ class PartCountHandler(MainHandler):
         ymin = rect_int[1]
         xmax = (rect_int[0] + rect_int[2])
         ymax = (rect_int[1] + rect_int[3])
-        scale_factor=72/300
-        pdf_rect = [xmin* scale_factor, ymin* scale_factor, xmax* scale_factor, ymax* scale_factor]
+        scale_factor = 72/300
+        pdf_rect = [xmin * scale_factor, ymin * scale_factor,
+                    xmax * scale_factor, ymax * scale_factor]
         print(pdf_rect)
         page_number_explore = int(params['page_explore'])
         page_number_table = int(params['page_table'])
-        page_columns=int(params['columnCount'])
-        page_pair_index=params['pair_index']
-        print(page_columns,page_pair_index)
-        custom_data = tasks.check_part_count(
-            username, filename, pdf_rect, page_number_explore, page_number_table,page_columns,page_pair_index)
-
-        # custom_data = {
-        #     "error": error,
-        #     "result": result,
-        #     "table": {
-        #         "error_pages": images_base64,
-        #         "error_pages_no": error_pages,
-        #     }
-        # }
+        page_columns = int(params['columnCount'])
+        page_pair_index = params['pair_index']
+        print(page_columns, page_pair_index)
+        custom_data = handlers.check_part_count(
+            username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
 
         self.write(custom_data)
 
@@ -222,8 +199,8 @@ class PageNumberHandler(MainHandler):
         rect = params['rect']
         rect = [value * 72 / 300 for value in rect]
         filename = os.path.basename(file)
-        code, error, error_page, result, msg = tasks.check_page_number(username,
-                                                                       file, filename, rect)
+        code, error, error_page, result, msg = handlers.check_page_number(username,
+                                                                          file, filename, rect)
         custom_data = {
             'code': code,
             'data': {
@@ -245,7 +222,7 @@ class TableHandler(MainHandler):
         files = self.get_files()
         file = files[0]
         body = file["body"]
-        base64_imgs, error_pages = tasks.compare_table(body, page_number)
+        base64_imgs, error_pages = handlers.compare_table(body, page_number)
         custom_data = {
             "base64_imgs": base64_imgs,
             "error_pages": error_pages,
@@ -263,13 +240,9 @@ class ScrewHandler(MainHandler):
             file = param['file_path']
             # 修改宽度 (w) 和高度 (h)
             rect = [value * 72 / 300 for value in rect]
-            code, data, msg = tasks.get_Screw_bags(file, page, rect)
+            code, data, msg = handlers.get_Screw_bags(file, page, rect)
         elif self.request.path == "/api/screw/compare":
             username = self.current_user
-            # files = self.get_files()
-            # file = files[0]
-            # body = file["body"]
-            # filename = file["filename"]
             params = tornado.escape.json_decode(self.request.body)
             print(params)
             file = params['file_path']
@@ -278,7 +251,8 @@ class ScrewHandler(MainHandler):
             end = int(params['end'])
             file_name = os.path.basename(file)
             print("文件名:", file_name)
-            code, data, msg = tasks.check_screw(username, file, file_name, table, start, end)
+            code, data, msg = handlers.check_screw(
+                username, file, file_name, table, start, end)
         else:
             code = 1
             data = {}
@@ -291,7 +265,6 @@ class ScrewHandler(MainHandler):
         self.write(custom_data)
 
 
-
 class LanguageHandler(MainHandler):
     @need_auth
     def post(self):
@@ -301,7 +274,8 @@ class LanguageHandler(MainHandler):
         file = files[0]
         body = file["body"]
         filename = file["filename"]
-        code, data, msg = tasks.check_language(username, body, filename, limit)
+        code, data, msg = handlers.check_language(
+            username, body, filename, limit)
 
         custom_data = {
             'code': code,
@@ -333,44 +307,14 @@ class CEHandler(MainHandler):
             pdf_name, excel_name = name2, name1
         img_base64 = ''
         if mode == 0:
-            code, image_base64, msg = tasks.check_CE_mode_normal(username,
-                                                                 file_excel, file_pdf, pdf_name, excel_name, num)
+            code, image_base64, msg = handlers.check_CE_mode_normal(username,
+                                                                    file_excel, file_pdf, pdf_name, excel_name, num)
         custom_data = {
             "code": code,
             "data": {
                 "image_base64": image_base64
             },
             "msg": msg
-        }
-        self.write(custom_data)
-
-
-class SizeHandler(MainHandler):
-    @need_auth
-    def post(self):
-        username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        mode = int(self.get_argument('mode', default=0))
-        active = int(self.get_argument('active', default=0))
-        width = int(self.get_argument('width', default='-1'))
-        height = int(self.get_argument('height', default='-1'))
-        radius = int(self.get_argument('radius', default='-1'))
-        params = {
-            "width": width,
-            "height": height,
-            "radius": radius,
-        }
-        
-        error, msg, img_base64 = tasks.check_size(body, mode, active, params)
-        custom_data = {
-            "code": 0,
-            "data": {
-                "error": error,
-                "img_base64": img_base64
-            },
-            "msg": msg,
         }
         self.write(custom_data)
 
@@ -391,10 +335,10 @@ class OcrHandler(MainHandler):
         custom_data = {}
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
-            custom_data = tasks.check_ocr_char(filename, crop, page_num)
+            custom_data = handlers.check_ocr_char(filename, crop, page_num)
         if mode == self.MODE_ICON:
             print("== MODE_ICON ==")
-            custom_data = tasks.check_ocr_icon(filename, crop, page_num)
+            custom_data = handlers.check_ocr_icon(filename, crop, page_num)
 
         self.write(custom_data)
 
@@ -451,14 +395,17 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.temp_count += 1
 
 
-async def main():
+def main():
     tornado.options.define("port", default=8888,
                            help="run on the given port", type=int)
     print('ready')
     tornado.options.parse_command_line()
     app = Application()
     app.listen(tornado.options.options.port)
-    await asyncio.Event().wait()
+    # await asyncio.Event().wait()
+    tornado.ioloop.IOLoop.current().start()
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())  # 这是 Python 3.7 引入的新特性
+    main()
