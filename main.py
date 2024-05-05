@@ -27,7 +27,7 @@ class Application(tornado.web.Application):
     def __init__(self):
         router = [
             (r'/api', MainHandler),
-            (r'/api/login', LoginHandler),
+            (r'/api/login', handlers.LoginHandler),
             (r'/api/logout', LogoutHandler),
             (r'/api/area', handlers.AreaHandler),
             (r'/api/fullPage', FullPageHandler),
@@ -286,6 +286,7 @@ class LanguageHandler(MainHandler):
 
         self.write(custom_data)
 
+
 class LineHandler(MainHandler):
     @need_auth
     def post(self):
@@ -302,6 +303,8 @@ class LineHandler(MainHandler):
             'msg': msg
         }
         self.write(custom_data)
+
+
 class CEHandler(MainHandler):
     @need_auth
     def post(self):

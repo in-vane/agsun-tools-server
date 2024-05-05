@@ -10,8 +10,8 @@ from .check_ce import check_CE_mode_normal, check_CE_mode_danmark
 from .check_ocr_char import check_ocr_char
 from .check_ocr_icon import check_ocr_icon
 from .check_line import check_line
-from .login import login
 
+from .login import LoginHandler
 from .area_handler import AreaHandler
 from .size_handler import SizeHandler
 from .test_handler import TestHandler
