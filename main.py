@@ -289,13 +289,12 @@ class LanguageHandler(MainHandler):
 class LineHandler(MainHandler):
     @need_auth
     def post(self):
+        param = tornado.escape.json_decode(self.request.body)
         username = self.current_user
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file["filename"]
+        file = param['file_path']
+        file_name = os.path.basename(file)
         code, data, msg = handlers.check_line(
-            username, body, filename)
+            username, file, file_name)
         custom_data = {
             'code': code,
             'data': data,
