@@ -215,3 +215,32 @@ class CheckPageNumber:
                 connection.commit()
         finally:
             connection.close()
+
+
+class CheckLine:
+    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result, result_file):
+        self.username = username
+        self.dataline = dataline
+        self.work_num = work_num
+        self.pdf_path = pdf_path
+        self.pdf_name = pdf_name
+        self.result = result
+        self.result_file= result_file
+
+    def save_to_db(self):
+        connection = pymysql.connect(host=DB_CONFIG['host'],
+                                     user=DB_CONFIG['user'],
+                                     password=DB_CONFIG['password'],
+                                     database=DB_CONFIG['database'],
+                                     charset=DB_CONFIG['charset'])
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                INSERT INTO `check_line` (`username`, `dataline`, `work_num`, `pdf_path`, `pdf_name`, `result`, `result_file`) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result, self.result_file))
+                connection.commit()
+        finally:
+            connection.close()

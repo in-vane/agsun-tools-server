@@ -360,3 +360,32 @@ def save_Part_count(username, doc, base_file_name, code, mapping_results, note, 
         result=result_path,
     )
     check_part_count_instance.save_to_db()
+
+def save_Line(username, doc, base_file_name, code,  msg):
+    base_dir = f'{ROOT}/007'
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
+        username, base_dir)
+    # 确保PDF和结果目录存在
+    os.makedirs(pdf_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+    # 保存文件系统
+    # 动态设置PDF输出路径
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
+    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
+    output_path = os.path.join(result_dir, f'output')
+    doc.save(output_path)
+    # 保存数据库
+    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
+    result_path = result_dir
+    check_pagenumber_instance = CheckLanguage(
+        username=username,
+        dataline=dataline,
+        work_num='007',  # 这里需要根据实际情况赋值
+        pdf_path=pdf_path,
+        pdf_name=pdf_name,
+        result=result_path,
+        result_file=output_path,
+    )
+    check_pagenumber_instance.save_to_db()

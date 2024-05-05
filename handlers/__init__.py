@@ -9,6 +9,7 @@ from .check_language import check_language
 from .check_ce import check_CE_mode_normal, check_CE_mode_danmark
 from .check_ocr_char import check_ocr_char
 from .check_ocr_icon import check_ocr_icon
+from .check_line import check_line
 from .login import login
 
 from .area_handler import AreaHandler

@@ -33,6 +33,7 @@ class Application(tornado.web.Application):
             (r'/api/fullPage', FullPageHandler),
             (r'/api/partCount', PartCountHandler),
             (r'/api/pageNumber', PageNumberHandler),
+            (r'/api/line', LineHandler),
             (r'/api/table', TableHandler),
             (r'/api/screw/bags', ScrewHandler),
             (r'/api/screw/compare', ScrewHandler),
@@ -285,7 +286,22 @@ class LanguageHandler(MainHandler):
 
         self.write(custom_data)
 
-
+class LineHandler(MainHandler):
+    @need_auth
+    def post(self):
+        username = self.current_user
+        files = self.get_files()
+        file = files[0]
+        body = file["body"]
+        filename = file["filename"]
+        code, data, msg = handlers.check_line(
+            username, body, filename)
+        custom_data = {
+            'code': code,
+            'data': data,
+            'msg': msg
+        }
+        self.write(custom_data)
 class CEHandler(MainHandler):
     @need_auth
     def post(self):
