@@ -2,6 +2,13 @@ from model import User
 import jwt
 from datetime import datetime, timezone, timedelta
 
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
+
+import sys
+sys.path.append("..")
+
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 SECRET_KEY = "your_secret_key_here"  # 你应该选择一个复杂的秘钥
@@ -26,3 +33,27 @@ def login(username, password):
     else:
         print("登录失败，用户名或密码错误。")
         return CODE_ERROR, None, '登录失败，用户名或密码错误。'
+
+
+class LoginHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, password):
+        return login(username, password)
+
+    async def post(self):
+        params = tornado.escape.json_decode(self.request.body)
+        username = params['username']
+        password = params['password']
+        code, token, message = await self.process_async(username, password)
+        custom_data = {
+            'code': code,
+            'data': {
+                'access_token': token,
+                'userinfo': {
+                    'name': username
+                }
+            },
+            'message': message
+
+        }
+        self.write(custom_data)
