@@ -148,7 +148,7 @@ def get_step_screw(doc, pages, result_dict):
     key_pattern = '[' + ''.join(keys) + ']'
     # 构建正则表达式，包括所有提取的键
     pattern = fr'(\d+)\s*[xX*]\s*({key_pattern})|({key_pattern})\s*[xX*]\s*(\d+)'
-
+    image_page = []
     letter_counts = {}
     letter_pageNumber = {}
     letter_count = {}
@@ -165,6 +165,8 @@ def get_step_screw(doc, pages, result_dict):
             text = replace_special_chars(text)
             print(f"{page_num}:{text}")
             matches = re.findall(pattern, text)
+            if len(matches) != 0:
+                image_page.append(page_num)
         for match in matches:
             # 通过检查匹配组来确定是哪种模式
             if match[0] and match[1]:  # 数字在前的模式
@@ -195,13 +197,13 @@ def get_step_screw(doc, pages, result_dict):
     print("letter_pageNumber:", letter_pageNumber)
     print("letter_count:", letter_count)
 
-    return letter_counts, letter_pageNumber, letter_count
+    return letter_counts, letter_pageNumber, letter_count, image_page
 
 
 def check_total_and_step(doc, result_dict, step_page):
     count_mismatch = {}  # 数量不匹配的情况
 
-    letter_counts, letter_count, letter_pageNumber = get_step_screw(
+    letter_counts, letter_count, letter_pageNumber, image_page = get_step_screw(
         doc, step_page, result_dict)
 
     # 检查两个字典中的数量是否匹配
@@ -222,7 +224,7 @@ def check_total_and_step(doc, result_dict, step_page):
                 'expected': result_dict[key], 'actual': 0}
             print(f"缺少的字符: {key} 在 letter_counts 中不存在")
 
-    return count_mismatch, letter_count, letter_pageNumber, result_dict
+    return count_mismatch, letter_count, letter_pageNumber, result_dict, image_page
 
 
 def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
@@ -261,7 +263,7 @@ def check_screw(username, file, filename, table, start, end):
     step_page = list(range(start, end + 1))
     if start < 1 or end > doc.page_count:
         return CODE_ERROR, {}, '请检查步骤页输入是否正确'
-    count_mismatch, letter_count, letter_pageNumber, result_dict = check_total_and_step(
+    count_mismatch, letter_count, letter_pageNumber, result_dict, image_page = check_total_and_step(
         doc, result_dict, step_page)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
@@ -270,7 +272,8 @@ def check_screw(username, file, filename, table, start, end):
     print("Match Dict:", match_dict)
     result = mismatch_dict+match_dict
     data = {
-        'result': result
+        'result': result,
+        'image_page': image_page
     }
     print("save file")
     # save_Screw(username, doc, filename, CODE_SUCCESS,
