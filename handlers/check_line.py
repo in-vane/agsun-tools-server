@@ -35,13 +35,8 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
 
 def check_line(username, file, filename):
     doc = fitz.open(file)
-    # doc = fitz.open(pdf_path)
-    start = time.time()
     thicken_lines_in_all_pages(doc)
-    doc.save()
-    end = time.time()
-    print(f'{end - start}秒')
-    # save_Line(username, doc, filename, CODE_SUCCESS,'')
+    save_Line(username, doc, filename, CODE_SUCCESS,'')
     return CODE_SUCCESS, PDF_OUTPUT, ''
 
 

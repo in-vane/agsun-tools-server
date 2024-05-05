@@ -294,11 +294,13 @@ class LineHandler(MainHandler):
         username = self.current_user
         file = param['file_path']
         file_name = os.path.basename(file)
-        code, data, msg = handlers.check_line(
+        code, path, msg = handlers.check_line(
             username, file, file_name)
         custom_data = {
             'code': code,
-            'data': data,
+            'data': {
+                'path':path
+            },
             'msg': msg
         }
         self.write(custom_data)
