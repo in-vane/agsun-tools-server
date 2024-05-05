@@ -8,6 +8,7 @@ from save_filesys_db import save_Line
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
+PDF_OUTPUT = './assets/pdf/temp.pdf'
 
 def thicken_lines_in_all_pages(doc, new_line_width=0.5):
     for page_number in range(len(doc)):
@@ -29,38 +30,19 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
 
 
 
-    # doc.save(PDF_OUTPUT)
+    doc.save(PDF_OUTPUT)
 
-
-def pdf_to_base64(doc):
-    # 创建一个字节流
-    pdf_stream = io.BytesIO()
-
-    # 将文档保存到字节流
-    doc.save(pdf_stream)
-
-    # 获取字节流的内容
-    pdf_bytes = pdf_stream.getvalue()
-
-    # 将字节流编码为 Base64 字符串
-    base64_str = base64.b64encode(pdf_bytes).decode('utf-8')
-
-    # 关闭字节流
-    pdf_stream.close()
-
-    return base64_str
 
 def check_line(username, file, filename):
-    doc = fitz.open(stream=BytesIO(file))
+    doc = fitz.open(file)
     # doc = fitz.open(pdf_path)
     start = time.time()
     thicken_lines_in_all_pages(doc)
-    base64_pdf = pdf_to_base64(doc)
+    doc.save()
     end = time.time()
     print(f'{end - start}秒')
     # save_Line(username, doc, filename, CODE_SUCCESS,'')
-    doc.close()
-    return CODE_SUCCESS, base64_pdf, ''
+    return CODE_SUCCESS, PDF_OUTPUT, ''
 
 
 # pdf_path = '1.pdf'  # Replace with the path to your PDF file
