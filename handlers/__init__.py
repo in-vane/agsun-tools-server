@@ -12,6 +12,13 @@ from .check_ocr_icon import check_ocr_icon
 from .check_line import check_line
 
 from .login import LoginHandler
+from .check_part_count import PartCountHandler
+from .check_line import LineHandler
+from .check_page_number import PageNumberHandler
+from .check_diff_pdf import FullPageHandler
+from .check_language import LanguageHandler
+from .check_ce.mode_normal import CEHandler
+from .check_screw import ScrewHandler
 from .area_handler import AreaHandler
 from .size_handler import SizeHandler
 from .test_handler import TestHandler

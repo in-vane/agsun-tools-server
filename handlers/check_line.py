@@ -2,7 +2,12 @@ import fitz  # PyMuPDF
 import time
 import base64
 import io
+import os
 from io import BytesIO  # 从 io 模块导入 BytesIO 类
+
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
 
 from save_filesys_db import save_Line
 
@@ -42,4 +47,22 @@ def check_line(username, file, filename):
 
 # pdf_path = '1.pdf'  # Replace with the path to your PDF file
 # _,base64_pdf,_ = check(pdf_path)
-
+class LineHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, file, filename):
+        return check_line(username, file, filename)
+    async def post(self):
+        param = tornado.escape.json_decode(self.request.body)
+        username = self.current_user
+        file = param['file_path']
+        file_name = os.path.basename(file)
+        code, path, msg = await self.process_async(
+            username, file, file_name)
+        custom_data = {
+            'code': code,
+            'data': {
+                'path': path
+            },
+            'msg': msg
+        }
+        self.write(custom_data)

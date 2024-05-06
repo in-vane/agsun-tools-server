@@ -10,6 +10,10 @@ from ppocronnx.predict_system import TextSystem
 from logger import logger
 from save_filesys_db import save_Language
 
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
+
 IMAGE_PATH = './assets/images'
 LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
 CODE_SUCCESS = 0
@@ -266,3 +270,24 @@ def check_language(username, file, filename, limit):
 # file1 = 'page_number/lang.pdf'  # 请根据实际情况修改路径
 # file1 = pdf_to_bytes(file1)
 # check_language(file1)
+class LanguageHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, file, filename, limit):
+        return check_language(username, file, filename, limit)
+    async def post(self):
+        username = self.current_user
+        limit = int(self.get_argument('limit'))
+        files = self.get_files()
+        file = files[0]
+        body = file["body"]
+        filename = file["filename"]
+        code, data, msg = await self.process_async(
+            username, body, filename, limit)
+
+        custom_data = {
+            'code': code,
+            'data': data,
+            'msg': msg
+        }
+
+        self.write(custom_data)

@@ -3,9 +3,14 @@ from PIL import Image
 import base64
 import fitz
 import re
+import os
 
 from logger import logger
 # from save_filesys_db import save_PageNumber
+
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -135,3 +140,30 @@ def check_page_number(username, file, filename, rect):
     doc.close()
     logger.info("---end check_page_number---")
     return CODE_SUCCESS, is_error, issues, error_pages_base64, None
+
+
+class PageNumberHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, file, filename, rect):
+        return check_page_number(username, file, filename, rect)
+    async def post(self):
+        username = self.current_user
+        params = tornado.escape.json_decode(self.request.body)
+        print(params)
+        file = params['file_path']
+        rect = params['rect']
+        rect = [value * 72 / 300 for value in rect]
+        filename = os.path.basename(file)
+        code, error, error_page, result, msg = await self.process_async(username,
+                                                                          file, filename, rect)
+        custom_data = {
+            'code': code,
+            'data': {
+                "error": error,
+                "error_page": error_page,
+                "result": result
+            },
+            'msg': msg
+
+        }
+        self.write(custom_data)

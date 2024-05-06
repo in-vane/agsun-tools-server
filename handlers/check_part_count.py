@@ -13,6 +13,9 @@ import os
 from PIL import ImageDraw, ImageFont
 from save_filesys_db import save_Part_count
 import easyocr
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
 os.environ["JAVA_TOOL_OPTIONS"] = "-Djava.awt.headless=true"
 DPI = 600
 ZOOM = DPI / 72
@@ -834,3 +837,39 @@ def check_part_count(username,filename, rect, page_number_explore, page_number_t
     save_Part_count(username, pdf, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
     pdf.close()
     return custom_data
+
+
+
+
+class PartCountHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index):
+        return check_part_count(
+            username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
+
+    async def post(self):
+        username = self.current_user
+        params = tornado.escape.json_decode(self.request.body)
+        filename = params['filename']
+        rect = params['rect']
+        print(rect)
+        # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
+        # rect_int= [int(x) for x in rect[1:]]
+        rect_int = [int(x) for x in rect]
+        xmin = rect_int[0]
+        ymin = rect_int[1]
+        xmax = (rect_int[0] + rect_int[2])
+        ymax = (rect_int[1] + rect_int[3])
+        scale_factor = 72 / 300
+        pdf_rect = [xmin * scale_factor, ymin * scale_factor,
+                    xmax * scale_factor, ymax * scale_factor]
+        print(pdf_rect)
+        page_number_explore = int(params['page_explore'])
+        page_number_table = int(params['page_table'])
+        page_columns = int(params['columnCount'])
+        page_pair_index = params['pair_index']
+        print(page_columns, page_pair_index)
+        custom_data = await self.process_async(
+            username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
+
+        self.write(custom_data)

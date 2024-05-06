@@ -28,17 +28,17 @@ class Application(tornado.web.Application):
         router = [
             (r'/api', MainHandler),
             (r'/api/login', handlers.LoginHandler),
-            (r'/api/logout', LogoutHandler),
+            # (r'/api/logout', LogoutHandler),
             (r'/api/area', handlers.AreaHandler),
-            (r'/api/fullPage', FullPageHandler),
-            (r'/api/partCount', PartCountHandler),
-            (r'/api/pageNumber', PageNumberHandler),
-            (r'/api/line', LineHandler),
-            (r'/api/table', TableHandler),
-            (r'/api/screw/bags', ScrewHandler),
-            (r'/api/screw/compare', ScrewHandler),
-            (r'/api/language', LanguageHandler),
-            (r'/api/ce', CEHandler),
+            (r'/api/fullPage', handlers.FullPageHandler),
+            (r'/api/partCount', handlers.PartCountHandler),
+            (r'/api/pageNumber', handlers.PageNumberHandler),
+            (r'/api/line', handlers.LineHandler),
+            # (r'/api/table', TableHandler),
+            (r'/api/screw/bags', handlers.ScrewHandler),
+            (r'/api/screw/compare', handlers.ScrewHandler),
+            (r'/api/language', handlers.LanguageHandler),
+            (r'/api/ce', handlers.CEHandler),
             (r'/api/size', handlers.SizeHandler),
             (r'/api/ocr_char', OcrHandler),
             (r'/api/ocr_icon', OcrHandler),
@@ -99,38 +99,38 @@ class MainHandler(tornado.web.RequestHandler):
             self.write({"error": "Token not provided"})
 
 
-class LoginHandler(MainHandler):
-    async def post(self):
-        params = tornado.escape.json_decode(self.request.body)
-        username = params['username']
-        password = params['password']
-        code, token, message = await handlers.login(username, password)
-        custom_data = {
-            'code': code,
-            'data': {
-                'access_token': token,
-                'userinfo': {
-                    'name': username
-                }
-            },
-            'message': message
-
-        }
-        self.write(custom_data)
-
-
-class LogoutHandler(MainHandler):
-    async def post(self):
-        code, username, msg = await handlers.logout()
-        custom_data = {
-            'code': code,
-            'data': {
-                'username': username
-            },
-            'msg': msg
-
-        }
-        self.write(custom_data)
+# class LoginHandler(MainHandler):
+#     async def post(self):
+#         params = tornado.escape.json_decode(self.request.body)
+#         username = params['username']
+#         password = params['password']
+#         code, token, message = await handlers.login(username, password)
+#         custom_data = {
+#             'code': code,
+#             'data': {
+#                 'access_token': token,
+#                 'userinfo': {
+#                     'name': username
+#                 }
+#             },
+#             'message': message
+#
+#         }
+#         self.write(custom_data)
+#
+#
+# class LogoutHandler(MainHandler):
+#     async def post(self):
+#         code, username, msg = await handlers.logout()
+#         custom_data = {
+#             'code': code,
+#             'data': {
+#                 'username': username
+#             },
+#             'msg': msg
+#
+#         }
+#         self.write(custom_data)
 
 
 class FullPageHandler(MainHandler):
@@ -159,34 +159,34 @@ class FullPageHandler(MainHandler):
         self.write(custom_data)
 
 
-class PartCountHandler(MainHandler):
-    @need_auth
-    def post(self):
-        username = self.current_user
-        params = tornado.escape.json_decode(self.request.body)
-        filename = params['filename']
-        rect = params['rect']
-        print(rect)
-        # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
-        # rect_int= [int(x) for x in rect[1:]]
-        rect_int = [int(x) for x in rect]
-        xmin = rect_int[0]
-        ymin = rect_int[1]
-        xmax = (rect_int[0] + rect_int[2])
-        ymax = (rect_int[1] + rect_int[3])
-        scale_factor = 72/300
-        pdf_rect = [xmin * scale_factor, ymin * scale_factor,
-                    xmax * scale_factor, ymax * scale_factor]
-        print(pdf_rect)
-        page_number_explore = int(params['page_explore'])
-        page_number_table = int(params['page_table'])
-        page_columns = int(params['columnCount'])
-        page_pair_index = params['pair_index']
-        print(page_columns, page_pair_index)
-        custom_data = handlers.check_part_count(
-            username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
-
-        self.write(custom_data)
+# class PartCountHandler(MainHandler):
+#     @need_auth
+#     def post(self):
+#         username = self.current_user
+#         params = tornado.escape.json_decode(self.request.body)
+#         filename = params['filename']
+#         rect = params['rect']
+#         print(rect)
+#         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
+#         # rect_int= [int(x) for x in rect[1:]]
+#         rect_int = [int(x) for x in rect]
+#         xmin = rect_int[0]
+#         ymin = rect_int[1]
+#         xmax = (rect_int[0] + rect_int[2])
+#         ymax = (rect_int[1] + rect_int[3])
+#         scale_factor = 72/300
+#         pdf_rect = [xmin * scale_factor, ymin * scale_factor,
+#                     xmax * scale_factor, ymax * scale_factor]
+#         print(pdf_rect)
+#         page_number_explore = int(params['page_explore'])
+#         page_number_table = int(params['page_table'])
+#         page_columns = int(params['columnCount'])
+#         page_pair_index = params['pair_index']
+#         print(page_columns, page_pair_index)
+#         custom_data = handlers.check_part_count(
+#             username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
+#
+#         self.write(custom_data)
 
 
 class PageNumberHandler(MainHandler):
@@ -215,20 +215,20 @@ class PageNumberHandler(MainHandler):
         self.write(custom_data)
 
 
-class TableHandler(MainHandler):
-    @need_auth
-    def post(self):
-        username = self.current_user
-        page_number = int(self.get_argument('pageNumber'))
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        base64_imgs, error_pages = handlers.compare_table(body, page_number)
-        custom_data = {
-            "base64_imgs": base64_imgs,
-            "error_pages": error_pages,
-        }
-        self.write(custom_data)
+# class TableHandler(MainHandler):
+#     @need_auth
+#     def post(self):
+#         username = self.current_user
+#         page_number = int(self.get_argument('pageNumber'))
+#         files = self.get_files()
+#         file = files[0]
+#         body = file["body"]
+#         base64_imgs, error_pages = handlers.compare_table(body, page_number)
+#         custom_data = {
+#             "base64_imgs": base64_imgs,
+#             "error_pages": error_pages,
+#         }
+#         self.write(custom_data)
 
 
 class ScrewHandler(MainHandler):

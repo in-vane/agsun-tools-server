@@ -16,6 +16,10 @@ import easyocr  # 导入EasyOCR
 from ppocronnx.predict_system import TextSystem
 from save_filesys_db import save_Screw
 
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
+
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
@@ -165,8 +169,7 @@ def get_step_screw(doc, pages, result_dict):
             text = replace_special_chars(text)
             print(f"{page_num}:{text}")
             matches = re.findall(pattern, text)
-            if len(matches) != 0:
-                image_page.append(page_num)
+            image_page.append(page_num)
         for match in matches:
             # 通过检查匹配组来确定是哪种模式
             if match[0] and match[1]:  # 数字在前的模式
@@ -297,3 +300,42 @@ def check_screw(username, file, filename, table, start, end):
 # start =6
 # end =14
 # check_screw('username', file1, 'filename', result, start, end)
+class ScrewHandler(MainHandler):
+    @run_on_executor
+    def process_async1(self, file, page_number, rect):
+        return get_Screw_bags(file, page_number, rect)
+
+    @run_on_executor
+    def process_async2(self, username, file, filename, table, start, end):
+        return check_screw(username, file, filename, table, start, end)
+    async def post(self):
+        if self.request.path == "/api/screw/bags":
+            param = tornado.escape.json_decode(self.request.body)
+            rect = param['rect']
+            page = param['page']
+            file = param['file_path']
+            # 修改宽度 (w) 和高度 (h)
+            rect = [value * 72 / 300 for value in rect]
+            code, data, msg = await self.process_async1(file, page, rect)
+        elif self.request.path == "/api/screw/compare":
+            username = self.current_user
+            params = tornado.escape.json_decode(self.request.body)
+            print(params)
+            file = params['file_path']
+            table = params['table']
+            start = int(params['start'])
+            end = int(params['end'])
+            file_name = os.path.basename(file)
+            print("文件名:", file_name)
+            code, data, msg = await self.process_async2(
+                username, file, file_name, table, start, end)
+        else:
+            code = 1
+            data = {}
+            msg = '请检查你的网址'
+        custom_data = {
+            'code': code,
+            'data': data,
+            'msg': msg
+        }
+        self.write(custom_data)

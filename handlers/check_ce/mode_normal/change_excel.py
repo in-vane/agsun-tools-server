@@ -11,6 +11,11 @@ import shutil
 import tempfile
 import jpype
 
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
+from config import CONTENT_TYPE_PDF
+
 import asposecells
 jpype.startJVM()
 from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
@@ -226,3 +231,35 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
   #  with open(file_path, 'rb') as file:
    #     bytes_content = file.read()
     # return bytes_content
+class CEHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, excel_file, pdf_file, name1, name2, num):
+        return checkTags(username, excel_file, pdf_file, name1, name2, num)
+    async def post(self):
+        username = self.current_user
+        mode = self.get_argument('mode', default='0')
+        mode = int(mode)  # 确保将模式转换为整数
+        num = int(self.get_argument('sheet'))
+        files = self.get_files()
+        file_1, file_2 = files[0], files[1]
+        name1 = file_1["filename"]
+        name2 = file_2["filename"]
+        file_1_type, file_1_body = file_1["content_type"], file_1["body"]
+        file_2_body = file_2["body"]
+        if file_1_type == CONTENT_TYPE_PDF:
+            file_pdf, file_excel = file_1_body, file_2_body
+            pdf_name, excel_name = name1, name2
+        else:
+            file_pdf, file_excel = file_2_body, file_1_body
+            pdf_name, excel_name = name2, name1
+        if mode == 0:
+            code, image_base64, msg = await self.process_async(username,
+                                                                    file_excel, file_pdf, pdf_name, excel_name, num)
+        custom_data = {
+            "code": code,
+            "data": {
+                "image_base64": image_base64
+            },
+            "msg": msg
+        }
+        self.write(custom_data)

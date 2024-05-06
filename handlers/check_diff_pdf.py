@@ -10,6 +10,10 @@ from utils import base642img, img2base64
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
+from main import MainHandler
+import tornado
+from tornado.concurrent import run_on_executor
+
 
 
 def resize(base64_1, base64_2):
@@ -80,33 +84,47 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
     before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
     after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
 
-    # 计算两幅图像的结构相似性指数(SSIM)
-    (score, diff) = structural_similarity(before_gray, after_gray, full=True)
-    print("Image Similarity: {:.4f}%".format(score * 100))
-    # diff 图像包含两幅图像之间的实际差异
-    # 差异图像以浮点数据类型表示在 [0,1] 范围内
-    # 因此我们必须将数组转换为范围在 [0,255] 的8位无符号整数，才能使用 OpenCV
-    diff = (diff * 255).astype("uint8")
-    diff_box = cv2.merge([diff, diff, diff])
+    # SSIM方法
+    # (score, diff) = structural_similarity(before_gray, after_gray, full=True)
+    # print("Image Similarity: {:.4f}%".format(score * 100))
+    # # diff 图像包含两幅图像之间的实际差异
+    # # 差异图像以浮点数据类型表示在 [0,1] 范围内
+    # # 因此我们必须将数组转换为范围在 [0,255] 的8位无符号整数，才能使用 OpenCV
+    # diff = (diff * 255).astype("uint8")
+    # diff_box = cv2.merge([diff, diff, diff])
+    #
+    # # 对差异图像进行阈值处理，然后找到轮廓来
+    # # 获取两个输入图像中差异的区域
+    # thresh = cv2.threshold(diff, 150, 255, cv2.THRESH_BINARY_INV)[1]
+    # contours = cv2.findContours(
+    #     thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # contours = contours[0] if len(contours) == 2 else contours[1]
+    # # 在修改后的图像上绘制差异
+    # filled_after = after.copy()
+    # 计算差异并找到差异区域
 
-    # 对差异图像进行阈值处理，然后找到轮廓来
-    # 获取两个输入图像中差异的区域
-    thresh = cv2.threshold(diff, 250, 255, cv2.THRESH_BINARY_INV)[1]
-    contours = cv2.findContours(
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = contours[0] if len(contours) == 2 else contours[1]
-    # 在修改后的图像上绘制差异
-    filled_after = after.copy()
+    # for c in contours:
+    #     area = cv2.contourArea(c)
+    #     if area > 40:
+    #         x, y, w, h = cv2.boundingRect(c)
+    #         cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
+    #         cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
+    #         difference = True
+    # # 在修改后的图像上绘制差异
+    # image_base64 = img2base64(filled_after)
+    # 在 img2 上标注差异区域
 
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area > 40:
-            x, y, w, h = cv2.boundingRect(c)
-            cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
-            cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
-            difference = True
-    # 在修改后的图像上绘制差异
-    image_base64 = img2base64(filled_after)
+    # cv2.absdiff方法
+    diff = cv2.absdiff(before_gray, after_gray)
+    _, thresh = cv2.threshold(diff, 200, 255, cv2.THRESH_BINARY)  # 阈值可以调整以获得最佳结果
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:  # 如果存在差异
+        difference = True
+    color_img1 = cv2.cvtColor(before_gray, cv2.COLOR_GRAY2BGR)
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        cv2.rectangle(color_img1, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    image_base64 = img2base64(color_img1)
 
     return f"{BASE64_PNG}{image_base64}", difference
 
@@ -137,10 +155,6 @@ def pdf_page_to_image(pdf_path, page_number):
     return img
 
 def process_mismatch_lists(mismatch_list, base64_strings, threshold=10):
-    # 确保mismatch_list和base64_strings长度相同
-    if len(mismatch_list) != len(base64_strings):
-        raise ValueError("Mismatch list and similarity list must be of the same length.")
-
     new_mismatch_list = []
     new_base64_strings = []
     continuous = ""
@@ -149,22 +163,25 @@ def process_mismatch_lists(mismatch_list, base64_strings, threshold=10):
     while i < len(mismatch_list):
         start = mismatch_list[i]
         end = start
+        count = 1
 
         # 寻找连续序列
         while i < len(mismatch_list) - 1 and mismatch_list[i + 1] == mismatch_list[i] + 1:
             end = mismatch_list[i + 1]
             i += 1
+            count += 1
 
-        if end - start > threshold:  # 如果连续页数超过阈值
-            new_mismatch_list.append(start)
-            new_base64_strings.append(base64_strings[i])  # 只保留区段结束处的相似度
+        if count >= threshold:  # 如果连续页数超过阈值
+            new_mismatch_list.extend([start, end])
+            new_base64_strings.extend([base64_strings[i - count + 1], base64_strings[i]])
             continuous += f"从第{start}页到第{end}页，两个文件格式变化巨大。"
         else:
             # 添加非连续或短连续区段的所有页
-            new_mismatch_list.extend(mismatch_list[len(new_mismatch_list):i + 1])
-            new_base64_strings.extend(base64_strings[len(new_base64_strings):i + 1])
+            new_mismatch_list.extend(mismatch_list[i - count + 1: i + 1])
+            new_base64_strings.extend(base64_strings[i - count + 1: i + 1])
 
         i += 1
+
     return new_mismatch_list, new_base64_strings, continuous
 
 
@@ -206,6 +223,7 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
                 mismatch_list.append(i + 1)
         continuous = ''
     else:
+        print("对比开始")
         for i in range(total_page1):
             if i < len(doc2):  # 确保 pdf2 也有这一页
                 img1 = pdf_page_to_image(file1, i)
@@ -226,8 +244,8 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
                 # output_path = os.path.join(output_dir, f"{i + 1}.jpg")
                 # base64_to_image(result_base64, output_path)
                 mismatch_list.append(i + 1)
-        mismatch_list, base64_strings, continuous = process_mismatch_lists(mismatch_list, base64_strings, threshold=10)
 
+    mismatch_list, base64_strings, continuous = process_mismatch_lists(mismatch_list, base64_strings, threshold=10)
     # save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
     #             mismatch_list, base64_strings, continuous, None)
     doc1.close()
@@ -237,3 +255,29 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
 
 # if __name__ == "__main__":
 #     main("username", '7.pdf', '8.pdf',"file1_name", "file2_name", 18, 17)
+class FullPageHandler(MainHandler):
+    @run_on_executor
+    def process_async(self, username, file1, file2,file1_name, file2_name, page_num1, page_num2):
+        return check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, page_num2)
+    async def post(self):
+        username = self.current_user
+        param = tornado.escape.json_decode(self.request.body)
+        file_path_1 = param['file_path_1']
+        file_path_2 = param['file_path_2']
+        page_num1 = int(param['start_1'])
+        page_num2 = int(param['start_2'])
+        filename1 = os.path.basename(file_path_1)
+        filename2 = os.path.basename(file_path_2)
+        code, pages, imgs_base64, error_msg, msg = await self.process_async(username,
+                                                                           file_path_1, file_path_2, filename1,
+                                                                           filename2, page_num1, page_num2)
+        custom_data = {
+            "code": code,
+            "data": {
+                'pages': pages,
+                'imgs_base64': imgs_base64,
+                'error_msg': error_msg
+            },
+            "msg": msg
+        }
+        self.write(custom_data)
