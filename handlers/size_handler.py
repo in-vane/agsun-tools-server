@@ -13,10 +13,12 @@ from utils import img2base64
 
 from tornado.concurrent import run_on_executor
 
+from save_filesys_db import save_CEsize
 import sys
 sys.path.append("..")
 
-
+CODE_SUCCESS = 0
+CODE_ERROR = 1
 MODE_RECT = 0  # 检测矩形
 MODE_CIR = 1  # 检测圆形
 MODE_MARK = 0  # 使用标注尺寸
@@ -117,7 +119,7 @@ def compare(a, b):
     return abs(a - b) > 1
 
 
-def check_size(file, options, params):
+def check_size(username, filename, file, options, params):
     doc = fitz.open(stream=(io.BytesIO(file)))
     page = doc.load_page(0)
 
@@ -144,22 +146,22 @@ def check_size(file, options, params):
 
     img_base64 = img2base64(img)
     img_base64 = f"{BASE64_PNG}{img_base64}"
-
+    save_CEsize(username, doc, filename, CODE_SUCCESS, is_error, message, img_base64, '')
     doc.close()
 
-    return is_error, message, img_base64
+    return CODE_SUCCESS, is_error, message, img_base64, ''
 
 
 class SizeHandler(MainHandler):
     @run_on_executor
-    def process_async(self, body, options, params):
-        return check_size(body, options, params)
+    def process_async(self, username, filename, body, options, params):
+        return check_size(username, filename, body, options, params)
 
     @need_auth
     async def post(self):
         username = self.current_user
         files = self.get_files()
-        body = files[0]["body"]
+        filename, body = files[0]["filename"], files[0]["body"]
         mode = int(self.get_argument('mode', default=0))
         active = int(self.get_argument('active', default=0))
         width = int(self.get_argument('width', default=-1))
@@ -176,12 +178,13 @@ class SizeHandler(MainHandler):
             "radius": radius,
         }
 
-        error, msg, img_base64 = await self.process_async(body, options, params)
+        code, error, message, img_base64, msg = await self.process_async(username, filename, body, options, params)
         custom_data = {
-            "code": 0,
+            "code": code,
             "data": {
                 "error": error,
-                "img_base64": img_base64
+                "img_base64": img_base64,
+                "message": message
             },
             "msg": msg,
         }

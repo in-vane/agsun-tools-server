@@ -4,8 +4,8 @@ import pymysql
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'admin',
-    'database': 'jishen',
+    'password': 'root',
+    'database': 'jisen',
     'charset': 'utf8'
 }
 
@@ -241,6 +241,35 @@ class CheckLine:
                 """
                 cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
                                self.pdf_path, self.pdf_name, self.result, self.result_file))
+                connection.commit()
+        finally:
+            connection.close()
+
+
+class CheckCEsize:
+    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result, is_error):
+        self.username = username
+        self.dataline = dataline
+        self.work_num = work_num
+        self.pdf_path = pdf_path
+        self.pdf_name = pdf_name
+        self.result = result
+        self.is_error = is_error
+
+    def save_to_db(self):
+        connection = pymysql.connect(host=DB_CONFIG['host'],
+                                     user=DB_CONFIG['user'],
+                                     password=DB_CONFIG['password'],
+                                     database=DB_CONFIG['database'],
+                                     charset=DB_CONFIG['charset'])
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                INSERT INTO `check_size` (`username`, `dataline`, `work_num`, `pdf_path`, `pdf_name`, `result`, `is_error`) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result, self.is_error))
                 connection.commit()
         finally:
             connection.close()

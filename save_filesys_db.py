@@ -372,14 +372,14 @@ def save_Line(username, doc, base_file_name, code,  msg):
     # 动态设置PDF输出路径
     pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
     doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    output_path = os.path.join(result_dir, f'output')
+    output_path = os.path.join(result_dir, f'{base_file_name}')
     doc.save(output_path)
     # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
     pdf_name = f'{base_file_name}'
     result_path = result_dir
-    check_pagenumber_instance = CheckLanguage(
+    check_pagenumber_instance = CheckLine(
         username=username,
         dataline=dataline,
         work_num='007',  # 这里需要根据实际情况赋值
@@ -387,5 +387,46 @@ def save_Line(username, doc, base_file_name, code,  msg):
         pdf_name=pdf_name,
         result=result_path,
         result_file=output_path,
+    )
+    check_pagenumber_instance.save_to_db()
+    return output_path
+
+
+def save_CEsize(username, doc,base_file_name, code, is_error, message, img_base64, msg):
+    base_dir = f'{ROOT}/008'
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
+                                                                                    base_dir)
+    # 确保PDF和结果目录存在
+    os.makedirs(pdf_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+    # 保存文件系统
+    # 动态设置PDF输出路径
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
+    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
+    # 如果存在错误，则保存问题列表
+    if code == 1:
+        with open(result_file_path, 'w') as result_file:
+            result_file.write(msg)
+    else:
+        with open(result_file_path, 'w') as result_file:
+            result_file.write(f'{message}')
+        image_base64 = []
+        image_base64.append(img_base64)
+        images_to_directory(image_base64, image_result_dir)
+
+    # 保存数据库
+    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
+    result_path = result_dir
+    # 创建实例并保存到数据库
+    check_pagenumber_instance = CheckCEsize(
+        username=username,
+        dataline=dataline,
+        work_num='008',  # 这里需要根据实际情况赋值
+        pdf_path=pdf_path,
+        pdf_name=pdf_name,
+        result=result_path,
+        is_error=is_error
     )
     check_pagenumber_instance.save_to_db()
