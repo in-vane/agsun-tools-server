@@ -8,7 +8,7 @@ from save_filesys_db import save_Line
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
-PDF_OUTPUT = './assets/pdf/temp.pdf'
+# PDF_OUTPUT = './assets/pdf/temp.pdf'
 
 def thicken_lines_in_all_pages(doc, new_line_width=0.5):
     for page_number in range(len(doc)):
@@ -30,14 +30,14 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
 
 
 
-    doc.save(PDF_OUTPUT)
+    # doc.save(PDF_OUTPUT)
 
 
 def check_line(username, file, filename):
     doc = fitz.open(file)
     thicken_lines_in_all_pages(doc)
-    save_Line(username, doc, filename, CODE_SUCCESS,'')
-    return CODE_SUCCESS, PDF_OUTPUT, ''
+    output_path = save_Line(username, doc, filename, CODE_SUCCESS,'')
+    return CODE_SUCCESS, output_path, ''
 
 
 # pdf_path = '1.pdf'  # Replace with the path to your PDF file
