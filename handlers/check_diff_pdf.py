@@ -123,8 +123,8 @@ def draw_red_frame(base64_img):
 
     # 将图像转换回 base64 编码
     _, buffer = cv2.imencode('.jpg', img)
-    framed_base64_img = base64.b64encode(buffer).decode('utf-8')
-    return framed_base64_img
+    image_base64 = base64.b64encode(buffer).decode('utf-8')
+    return f"{BASE64_PNG}{image_base64}"
 
 
 def pdf_page_to_image(pdf_path, page_number):
