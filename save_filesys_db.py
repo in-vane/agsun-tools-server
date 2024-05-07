@@ -5,9 +5,9 @@ import os
 from datetime import datetime
 from model import *
 from openpyxl import load_workbook
-
+from config import BASE64_PNG
 # 全局变量定义
-ROOT = '/home/zhanghantao/agsun-tools-server/db'
+ROOT = './agsun-tools-server/db'
 
 
 # 动态设置基础目录的函数
@@ -27,7 +27,7 @@ def setup_directory_paths(userinfo, base_dir):
     return pdf_dir, result_dir, result_file_path, image_result_dir
 
 
-def images_to_directory(base64_images, image_result_dir):
+def images_to_directory(base64_images, image_result_dir, name='output'):
     """
     将Base64编码的图像列表转换为图像并保存到指定目录。
 
@@ -44,16 +44,19 @@ def images_to_directory(base64_images, image_result_dir):
 
         # 使用BytesIO将二进制数据转换成图像
         image = Image.open(BytesIO(img_data))
+        # 检查图像模式，如果是'RGBA'，转换为'RGB'
+        if image.mode == 'RGBA':
+            image = image.convert('RGB')
 
         # 构建输出文件路径
-        output_path = os.path.join(image_result_dir, f"error_page_{idx}.jpeg")
+        output_path = os.path.join(image_result_dir, f"{name}_{idx}.jpeg")
 
         # 保存图像到文件系统
         image.save(output_path)
 
 
 def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, msg):
-    base_dir = f'{ROOT}/001'
+    base_dir = f'{ROOT}/006'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在
@@ -82,7 +85,7 @@ def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, m
                     # Construct the string for the current item
                     result = f"型号{model_type}螺丝，螺丝包螺丝有{total_screws}个，而步骤螺丝总和有{step_total}，分别在" + \
                              "，".join(f"{page}页出现{count}个" for page,
-                                      count in zip(step_page_no, step_counts))
+                             count in zip(step_page_no, step_counts))
                     result_file.write(result)
         else:
             is_error = 0
@@ -108,7 +111,7 @@ def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, m
 
 
 def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
-    base_dir = f'{ROOT}/002'
+    base_dir = f'{ROOT}/005'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
                                                                                     base_dir)
     # 确保PDF和结果目录存在
@@ -151,7 +154,7 @@ def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error
 
 
 def save_Language(username, doc, base_file_name, code, language_page, language, msg):
-    base_dir = f'{ROOT}/003'
+    base_dir = f'{ROOT}/009'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在
@@ -198,7 +201,7 @@ def save_Language(username, doc, base_file_name, code, language_page, language, 
 
 
 def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_base64, msg):
-    base_dir = f'{ROOT}/004'
+    base_dir = f'{ROOT}/007'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在
@@ -242,7 +245,7 @@ def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_bas
 
 
 def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
-    base_dir = f'{ROOT}/005'
+    base_dir = f'{ROOT}/002'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在
@@ -300,7 +303,7 @@ def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64
 
 
 def save_Part_count(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
-    base_dir = f'{ROOT}/006'
+    base_dir = f'{ROOT}/004'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
                                                                                     base_dir)
     # 确保PDF和结果目录存在
@@ -361,8 +364,9 @@ def save_Part_count(username, doc, base_file_name, code, mapping_results, note, 
     )
     check_part_count_instance.save_to_db()
 
-def save_Line(username, doc, base_file_name, code,  msg):
-    base_dir = f'{ROOT}/007'
+
+def save_Line(username, doc, base_file_name, code, msg):
+    base_dir = f'{ROOT}/011'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
         username, base_dir)
     # 确保PDF和结果目录存在
@@ -392,7 +396,7 @@ def save_Line(username, doc, base_file_name, code,  msg):
     return output_path
 
 
-def save_CEsize(username, doc,base_file_name, code, is_error, message, img_base64, msg):
+def save_CEsize(username, doc, base_file_name, code, is_error, message, img_base64, msg):
     base_dir = f'{ROOT}/008'
     pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
                                                                                     base_dir)
@@ -430,3 +434,99 @@ def save_CEsize(username, doc,base_file_name, code, is_error, message, img_base6
         is_error=is_error
     )
     check_pagenumber_instance.save_to_db()
+
+
+def save_Area(username, doc1, file_name1, doc2, file_name2, code, base64_data_old, base64_data_new, img_base64, msg):
+    base_dir = f'{ROOT}/001'
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
+                                                      base_dir)
+    os.makedirs(pdf_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+    # 保存文件系统
+    # 动态设置PDF输出路径
+    pdf_output_path1 = os.path.join(pdf_dir, f'{file_name1}')
+    pdf_output_path2 = os.path.join(pdf_dir, f'{file_name2}')
+    doc1.save(pdf_output_path1)
+    doc2.save(pdf_output_path2)
+    # 如果存在错误，则保存问题列表
+    if code == 1:
+        with open(result_file_path, 'w') as result_file:
+            result_file.write(msg)
+    else:
+        old = []
+        new = []
+        out = []
+        base64_data_old = f"{BASE64_PNG}{base64_data_old}"
+        base64_data_new = f"{BASE64_PNG}{base64_data_new}"
+        img_base64 = f"{BASE64_PNG}{img_base64}"
+        old.append(base64_data_old)
+        new.append(base64_data_new)
+        out.append(img_base64)
+        images_to_directory(old, image_result_dir, name='old')
+        images_to_directory(new, image_result_dir, name='new')
+        images_to_directory(out, image_result_dir, name='output')
+
+    # 保存数据库
+    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf_path1 = os.path.join(pdf_dir, f'{file_name1}')
+    pdf_name1 = f'{file_name1}'
+    pdf_path2 = os.path.join(pdf_dir, f'{file_name2}')
+    pdf_name2 = f'{file_name2}'
+    result_path = result_dir
+    # 创建实例并保存到数据库
+    CheckArea_instance = CheckArea(
+        username=username,
+        dataline=dataline,
+        work_num='009',  # 这里需要根据实际情况赋值
+        pdf_path1=pdf_path1,
+        pdf_name1=pdf_name1,
+        pdf_path2=pdf_path2,
+        pdf_name2=pdf_name2,
+        result=result_path,
+    )
+    CheckArea_instance.save_to_db()
+
+
+def save_Icon(username, doc, base_file_name, code, base64_data_old, base64_data_new, img_base64, msg):
+    base_dir = f'{ROOT}/010'
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
+                                                      base_dir)
+    # 确保PDF和结果目录存在
+    os.makedirs(pdf_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+    # 保存文件系统
+    # 动态设置PDF输出路径
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
+    if not os.path.exists(pdf_output_path):
+        # 文件不存在，要保存
+        doc.save(pdf_output_path)
+    # 如果存在错误，则保存问题列表
+    if code == 1:
+        with open(result_file_path, 'w') as result_file:
+            result_file.write(msg)
+    else:
+        old = []
+        new = []
+        out = []
+        old.append(base64_data_old)
+        new.append(base64_data_new)
+        out.append(img_base64)
+        images_to_directory(old, image_result_dir, name='old')
+        images_to_directory(new, image_result_dir, name='new')
+        images_to_directory(out, image_result_dir, name='output')
+
+    # 保存数据库
+    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
+    result_path = result_dir
+    # 创建实例并保存到数据库
+    CheckIcon_instance = CheckIcon(
+        username=username,
+        dataline=dataline,
+        work_num='010',  # 这里需要根据实际情况赋值
+        pdf_path=pdf_path,
+        pdf_name=pdf_name,
+        result=result_path,
+    )
+    CheckIcon_instance.save_to_db()

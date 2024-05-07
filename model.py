@@ -4,8 +4,8 @@ import pymysql
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'root',
-    'database': 'jisen',
+    'password': 'h0ld?Fish:Palm',
+    'database': 'agsun',
     'charset': 'utf8'
 }
 
@@ -270,6 +270,62 @@ class CheckCEsize:
                 """
                 cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
                                self.pdf_path, self.pdf_name, self.result, self.is_error))
+                connection.commit()
+        finally:
+            connection.close()
+
+class CheckArea:
+    def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1, pdf_path2, pdf_name2, result):
+        self.username = username
+        self.dataline = dataline
+        self.work_num = work_num
+        self.pdf_path1 = pdf_path1
+        self.pdf_name1 = pdf_name1
+        self.pdf_path2 = pdf_path2
+        self.pdf_name2 = pdf_name2
+        self.result = result
+
+    def save_to_db(self):
+        connection = pymysql.connect(host=DB_CONFIG['host'],
+                                     user=DB_CONFIG['user'],
+                                     password=DB_CONFIG['password'],
+                                     database=DB_CONFIG['database'],
+                                     charset=DB_CONFIG['charset'])
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                INSERT INTO `check_area` (`username`, `dataline`, `work_num`, `pdf_path1`, `pdf_name1`, `pdf_path2`, `pdf_name2`, `result`) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
+                               self.pdf_path1, self.pdf_name1, self.pdf_path2, self.pdf_name2, self.result))
+                connection.commit()
+        finally:
+            connection.close()
+
+class CheckIcon:
+    def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result):
+        self.username = username
+        self.dataline = dataline
+        self.work_num = work_num
+        self.pdf_path = pdf_path
+        self.pdf_name = pdf_name
+        self.result = result
+
+    def save_to_db(self):
+        connection = pymysql.connect(host=DB_CONFIG['host'],
+                                     user=DB_CONFIG['user'],
+                                     password=DB_CONFIG['password'],
+                                     database=DB_CONFIG['database'],
+                                     charset=DB_CONFIG['charset'])
+        try:
+            with connection.cursor() as cursor:
+                sql = """
+                INSERT INTO `check_icon` (`username`, `dataline`, `work_num`, `pdf_path`, `pdf_name`, `result`) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """
+                cursor.execute(sql, (self.username['username'], self.dataline, self.work_num,
+                               self.pdf_path, self.pdf_name, self.result))
                 connection.commit()
         finally:
             connection.close()

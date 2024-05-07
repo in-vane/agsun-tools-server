@@ -1,17 +1,28 @@
 import cv2
 import numpy as np
+import os
 from skimage.metrics import structural_similarity
+import fitz
+import base64
+from PIL import Image
+from io import BytesIO
+
+from save_filesys_db import save_Area
 
 from main import MainHandler, need_auth
 from config import BASE64_PNG
 from utils import base642img, img2base64
 
 from tornado.concurrent import run_on_executor
+import tornado
 
 import sys
 sys.path.append("..")
 
 DPI = 300
+CODE_SUCCESS = 0
+CODE_ERROR = 1
+Image_PATH = './assets/image'
 
 
 def resize(base64_1, base64_2):
@@ -81,8 +92,7 @@ def resize(base64_1, base64_2):
 
     return image_A, image_B_aligned
 
-
-def compare_explore(base64_data_old: str, base64_data_new: str):
+def compare_explore(username, filename1, file1, filename2, file2, base64_data_old: str, base64_data_new: str):
     # img_[number]: base64
     before, after = resize(base64_data_old, base64_data_new)
 
@@ -118,21 +128,31 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
             cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
 
     image_base64 = img2base64(filled_after)
+    doc1 = fitz.open(file1)
+    doc2 = fitz.open(file2)
+    msg = ''
+    save_Area(username, doc1, filename1, doc2, filename2, CODE_SUCCESS, base64_data_old, base64_data_new, image_base64, msg)
+    return CODE_SUCCESS, f"{BASE64_PNG}{image_base64}", msg
 
-    return f"{BASE64_PNG}{image_base64}"
 
 
 class AreaHandler(MainHandler):
     @run_on_executor
-    def process_async(self, img_1, img_2):
-        return compare_explore(img_1, img_2)
+    def process_async(self, username, filename1, file1, filename2, file2, img_1, img_2):
+        return compare_explore(username, filename1, file1, filename2, file2, img_1, img_2)
+
 
     @need_auth
     async def post(self):
         username = self.current_user
-        img_1 = self.get_argument('img_1')
-        img_2 = self.get_argument('img_2')
-        img_base64 = await self.process_async(img_1, img_2)
+        param = tornado.escape.json_decode(self.request.body)
+        file1 = param['file_path_1']
+        filename1 = os.path.basename(file1)
+        file2 = param['file_path_2']
+        filename2 = os.path.basename(file2)
+        img_1 = param['img_1']
+        img_2 = param['img_2']
+        code, img_base64, msg = await self.process_async(username, filename1, file1, filename2, file2, img_1, img_2)
         custom_data = {
             "result": img_base64
         }
