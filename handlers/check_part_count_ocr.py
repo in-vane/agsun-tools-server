@@ -721,7 +721,9 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
             error_message=aligned_images
         else:
             differences = calculate_image_difference(base_image, aligned_images)                    
-            images_base64= convert_images_to_base64(differences) 
+            images= convert_images_to_base64(differences)
+            images_base64.append(images)
+            images_base64.insert(0, page_number[1:])
     if (not digit_to_part_mapping) and not images_base64:
         if not error_message:
             custom_data = {

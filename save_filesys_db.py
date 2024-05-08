@@ -561,7 +561,7 @@ def save_Part_count_ocr(username, doc, base_file_name, code, mapping_results, no
 
         # 检查 error_pages 是否不为空
         if error_pages:  # 确认存在实际的页码信息
-            images_to_directory(error_pages, image_result_dir)
+            images_to_directory(error_pages[1], image_result_dir)
             has_error = True  # 发现错误，更新错误标志
         # 如果没有发现任何错误，打印统一的消息
         if not has_error:
