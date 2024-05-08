@@ -206,7 +206,7 @@ def get_step_screw(doc, pages, result_dict):
 def check_total_and_step(doc, result_dict, step_page):
     count_mismatch = {}  # 数量不匹配的情况
 
-    letter_counts, letter_count, letter_pageNumber, image_page = get_step_screw(
+    letter_counts, letter_pageNumber, letter_count, image_page = get_step_screw(
         doc, step_page, result_dict)
 
     # 检查两个字典中的数量是否匹配
