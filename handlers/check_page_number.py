@@ -81,9 +81,15 @@ def extract_page_numbers(doc, rect):
     for page_num in range(total_pages):
         page = doc.load_page(page_num)  # 加载当前页
 
-        # 根据传入的列表定义页脚区域
-        # rect[0], rect[1] 是左上角的坐标，rect[0]+rect[2] 和 rect[1]+rect[3] 是右下角的坐标
-        footer_rect = fitz.Rect(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
+        if rect in ([0.0, 0.0, 0.0, 0.0], [0, 0, 0, 0]):
+            # 如果 rect 为 [0.0, 0.0, 0.0, 0.0]，则重新定义页脚区域
+            page_width = page.rect.width
+            page_height = page.rect.height
+
+            footer_rect = fitz.Rect(0.0, page_height - 65, page_width, page_height)
+        else:
+            # 使用传入的 rect 参数定义页脚区域
+            footer_rect = fitz.Rect(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
 
         # 从页脚区域提取文本
         footer_text = page.get_text("text", clip=footer_rect)
