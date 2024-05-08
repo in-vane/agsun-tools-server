@@ -5,7 +5,7 @@ import hashlib
 from langdetect import detect
 
 
-MiniLM_PATH = "/home/zhanghantao/agsun-tools-server/tasks/check_ce/mode_normal/all-MiniLM-L6-v2/"
+MiniLM_PATH = "/home/zhanghantao/agsun-tools-server/handlers/check_ce/mode_normal/all-MiniLM-L6-v2/"
 
 
 def compute_cosine_similarity(text1, text2):
