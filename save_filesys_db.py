@@ -37,7 +37,6 @@ def images_to_directory(base64_images, image_result_dir, name='output'):
     # 确保输出目录存在
     if not os.path.exists(image_result_dir):
         os.makedirs(image_result_dir)
-
     for idx, base64_str in enumerate(base64_images, start=1):
         # 移除"data:image/jpeg;base64,"部分，仅解码Base64编码的数据
         img_data = base64.b64decode(base64_str.split(",")[1])
@@ -530,3 +529,61 @@ def save_Icon(username, doc, base_file_name, code, base64_data_old, base64_data_
         result=result_path,
     )
     CheckIcon_instance.save_to_db()
+
+def save_Part_count_ocr(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
+    base_dir = f'{ROOT}/012'
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
+                                                                                    base_dir)
+    # 确保PDF和结果目录存在
+    os.makedirs(pdf_dir, exist_ok=True)
+    os.makedirs(result_dir, exist_ok=True)
+    # 保存文件系统
+    # 动态设置PDF输出路径
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
+    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
+    # 如果存在错误，则保存问题列表
+    if code == 1:
+        with open(result_file_path, 'w') as result_file:
+            result_file.write(msg)
+    else:
+        has_error = False  # 错误标志初始化为False
+
+        # 检查 mapping_results 是否有 false
+        for result in mapping_results:
+            serial, is_correct, explosion_count, detail_count = result
+            if not is_correct:
+                print(
+                    f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
+                with open(result_file_path, 'w') as result_file:
+                    result_file.write(
+                        f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
+                has_error = True  # 发现错误，更新错误标志
+
+        # 检查 error_pages 是否不为空
+        if error_pages:  # 确认存在实际的页码信息
+            images_to_directory(error_pages, image_result_dir)
+            has_error = True  # 发现错误，更新错误标志
+        # 如果没有发现任何错误，打印统一的消息
+        if not has_error:
+            print('该文件爆炸图零件和不同语言的零件明细表都无错误。')
+            with open(result_file_path, 'w') as result_file:
+                result_file.write('该文件爆炸图零件和不同语言的零件明细表都无错误。')
+                result_file.write(note)
+        else:
+            with open(result_file_path, 'w') as result_file:
+                result_file.write(note)
+    # 保存数据库
+    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_name = f'{base_file_name}'
+    result_path = result_dir
+    # 创建实例并保存到数据库
+    check_part_count_instance = CheckPartCount(
+        username=username,
+        dataline=dataline,
+        work_num='008',  # 这里需要根据实际情况赋值
+        pdf_path=pdf_path,
+        pdf_name=pdf_name,
+        result=result_path,
+    )
+    check_part_count_instance.save_to_db()

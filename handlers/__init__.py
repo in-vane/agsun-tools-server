@@ -13,6 +13,7 @@ from .check_line import check_line
 
 from .login import LoginHandler
 from .check_part_count import PartCountHandler
+from .check_part_count_ocr import PartCountHandlerOcr
 from .check_line import LineHandler
 from .check_page_number import PageNumberHandler
 from .check_diff_pdf import FullPageHandler
