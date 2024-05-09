@@ -9,6 +9,8 @@ import numpy as np
 from PIL import Image
 import io
 
+from save_filesys_db import save_Icon
+
 DPI = 300
 BASE64_JPG = 'data:image/jpeg;base64,'
 
@@ -339,7 +341,7 @@ class ocrImg2ImgDifference(ocrImg2imgDifference):
             return custom_data
 
 
-def check_ocr_char(filename, img_base64, page_num):
+def check_ocr_char(username, filename, img_base64, page_num):
     pdf_path = f"./assets/pdf/{filename}"
     # 解码 base64 字符串为图像数据
     image_data_1 = base64.b64decode(img_base64.split(',')[-1])
@@ -366,6 +368,8 @@ def check_ocr_char(filename, img_base64, page_num):
         image_base64_2 = base64.b64encode(image_buffer).decode('utf-8')
         custom_data['result'][0] = f"{BASE64_JPG}{image_base64_1}"
         custom_data['result'][1] = f"{BASE64_JPG}{image_base64_2}"
+        # save_Icon(username, doc, filename, page_num, custom_data)
         return custom_data
     else:
+        # save_Icon(username, doc, filename, page_num, custom_data)
         return custom_data

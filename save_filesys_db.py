@@ -1,4 +1,6 @@
 from io import BytesIO
+
+import fitz
 from PIL import Image
 import base64
 import os
@@ -26,6 +28,19 @@ def setup_directory_paths(userinfo, base_dir):
 
     return pdf_dir, result_dir, result_file_path, image_result_dir
 
+def setup_directory_paths_no_time(userinfo,filename,page_number, base_dir):
+    current_year = datetime.now().strftime('%Y')
+    current_month_day = datetime.now().strftime('%m%d')
+    unique_identifier = userinfo['username']  # 根据实际情况动态赋值
+    pdf_dir = os.path.join(base_dir, current_year,
+                            current_month_day, f"{filename}.pdf")
+    user_dir = os.path.join(base_dir, current_year,
+                           current_month_day, f"{filename}.pdf", unique_identifier)
+    result_dir = os.path.join(user_dir, f"page_number_{page_number}")
+    result_file_path = os.path.join(result_dir, f'output.txt')
+    image_result_dir = os.path.join(result_dir, 'image')
+
+    return pdf_dir, result_dir, result_file_path, image_result_dir
 
 def images_to_directory(base64_images, image_result_dir, name='output'):
     """
@@ -487,35 +502,26 @@ def save_Area(username, doc1, file_name1, doc2, file_name2, code, base64_data_ol
     CheckArea_instance.save_to_db()
 
 
-def save_Icon(username, doc, base_file_name, code, base64_data_old, base64_data_new, img_base64, msg):
+def save_Icon(username, doc, base_file_name, page_number, custom_data):
     base_dir = f'{ROOT}/010'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                      base_dir)
+    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths_no_time(username,
+                                                      base_file_name,page_number, base_dir)
     # 确保PDF和结果目录存在
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
     # 保存文件系统
     # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
+    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
     if not os.path.exists(pdf_output_path):
         # 文件不存在，要保存
         doc.save(pdf_output_path)
-    # 如果存在错误，则保存问题列表
-    if code == 1:
+    if custom_data.get('error', False) == False:
         with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
+            result_file.write(custom_data['result'][0])
     else:
-        old = []
-        new = []
-        out = []
-        old.append(base64_data_old)
-        new.append(base64_data_new)
-        out.append(img_base64)
-        images_to_directory(old, image_result_dir, name='old')
-        images_to_directory(new, image_result_dir, name='new')
-        images_to_directory(out, image_result_dir, name='output')
+        image_base64 = custom_data["result"]
+        images_to_directory(image_base64, image_result_dir)
 
-    # 保存数据库
     dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
     pdf_name = f'{base_file_name}'

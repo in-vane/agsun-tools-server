@@ -355,10 +355,10 @@ class OcrHandler(MainHandler):
         custom_data = {}
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
-            custom_data = handlers.check_ocr_char(filename, crop, page_num)
+            custom_data = handlers.check_ocr_char(username, filename, crop, page_num)
         if mode == self.MODE_ICON:
             print("== MODE_ICON ==")
-            custom_data = handlers.check_ocr_icon(filename, crop, page_num)
+            custom_data = handlers.check_ocr_icon(username, filename, crop, page_num)
 
         self.write(custom_data)
 
