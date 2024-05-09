@@ -182,10 +182,6 @@ def check_ocr_icon(username, filename, img1, page_num):
         large_contours2 = detect_and_filter_contours(custom_data['result'][1])
         img1_aligned_highlighted, img2_highlighted = highlight_unmatched_contours(cv2.cvtColor(
             custom_data['result'][0], cv2.COLOR_GRAY2BGR), cv2.cvtColor(custom_data['result'][1], cv2.COLOR_GRAY2BGR), large_contours1, large_contours2)
-        cv2.imwrite(
-            'D:/PycharmProjects/part_count/material/result1.png', img1_aligned_highlighted)
-        cv2.imwrite(
-            'D:/PycharmProjects/part_count/material/result2.png', img2_highlighted)
         _, image_buffer = cv2.imencode('.jpeg', img1_aligned_highlighted)
         image_base64_1 = base64.b64encode(image_buffer).decode('utf-8')
         _, image_buffer = cv2.imencode('.jpeg', img2_highlighted)
