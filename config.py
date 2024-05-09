@@ -10,3 +10,11 @@ BASE64_JPG = 'data:image/jpeg;base64,'
 
 # content-type类型
 CONTENT_TYPE_PDF = "application/pdf"
+
+# LIBREOFFICE路径
+LIBREOFFICE_PATH = "/usr/bin/soffice"
+# all-MiniLM-L6-v2文件路径
+MiniLM_PATH = "all-MiniLM-L6-v2"
+# 百度翻译账号密码
+app_id = '20240303001981368'
+secret_key = '0_Nq4RdREx1L31eWiDbr'

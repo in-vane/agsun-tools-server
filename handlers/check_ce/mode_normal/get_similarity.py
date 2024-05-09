@@ -3,9 +3,9 @@ from sentence_transformers import SentenceTransformer, util
 import requests
 import hashlib
 from langdetect import detect
+from config import MiniLM_PATH, app_id, secret_key
 
-
-MiniLM_PATH = "all-MiniLM-L6-v2"
+# MiniLM_PATH = "all-MiniLM-L6-v2"
 
 
 def compute_cosine_similarity(text1, text2):
@@ -121,7 +121,7 @@ def compare_dictionaries(red_text_data, table_data):
     return message_dict
 
 
-def baidu_translate(data_dict, app_id='20240303001981368', secret_key='0_Nq4RdREx1L31eWiDbr', from_lang='auto', to_lang='en'):
+def baidu_translate(data_dict, app_id=app_id, secret_key=secret_key, from_lang='auto', to_lang='en'):
     translated_dict = {}
     base_url = "https://fanyi-api.baidu.com/api/trans/vip/translate"
     salt = '123456'

@@ -14,7 +14,7 @@ import jpype
 from main import MainHandler
 import tornado
 from tornado.concurrent import run_on_executor
-from config import CONTENT_TYPE_PDF
+from config import CONTENT_TYPE_PDF, LIBREOFFICE_PATH
 
 import asposecells
 jpype.startJVM()
@@ -23,7 +23,7 @@ from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
 from .get_table_message import all
 from save_filesys_db import save_CE
 
-LIBREOFFICE_PATH = "/usr/bin/soffice"
+# LIBREOFFICE_PATH = "/usr/bin/soffice"
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 EXCEL_PATH = './assets/excel/temp.xlsx'
