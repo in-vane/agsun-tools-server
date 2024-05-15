@@ -27,7 +27,6 @@ from save_filesys_db import save_CE
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 EXCEL_PATH = './assets/excel/temp.xlsx'
-IMAGE_PATH = './assets/images/temp.png'
 PDF_PATH = './assets/pdf/temp.pdf'
 BASE64_PNG = 'data:image/png;base64,'
 
@@ -126,6 +125,16 @@ def excel_to_iamge(excel_path, num):
     # jpype.shutdownJVM()
     return f"{BASE64_PNG}{img_base64}"
 
+def pdf_to_image(doc):
+    # 加载第一页
+    page = doc.load_page(0)  # 页面索引从0开始，0表示第一页
+    # 将页面转换为图像
+    pix = page.get_pixmap()
+    # 将图像数据转换为PNG格式的二进制数据
+    img_data = pix.tobytes("png")
+    # 对图像数据进行Base64编码
+    img_base64 = base64.b64encode(img_data).decode('utf-8')
+    return f"{BASE64_PNG}{img_base64}"
 
 # 将xls文件转化为xlsx文件
 def convert_xls_bytes_to_xlsx(file_bytes):
@@ -216,14 +225,15 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
     print(f"工作表为: {work_table}")
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
-    image_base64 = excel_to_iamge(EXCEL_PATH, num)
+    excel_image_base64 = excel_to_iamge(EXCEL_PATH, num)
     save_CE(username, doc, EXCEL_PATH, name1, name2,
-            work_table, CODE_SUCCESS, image_base64, None)
+            work_table, CODE_SUCCESS, excel_image_base64, None)
     os.remove(EXCEL_PATH)
-    # os.remove(PDF_PATH)
+    os.remove(PDF_PATH)
+    pdf_image_base64 = pdf_to_image(doc)
     doc.close()
     wb.close()
-    return CODE_SUCCESS, image_base64, None
+    return CODE_SUCCESS, excel_image_base64, pdf_image_base64, None
 
 
 # 测试
@@ -253,12 +263,13 @@ class CEHandler(MainHandler):
             file_pdf, file_excel = file_2_body, file_1_body
             pdf_name, excel_name = name2, name1
         if mode == 0:
-            code, image_base64, msg = await self.process_async(username,
+            code, excel_image_base64, pdf_image_base64, msg = await self.process_async(username,
                                                                     file_excel, file_pdf, pdf_name, excel_name, num)
         custom_data = {
             "code": code,
             "data": {
-                "image_base64": image_base64
+                "excel_image_base64": excel_image_base64,
+                "pdf_image_base64": pdf_image_base64
             },
             "msg": msg
         }
