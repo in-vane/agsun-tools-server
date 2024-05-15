@@ -143,8 +143,46 @@ def replace_special_chars(text):
 
     return result
 
+def ocr_below_rect(doc, page_number, rect):
+    # 创建OCR reader，假设使用英文
+    reader = easyocr.Reader(['en'])
+    # 加载指定页面
+    page = doc.load_page(page_number - 1)
+    # 计算矩形的底边界
+    bottom_y = rect[1] + rect[3]
+    # 获取页面的尺寸
+    page_height = page.rect.height
+    # 定义从矩形底部到页面底部的区域
+    clip_rect = fitz.Rect(0, bottom_y, page.rect.width, page_height)
+    # 获取区域图像
+    pix = page.get_pixmap(clip=clip_rect)
+    # 将图像数据转换为OpenCV格式的numpy数组
+    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+    if pix.n == 4:  # 有时图片是RGBA需要转换为RGB
+        img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
+    # 使用EasyOCR进行文本识别
+    results = reader.readtext(img)
+    # 提取识别的文本内容并合并成一个字符串
+    texts = ' '.join([result[1] for result in results])
+    return texts
 
-def get_step_screw(doc, pages, result_dict):
+def text_below_rect(doc, page_number, rect):
+    # 页面索引从0开始，因此需要减1
+    page = doc.load_page(page_number - 1)
+
+    # 页面的总高度
+    page_height = page.rect.height
+
+    # 定义从矩形底部到页面底部的区域
+    clip_rect = fitz.Rect(rect[0], rect[1] + rect[3], rect[0] + rect[2], page_height)
+
+    # 提取该区域的文本
+    text = page.get_text("text", clip=clip_rect)
+    return text
+
+def get_step_screw(doc, pages, result_dict, rect_page, rect):
+    rect_page = rect_page + 1
+    print(f"螺丝包页为: {rect_page}")
     # 提取字典键并去除空格
     keys = [key.strip() for key in result_dict.keys()]
 
@@ -159,12 +197,20 @@ def get_step_screw(doc, pages, result_dict):
 
     for page_num in pages:
         page = doc.load_page(page_num - 1)  # Page numbering starts from 0
-        text = page.get_text()
+        if rect_page == page_num:
+            print(f"第{page_num}和螺丝包相同")
+            text = text_below_rect(doc, page_num ,rect)
+        else:
+            text = page.get_text()
         # text = extract_text_from_pdf(doc, page_num)
         matches = re.findall(pattern, text)
         print(f"matches:{matches}matches")
         if len(matches) == 0:
-            text = extract_text_from_pdf(doc, page_num)
+            if page_num == rect_page:
+                print(f"第{page_num}和螺丝包相同")
+                text = ocr_below_rect(doc, page_num, rect)
+            else:
+                text = extract_text_from_pdf(doc, page_num)
             print(f"{page_num}可能是图片，开始ocr识别")
             text = replace_special_chars(text)
             print(f"{page_num}:{text}")
@@ -203,11 +249,11 @@ def get_step_screw(doc, pages, result_dict):
     return letter_counts, letter_pageNumber, letter_count, image_page
 
 
-def check_total_and_step(doc, result_dict, step_page):
+def check_total_and_step(doc, result_dict, step_page, rect_page, rect):
     count_mismatch = {}  # 数量不匹配的情况
 
     letter_counts, letter_pageNumber, letter_count, image_page = get_step_screw(
-        doc, step_page, result_dict)
+        doc, step_page, result_dict, rect_page, rect)
 
     # 检查两个字典中的数量是否匹配
     for key in letter_counts:
@@ -256,7 +302,7 @@ def create_dicts(result_dict, count_mismatch, letter_count, letter_pageNumber):
 
 
 # 主函数
-def check_screw(username, file, filename, table, start, end):
+def check_screw(username, file, filename, table, start, end, page, rect):
     print("---begin check_screw---")
     print(f"username : {username}")
     doc = fitz.open(file)
@@ -267,7 +313,7 @@ def check_screw(username, file, filename, table, start, end):
     if start < 1 or end > doc.page_count:
         return CODE_ERROR, {}, '请检查步骤页输入是否正确'
     count_mismatch, letter_count, letter_pageNumber, result_dict, image_page = check_total_and_step(
-        doc, result_dict, step_page)
+        doc, result_dict, step_page, page, rect)
     mismatch_dict, match_dict = create_dicts(
         result_dict, count_mismatch, letter_count, letter_pageNumber)
 
@@ -306,8 +352,8 @@ class ScrewHandler(MainHandler):
         return get_Screw_bags(file, page_number, rect)
 
     @run_on_executor
-    def process_async2(self, username, file, filename, table, start, end):
-        return check_screw(username, file, filename, table, start, end)
+    def process_async2(self, username, file, filename, table, start, end,page, rect):
+        return check_screw(username, file, filename, table, start, end, page, rect)
     async def post(self):
         if self.request.path == "/api/screw/bags":
             param = tornado.escape.json_decode(self.request.body)
@@ -325,10 +371,13 @@ class ScrewHandler(MainHandler):
             table = params['table']
             start = int(params['start'])
             end = int(params['end'])
+            rect = params['rect']
+            page = params['page']
+            rect = [value * 72 / 300 for value in rect]
             file_name = os.path.basename(file)
             print("文件名:", file_name)
             code, data, msg = await self.process_async2(
-                username, file, file_name, table, start, end)
+                username, file, file_name, table, start, end, page, rect)
         else:
             code = 1
             data = {}
