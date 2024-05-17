@@ -1,136 +1,101 @@
 import os
-import shutil
+import pdfplumber
 from io import BytesIO
-
+import time
 import re
-import cv2
 import fitz
 from langdetect import detect
-from ppocronnx.predict_system import TextSystem
 from logger import logger
+import copy
 from save_filesys_db import save_Language
 
 from main import MainHandler
 import tornado
 from tornado.concurrent import run_on_executor
 
-IMAGE_PATH = './assets/images'
-LANGUAGES = ['EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT']
+
+LANGUAGES = [
+    'EN', 'FR', 'NL', 'DE', 'JA', 'ZH', 'ES', 'AR', 'PT', 'RU',
+    'IT', 'KO', 'SV', 'PL', 'TR', 'HE', 'TH', 'CS', 'DA', 'FI',
+    'NO', 'HU', 'ID', 'MS', 'VI', 'EL', 'SK', 'SL', 'BG', 'UK',
+    'HR', 'SI', 'DK', 'CZ'
+]
 CODE_SUCCESS = 0
 CODE_ERROR = 1
+# 获取目录
+def extract_language_message(line):
+    # 创建正则表达式，检测语言缩写和至少一个数字，可能有范围
+    pattern = rf"\b({'|'.join(LANGUAGES)})\b.*?(\d+)(?:-\d+)?"
+
+    # 判断给定的行是否包含语言缩写和数字
+    match = re.search(pattern, line)
+    if match:
+        language = match.group(1)  # 语言缩写
+        start_page = int(match.group(2))  # 起始页码
+        dict = {language: start_page}
+        return dict
+
+    return None
+
+def extract_language(pdf_path, num):
+    language_message = {}  # 初始化一个空字典来存储所有语言信息
+    # 打开 PDF 文件
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[num - 1]  # 页面索引从0开始，因此第三页是索引2
+        text = page.extract_text()
+        # 如果第三页有文本，按行打印
+        if text:
+            for line in text.split('\n'):
+                result = extract_language_message(line)
+                if result:
+                    language_message.update(result)  # 更新字典
+        else:
+            language_message = {}
+    if len(language_message) == 0:
+        language_message = {'DE': 0, 'EN': 0, 'NL': 0}
+        # 如果没有找到任何语言信息，使用OCR扫描页面
+    result_list = []
+    for type_key, count_value in language_message.items():
+        result_list.append({
+            'key': time.time(),  # 获取当前时间戳
+            'language': type_key,  # 语言代码
+            'start': count_value  # 对应的页码
+        })
+    result_list = sorted(result_list, key=lambda x: x['start'])
+    return result_list
+
+def get_language_directory(pdf_path, num):
+    result = extract_language(pdf_path, num)
+    print(f"识别到的语音目录{result}")
+    data = {
+        'result': result
+    }
+    return CODE_SUCCESS, data, ''
 
 
-# 判断单页文本是否为语言目录页。
-def find_language_index_page(page_texts):
-    # 正则表达式用于匹配字符串末尾的页码
-    page_number_pattern = re.compile(r"(\s\d+|\d+)$")
-    language_entries_count = 0
-    current_pagenum = 0
-    directory_information = {}
-    is_index = 0
-
-    for i in range(len(page_texts)):
-        # 只检查每个元素的前两个字符
-        if any(page_texts[i][:2] == lang for lang in LANGUAGES):
-            # 检查当前元素是否以页码结束
-            language = page_texts[i][:2]
-            match = page_number_pattern.search(page_texts[i])
-            if match:
-                page_number = match.group()
-                if (int(page_number) > current_pagenum):
-                    language_entries_count += 1
-                    current_pagenum = int(page_number)
-                    directory_information[language] = int(page_number)
-            # 否则，检查下一个元素是否包含页码
-            elif i + 1 < len(page_texts):
-                next_match = page_number_pattern.match(page_texts[i + 1])
-                if next_match:
-                    next_page_number = next_match.group()
-                    if (int(next_page_number) > current_pagenum):
-                        language_entries_count += 1
-                        i += 1  # 跳过下一个元素，因为它是页码
-                        current_pagenum = int(next_page_number)
-                        directory_information[language] = int(next_page_number)
-
-    # 如果一个页面上有超过两个匹配项，则认为是语言目录页
-    is_index = language_entries_count > 2
-
-    return is_index, directory_information
-
-
-# 使用OCR技术读取图像中的文本，确定语言目录页。
-def get_image_text(extracted_images):
-    text_sys = TextSystem()
-    language_index_pages = []  # 存储识别为语言目录的页面编号
-    directory_information = {}
-    has_match_index = False
-
-    # 检测并识别文本
-    for index, image_path in enumerate(extracted_images):
-        if has_match_index:
-            break
-
-        print(f"Processing page: {index + 1}")  # 打印当前处理的PDF页号
-        img = cv2.imread(image_path)
-        res = text_sys.detect_and_ocr(img)
-        # 仅获取识别的文本内容
-        page_texts = [boxed_result.ocr_text for boxed_result in res]
-
-        # 判断当前页面是否为语言目录页
-        is_index, directory = find_language_index_page(page_texts)
-        logger.info(is_index, directory)
-        if is_index:
-            language_index_pages.append(index + 1)  # 页号是从1开始的
-            directory_information = directory
-            has_match_index = True
-    logger.info(f"directory_information: {directory_information}")
-
-    return language_index_pages, directory_information
-
-
-# pdf转图像
-def convert_pdf_to_images(doc, limit):
-    extracted_images = []
-
-    # 确保文件夹存在
-    if not os.path.exists(IMAGE_PATH):
-        os.makedirs(IMAGE_PATH)
-
-    for page_num in range(len(doc)):
-        if page_num > limit - 1:
-            break
-        page = doc.load_page(page_num)
-        pix = page.get_pixmap()
-        output_image_path = os.path.join(
-            IMAGE_PATH, f"output_page_{page_num}.png")
-        pix.save(output_image_path)
-        extracted_images.append(output_image_path)
-
-    return extracted_images
-
-
-# 提取目录
-def get_directory(doc, limit):
-    # 将PDF页面转换为图像
-    extracted_images = convert_pdf_to_images(doc, limit)
-
-    # 从图像中识别文本
-    language_index_pages, directory_information = get_image_text(
-        extracted_images)
-    print(f"language_index_pages: {language_index_pages}")
-
-    return language_index_pages, directory_information
-
+def convert_list_to_dict(items_list):
+    result_dict = {}
+    for item in items_list:
+        # 将每个条目的'language'作为键，'start'作为值
+        result_dict[item['language']] = item['start']
+    return result_dict
 # 从一个文档中按照不同语言的页码范围提取文本，并将这些文本按语言分类存储在一个字典中。
-def extract_text_by_language(doc, language_pages):
+def extract_text_by_language(doc, language_message, start):
+    # 找出字典中的最小值
+    min_value = min(language_message.values())
+    adjustment = start - min_value
+    print(adjustment)
+    # 更新字典
+    for key in language_message:
+        language_message[key] += adjustment
     # 初始化一个字典，用来存储每种语言的文本
     language_texts = {}
 
     # 总页数
     total_pages = doc.page_count
-
+    print(language_message)
     # 按语言的起始页码排序
-    sorted_languages = sorted(language_pages.items(), key=lambda item: item[1])
+    sorted_languages = sorted(language_message.items(), key=lambda item: item[1])
 
     # 遍历每种语言及其起始页
     for i, (language, start_page) in enumerate(sorted_languages):
@@ -158,11 +123,11 @@ def detect_language_of_texts(texts_by_languages):
 
     for language_code, text in texts_by_languages.items():
         try:
-            detected_language = detect(text)
+            detected_language = detect(text).upper()
             detected_languages[language_code] = detected_language
         except Exception as e:
             detected_languages[language_code] = f"Error: {str(e)}"
-
+    print(detected_languages)
     return detected_languages
 
 # 生成一份关于文档中语言标记和实际检测语言是否匹配的详细报告。其目的是辅助用户了解在文档的不同页码范围内，
@@ -208,60 +173,72 @@ def generate_language_report(mismatched_languages, language_message, total_pages
     return result
 
 
-def find_mismatched_languages(doc, detected_languages, page_number):
+def find_mismatched_languages(detected_languages):
+    # 创建等价的语言代码映射
+    equivalent_languages = {
+        'cz': 'cs',
+        'cs': 'cz',
+        'dk': 'da',
+        'da': 'dk'
+    }
+
     mismatched = {}
 
     # 遍历 detected_languages 字典
     for key, value in detected_languages.items():
-        # 比较键（key）和值（value）是否相同，忽略大小写，如果不匹配则添加到 mismatched 字典中
-        if key.lower() != value.lower():
-            mismatched[key] = value
+        # 将键和值都转为小写，便于比较
+        key_lower = key.lower()
+        value_lower = value.lower()
+
+        # 检查是否匹配，包括等价语言的处理
+        if key_lower != value_lower:
+            # 检查是否是特定的等价语言
+            if key_lower in equivalent_languages:
+                # 如果它们是互相等价的
+                if equivalent_languages[key_lower] != value_lower:
+                    mismatched[key] = value
+            else:
+                mismatched[key] = value
 
     return mismatched
 
 
 # 主函数
-def check_language(username, file, filename, limit):
-    logger.info("---begin check_language---")
-    logger.info(f"username : {username}")
-    logger.info(f"limit : {limit}")
-    doc = fitz.open(stream=BytesIO(file))
-    # doc = fitz.open(file)
+def check_language(username, file, filename, language_message, page):
+    print("---begin check_language---")
+    print(f"username : {username}")
+    doc = fitz.open(file)
+    language_new_message = {}
+    for item in language_message:
+        language = item['language']
+        start = item['start']
+        language_new_message[language] = start
+    for key in language_new_message:
+        language_new_message[key] = int(language_new_message[key])
+    print(f"语音目录为:{language_new_message}")
     total_pages = doc.page_count
-    if limit == -1:
-        limit = 15
-    language_pages = get_directory(doc, limit)
-    if not language_pages[0]:
-        msg = "请仔细检查，该文件无语言目录"
-        logger.info(msg)
-        save_Language(username, doc, filename, CODE_ERROR, None, [], msg)
-        return CODE_ERROR, {}, msg
-    language_message = language_pages[1]
-    texts_by_languages = extract_text_by_language(doc, language_pages[1])
+    language_info = copy.deepcopy(language_message)
+    texts_by_languages = extract_text_by_language(doc, language_new_message, page)
     detected_languages = detect_language_of_texts(texts_by_languages)
 
     mismatched_languages = find_mismatched_languages(
-        doc, detected_languages, language_pages[0])
+         detected_languages)
     # Printing the new dictionary with mismatched languages
-    logger.info(f"detected_languages: {detected_languages}")
-    logger.info(f"mismatched_languages: {mismatched_languages}")
+    print(f"detected_languages: {detected_languages}")
+    print(f"mismatched_languages: {mismatched_languages}")
     language = generate_language_report(
-        mismatched_languages, language_message, total_pages)
+        mismatched_languages, language_new_message, total_pages)
 
-    shutil.rmtree(IMAGE_PATH)
     data = {
-        # Assuming language_page is a variable holding some data
-        'language_page': language_pages[0][0],
         'language': language  # A success message
     }
-    logger.info("save file")
-    save_Language(username, doc, filename, CODE_SUCCESS,
-                  language_pages[0][0], language, None)
-    logger.info("save success")
+    print("save file")
+    # save_Language(username, doc, filename, CODE_SUCCESS,
+    #               language_pages[0][0], language, None)
+    print("save success")
     doc.close()
-    logger.info("---end check_language---")
+    print("---end check_language---")
     return CODE_SUCCESS, data, None
-
 # 测试
 # def pdf_to_bytes(file_path):
 #     with open(file_path, 'rb') as file:
@@ -272,18 +249,33 @@ def check_language(username, file, filename, limit):
 # check_language(file1)
 class LanguageHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, file, filename, limit):
-        return check_language(username, file, filename, limit)
-    async def post(self):
-        username = self.current_user
-        limit = int(self.get_argument('limit'))
-        files = self.get_files()
-        file = files[0]
-        body = file["body"]
-        filename = file["filename"]
-        code, data, msg = await self.process_async(
-            username, body, filename, limit)
+    def process_async1(self, file, num):
+        return get_language_directory(file, num)
 
+    @run_on_executor
+    def process_async2(self, username, file, filename, language_message, start):
+        return check_language(username, file, filename, language_message, start)
+    async def post(self):
+        if self.request.path == "/api/language/context":
+            params = tornado.escape.json_decode(self.request.body)
+            file = params['file_path']
+            num = params['page']
+            code, data, msg = await self.process_async1(
+                file, num)
+        elif self.request.path == "/api/language/compare":
+            username = self.current_user
+            params = tornado.escape.json_decode(self.request.body)
+            file = params['file_path']
+            file_name = os.path.basename(file)
+            language_message = params['table']
+            start = int(params['start'])
+            print("文件名:", file_name)
+            code, data, msg = await self.process_async2(
+                username, file, file_name, language_message, start)
+        else:
+            code = 1
+            data = {}
+            msg = '请检查你的网址'
         custom_data = {
             'code': code,
             'data': data,
