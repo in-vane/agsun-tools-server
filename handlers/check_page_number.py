@@ -135,7 +135,13 @@ def check_page_number(username, file, filename, rect):
         printed_page_numbers, physical_page_numbers)
     is_error = False if len(issues) == 0 else True
     # 在错误的页码附近标注错误
-
+    # 检查列表中的所有元素是否都是 None
+    if all(x is None for x in printed_page_numbers):
+        note = '区域里未检测到数字页码，请检查是否有页码，页码是否为文字'
+    elif is_error == True:
+        note = '页码错误'
+    else:
+        note = '页码无误'
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
     logger.info(f"error page number:{issues}")
@@ -145,7 +151,7 @@ def check_page_number(username, file, filename, rect):
     logger.info("save success")
     doc.close()
     logger.info("---end check_page_number---")
-    return CODE_SUCCESS, is_error, issues, error_pages_base64, None
+    return CODE_SUCCESS, is_error, issues, error_pages_base64, note, None
 
 
 class PageNumberHandler(MainHandler):
@@ -160,13 +166,14 @@ class PageNumberHandler(MainHandler):
         rect = params['rect']
         rect = [value * 72 / 300 for value in rect]
         filename = os.path.basename(file)
-        code, error, error_page, result, msg = await self.process_async(username,
+        code, error, error_page, result, note, msg = await self.process_async(username,
                                                                           file, filename, rect)
         custom_data = {
             'code': code,
             'data': {
                 "error": error,
                 "error_page": error_page,
+                "note": note,
                 "result": result
             },
             'msg': msg
