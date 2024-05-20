@@ -2,10 +2,13 @@ import cv2
 import numpy as np
 from skimage.metrics import structural_similarity
 import base64
+from io import BytesIO
+from skimage.metrics import structural_similarity as ssim
+from PIL import Image, ImageChops, ImageStat
 import os
 import fitz
 from config import BASE64_PNG
-from utils import base642img, img2base64
+from utils import base64_to_image, img2base64, image_to_base64
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
@@ -16,117 +19,57 @@ from tornado.concurrent import run_on_executor
 
 
 
-def resize(base64_1, base64_2):
-    image_A = base642img(base64_1)
-    image_B = base642img(base64_2)
 
-    # 计算最大尺寸
-    max_height = max(image_A.shape[0], image_B.shape[0])
-    max_width = max(image_A.shape[1], image_B.shape[1])
+def pad_image(image, target_size, color=(255, 255, 255, 0)):
+    original_size = image.size
+    new_image = Image.new("RGBA", target_size, color)
+    new_image.paste(image, (0, 0))
+    return new_image
 
-    # 统一尺寸调整
-    image_A = cv2.resize(image_A, (max_width, max_height), interpolation=cv2.INTER_AREA)
-    image_B = cv2.resize(image_B, (max_width, max_height), interpolation=cv2.INTER_AREA)
+def crop_image(image, crop_size):
+    return image.crop((0, 0, crop_size[0], crop_size[1]))
 
-    # 初始化 SIFT 检测器
-    sift = cv2.SIFT_create()
+def compare_images(image1_base64, image2_base64):
+    differece = True
+    image_one = base64_to_image(image1_base64).convert('RGB')
+    image_two = base64_to_image(image2_base64).convert('RGB')
 
-    # 检测关键点和描述符
-    keypoints_A, descriptors_A = sift.detectAndCompute(image_A, None)
-    keypoints_B, descriptors_B = sift.detectAndCompute(image_B, None)
+    if image_one.size != image_two.size:
+        width_one, height_one = image_one.size
+        width_two, height_two = image_two.size
 
-    # 确保描述符非空
-    if descriptors_A is None or descriptors_B is None:
-        return image_A, image_B
+        if width_two < width_one or height_two < height_one:
+            image_two = pad_image(image_two, (width_one, height_one))
+        elif width_two > width_one or height_two > height_one:
+            image_two = crop_image(image_two, (width_one, height_one))
 
-    # 描述符转换为 float32
-    descriptors_A = descriptors_A.astype(np.float32)
-    descriptors_B = descriptors_B.astype(np.float32)
+    image_one_cv = cv2.cvtColor(np.array(image_one), cv2.COLOR_RGB2BGR)
+    image_two_cv = cv2.cvtColor(np.array(image_two), cv2.COLOR_RGB2BGR)
 
-    # FLANN 匹配器
-    flann = cv2.FlannBasedMatcher({'algorithm': 1, 'trees': 5}, {'checks': 50})
-    matches = flann.knnMatch(descriptors_B, descriptors_A, k=2)
+    gray_image_one = cv2.cvtColor(image_one_cv, cv2.COLOR_BGR2GRAY)
+    gray_image_two = cv2.cvtColor(image_two_cv, cv2.COLOR_BGR2GRAY)
 
-    # Lowe's ratio test
-    good_matches = [m for m, n in matches if m.distance < 0.7 * n.distance]
+    score, diff = ssim(gray_image_one, gray_image_two, full=True)
+    print("SSIM: {}".format(score))
 
-    # 至少需要4个好的匹配点进行变换
-    if len(good_matches) >= 4:
-        src_pts = np.float32([keypoints_B[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([keypoints_A[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        M, _ = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-        image_B_aligned = cv2.warpPerspective(image_B, M, (max_width, max_height))
-        return image_A, image_B_aligned
-    else:
-        return image_A, image_B  # 未找到足够匹配时返回原始图像
+    diff = (diff * 255).astype("uint8")
+    absdiff = cv2.absdiff(image_one_cv, image_two_cv)
+    absdiff_gray = cv2.cvtColor(absdiff, cv2.COLOR_BGR2GRAY)
+    _, absdiff_thresh = cv2.threshold(absdiff_gray, 30, 255, cv2.THRESH_BINARY)
+    print(np.count_nonzero(absdiff_thresh))
+    if np.count_nonzero(absdiff_thresh) < 20:
+        differece = False
+        image_base64 = image_to_base64(image_one)
+        return f"{BASE64_PNG}{image_base64}", differece
 
-    return image_A, image_B
+    red_image = np.zeros_like(image_one_cv)
+    red_image[:, :] = [0, 0, 255]
 
+    highlighted_image = np.where(absdiff_thresh[..., None], red_image, image_one_cv)
+    highlighted_image = Image.fromarray(cv2.cvtColor(highlighted_image, cv2.COLOR_BGR2RGB))
 
-def compare_explore(base64_data_old: str, base64_data_new: str):
-    difference = False
-    # # 从 base64 数据解码得到的图像进行大小调整
-    # before, after = resize(base64_data_old, base64_data_new)
-    #
-    # # 将图像转换为灰度图
-    # before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
-    # after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
-    # 从 base64 数据解码得到的图像
-    before = base642img(base64_data_old)
-    after = base642img(base64_data_new)
-
-    # 判断两张图片的尺寸是否相同
-    if before.shape != after.shape:
-        # 如果尺寸不同，调用 resize 方法进行调整
-        before, after = resize(base64_data_old, base64_data_new)
-
-    # 将图像转换为灰度图
-    before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
-    after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
-
-    # SSIM方法
-    # (score, diff) = structural_similarity(before_gray, after_gray, full=True)
-    # print("Image Similarity: {:.4f}%".format(score * 100))
-    # # diff 图像包含两幅图像之间的实际差异
-    # # 差异图像以浮点数据类型表示在 [0,1] 范围内
-    # # 因此我们必须将数组转换为范围在 [0,255] 的8位无符号整数，才能使用 OpenCV
-    # diff = (diff * 255).astype("uint8")
-    # diff_box = cv2.merge([diff, diff, diff])
-    #
-    # # 对差异图像进行阈值处理，然后找到轮廓来
-    # # 获取两个输入图像中差异的区域
-    # thresh = cv2.threshold(diff, 150, 255, cv2.THRESH_BINARY_INV)[1]
-    # contours = cv2.findContours(
-    #     thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # contours = contours[0] if len(contours) == 2 else contours[1]
-    # # 在修改后的图像上绘制差异
-    # filled_after = after.copy()
-    # 计算差异并找到差异区域
-
-    # for c in contours:
-    #     area = cv2.contourArea(c)
-    #     if area > 40:
-    #         x, y, w, h = cv2.boundingRect(c)
-    #         cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
-    #         cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
-    #         difference = True
-    # # 在修改后的图像上绘制差异
-    # image_base64 = img2base64(filled_after)
-    # 在 img2 上标注差异区域
-
-    # cv2.absdiff方法
-    diff = cv2.absdiff(before_gray, after_gray)
-    _, thresh = cv2.threshold(diff, 200, 255, cv2.THRESH_BINARY)  # 阈值可以调整以获得最佳结果
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:  # 如果存在差异
-        difference = True
-    color_img1 = cv2.cvtColor(before_gray, cv2.COLOR_GRAY2BGR)
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        cv2.rectangle(color_img1, (x, y), (x + w, y + h), (0, 255, 0), 2)
-    image_base64 = img2base64(color_img1)
-
-    return f"{BASE64_PNG}{image_base64}", difference
+    image_base64 = image_to_base64(highlighted_image)
+    return f"{BASE64_PNG}{image_base64}", differece
 
 
 def draw_red_frame(base64_img):
@@ -209,7 +152,7 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
 
-                result_base64, difference = compare_explore(base64_img1, base64_img2)
+                result_base64, difference = compare_images(base64_img1, base64_img2)
                 if difference:
                     mismatch_list.append(i + 1)
                     base64_strings.append(result_base64)
@@ -232,7 +175,7 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
 
-                result_base64, difference = compare_explore(base64_img1, base64_img2)
+                result_base64, difference = compare_images(base64_img1, base64_img2)
                 if difference:
                     mismatch_list.append(i + 1)
                     base64_strings.append(result_base64)

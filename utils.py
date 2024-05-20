@@ -37,3 +37,20 @@ def img2base64(img):
     _, image_buffer = cv2.imencode(f'.jpg', img)
     image_base64 = base64.b64encode(image_buffer).decode('utf-8')
     return image_base64
+
+
+def base64_to_image(base64_str):
+    """
+    将Base64字符串转换为PIL图像对象
+    """
+    image_data = base64.b64decode(base64_str)
+    image = Image.open(BytesIO(image_data))
+    return image
+
+def image_to_base64(image):
+    """
+    将PIL图像对象转换为Base64字符串
+    """
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
