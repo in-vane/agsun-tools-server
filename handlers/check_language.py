@@ -62,13 +62,15 @@ def extract_language(pdf_path, num):
             'start': count_value  # 对应的页码
         })
     result_list = sorted(result_list, key=lambda x: x['start'])
-    return result_list
+    first_start = result_list[0]['start']
+    return result_list, first_start
 
 def get_language_directory(pdf_path, num):
-    result = extract_language(pdf_path, num)
+    result, first_start  = extract_language(pdf_path, num)
     print(f"识别到的语音目录{result}")
     data = {
-        'result': result
+        'result': result,
+        'start': first_start
     }
     return CODE_SUCCESS, data, ''
 
