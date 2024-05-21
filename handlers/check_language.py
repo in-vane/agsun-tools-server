@@ -38,6 +38,7 @@ def extract_language_message(line):
     return None
 
 def extract_language(pdf_path, num):
+    num = int(num)
     language_message = {}  # 初始化一个空字典来存储所有语言信息
     # 打开 PDF 文件
     with pdfplumber.open(pdf_path) as pdf:
