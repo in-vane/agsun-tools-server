@@ -218,12 +218,11 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
     doc.save(PDF_PATH)
     wb = openpyxl.load_workbook(filename=BytesIO(excel_file))
     sheet_names = wb.sheetnames
-    if sheet_names[0] !='label':
+    print(f"一共工作表:{sheet_names}")
+    if sheet_names[0]!='label':
         work_table = sheet_names[num-1]
-    work_table = sheet_names[num]
-    if work_table is None:
-        sheet_names = wb.sheetnames
-        work_table = sheet_names[1]
+    else:
+        work_table = sheet_names[num]
     print(f"工作表为: {work_table}")
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
