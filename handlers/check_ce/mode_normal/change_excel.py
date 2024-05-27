@@ -212,12 +212,14 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
     if excel_type == 'xls':
         excel_file = convert_xls_bytes_to_xlsx(excel_file)
     elif excel_type == 'Unknown':
-        code = '该文件不是excel文件'
-        return CODE_ERROR, None, code
+        msg = '该文件不是excel文件'
+        return CODE_ERROR, None, msg
     doc = fitz.open(stream=BytesIO(pdf_file))
     doc.save(PDF_PATH)
     wb = openpyxl.load_workbook(filename=BytesIO(excel_file))
     sheet_names = wb.sheetnames
+    if sheet_names[0] !='label':
+        work_table = sheet_names[num-1]
     work_table = sheet_names[num]
     if work_table is None:
         sheet_names = wb.sheetnames
