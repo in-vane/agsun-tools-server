@@ -301,7 +301,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("websocket opened")
         query = urlparse(self.request.uri).query
         params = parse_qs(query)
-        token = params.get('token', [None])[0]
+        token = params.get('token', [''])[0]
         self.token = token
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
         self.username = decoded_token.get('sub')  # 'sub' is the standard claim
