@@ -6,7 +6,7 @@ import numpy as np
 
 DPI = 300
 BASE64_JPG = 'data:image/jpeg;base64,'
-from save_filesys_db import save_Icon
+# from save_filesys_db import save_Icon
 
 def detect_and_filter_contours(img1, area_threshold=200):
     # 假设 img1 是你要处理的图像

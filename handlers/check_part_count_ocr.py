@@ -11,7 +11,7 @@ from pdf2image import convert_from_path
 import math
 import os
 from PIL import ImageDraw, ImageFont,Image
-from save_filesys_db import save_Part_count_ocr
+from save_filesys_db import save_part_count
 import easyocr
 from main import MainHandler
 import tornado
@@ -62,7 +62,7 @@ def get_error_pages_as_base64(mismatched_details, pdf_path):
             buffered = io.BytesIO()
             image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode()
-            images_base64.append(f"{BASE64_PNG}{img_str}")
+            images_base64.append(f"{BASE64_PNG_PREFIX}{img_str}")
         mismatched_page.append(page_number)
     return images_base64, mismatched_page, error_lines_info_cn
 def convert_to_int(a, b):
@@ -823,10 +823,10 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
     return custom_data
 
 
-def check_part_count(username,filename, rect, page_number_explore, page_number_table,table_dict):
-    pdf_path = f"./assets/pdf/{filename}"
+def check_part_count(username,file, filename, rect, page_number_explore, page_number_table,table_dict):
+    # pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
-    pdf = fitz.open(pdf_path)  # 打开PDF文件
+    pdf = fitz.open(file)  # 打开PDF文件
     
     image, bbox = get_image(pdf, page_number_explore, crop_rect)
     
@@ -842,12 +842,12 @@ def check_part_count(username,filename, rect, page_number_explore, page_number_t
     digit_to_part_mapping = get_results(image, bbox)
 
     custom_data = form_extraction_and_compare(
-        pdf_path, page_number_table, digit_to_part_mapping, custom_data,table_dict)
+        file, page_number_table, digit_to_part_mapping, custom_data,table_dict)
     if custom_data['data']['mapping_results'] is not None:
         revalidated_results = revalidate_matches(
             image, custom_data['data']['mapping_results'], digit_to_part_mapping, threshold=0.9)
     custom_data['data']['mapping_results'] = revalidated_results
-    save_Part_count_ocr(username, pdf, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
+    # save_Part_count_ocr(username, pdf, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
     pdf.close()
     return custom_data
 
@@ -856,15 +856,16 @@ def check_part_count(username,filename, rect, page_number_explore, page_number_t
 
 class PartCountHandlerOcr(MainHandler):
     @run_on_executor
-    def process_async(self, username, filename, pdf_rect, page_number_explore, page_number_table,table_dict):
+    def process_async(self, username, file, filename, pdf_rect, page_number_explore, page_number_table,table_dict):
         return check_part_count(
-            username, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
+            username, file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
 
     async def post(self):
         username = self.current_user
         params = tornado.escape.json_decode(self.request.body)
         filename = params['filename']
         rect = params['rect']
+        file = params['filePath']
         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
         # rect_int= [int(x) for x in rect[1:]]
         rect_int = [int(x) for x in rect]
@@ -880,6 +881,6 @@ class PartCountHandlerOcr(MainHandler):
         page_number_table = params['page_table']
         table_dict=params['table_dict']
         custom_data = await self.process_async(
-            username, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
-
+            username,file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
+        save_part_count(username, file, custom_data['code'], custom_data['data'], custom_data['msg'])
         self.write(custom_data)

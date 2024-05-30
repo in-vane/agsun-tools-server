@@ -21,7 +21,7 @@ jpype.startJVM()
 from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
 
 from .get_table_message import all
-from save_filesys_db import save_CE
+from save_filesys_db import save_ce
 
 # LIBREOFFICE_PATH = "/usr/bin/soffice"
 CODE_SUCCESS = 0
@@ -227,8 +227,8 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
     message_dict = all(wb, work_table, doc, PDF_PATH)
     change_excel(wb, work_table, message_dict)
     excel_image_base64 = excel_to_iamge(EXCEL_PATH, num)
-    save_CE(username, doc, EXCEL_PATH, name1, name2,
-            work_table, CODE_SUCCESS, excel_image_base64, None)
+    # save_CE(username, doc, EXCEL_PATH, name1, name2,
+    #         work_table, CODE_SUCCESS, excel_image_base64, None)
     os.remove(EXCEL_PATH)
     os.remove(PDF_PATH)
     pdf_image_base64 = pdf_to_image(doc)
