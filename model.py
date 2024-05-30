@@ -1,13 +1,59 @@
-# model.py
 import pymysql
-# 假设的数据库配置信息
+
+# 数据库配置信息
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'h0ld?Fish:Palm',
+    # 'password': 'h0ld?Fish:Palm',
+    'password': 'admin',
     'database': 'agsun',
     'charset': 'utf8'
 }
+
+
+class DatabaseHandler:
+    def __init__(self, host, user, password, database, charset):
+        self.conn = pymysql.connect(host=host,
+                                    user=user,
+                                    password=password,
+                                    database=database,
+                                    charset=charset,
+                                    cursorclass=pymysql.cursors.DictCursor)
+        self.cursor = self.conn.cursor()
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
+
+
+class Files:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_file_record(self, file_name, md5, file_path):
+        sql = "INSERT INTO files (file_name, md5, file_path) VALUES (%s, %s, %s)"
+        try:
+            self.db_handler.cursor.execute(sql, (file_name, md5, file_path))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+
+    def query_file_by_md5(self, md5):
+        sql = "SELECT * FROM files WHERE md5 = %s"
+        self.db_handler.cursor.execute(sql, (md5,))
+        return self.db_handler.cursor.fetchone()
+
+
+db_handler = DatabaseHandler(host=DB_CONFIG['host'],
+                             user=DB_CONFIG['user'],
+                             password=DB_CONFIG['password'],
+                             database=DB_CONFIG['database'],
+                             charset=DB_CONFIG['charset'])
+db_files = Files(db_handler)
 
 
 class User:
@@ -225,7 +271,7 @@ class CheckLine:
         self.pdf_path = pdf_path
         self.pdf_name = pdf_name
         self.result = result
-        self.result_file= result_file
+        self.result_file = result_file
 
     def save_to_db(self):
         connection = pymysql.connect(host=DB_CONFIG['host'],
@@ -274,6 +320,7 @@ class CheckCEsize:
         finally:
             connection.close()
 
+
 class CheckArea:
     def __init__(self, username, dataline, work_num, pdf_path1, pdf_name1, pdf_path2, pdf_name2, result):
         self.username = username
@@ -302,6 +349,7 @@ class CheckArea:
                 connection.commit()
         finally:
             connection.close()
+
 
 class CheckIcon:
     def __init__(self, username, dataline, work_num, pdf_path, pdf_name, result):

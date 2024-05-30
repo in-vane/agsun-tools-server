@@ -1,9 +1,11 @@
 from io import BytesIO
 import base64
+
 import cv2
 import fitz
 import numpy as np
 from PIL import Image
+from config import BASE64_PNG
 
 
 def is_image(page):
@@ -21,7 +23,7 @@ def page2img(page, dpi):
     buffered = BytesIO()
     grayscale_img.save(buffered, format="PNG")
     img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-    return img_base64
+    return f"{BASE64_PNG}{img_base64}"
 
 
 def base642img(base64_data: str):
@@ -46,6 +48,7 @@ def base64_to_image(base64_str):
     image_data = base64.b64decode(base64_str)
     image = Image.open(BytesIO(image_data))
     return image
+
 
 def image_to_base64(image):
     """

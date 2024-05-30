@@ -23,3 +23,4 @@ from .check_screw import ScrewHandler
 from .area_handler import AreaHandler
 from .size_handler import SizeHandler
 from .test_handler import TestHandler
+from .file_handler import FileHandler

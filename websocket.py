@@ -1,8 +1,13 @@
+import io
 import os
 import base64
+import hashlib
+
 import fitz
-from config import PATH_PDF, BASE64_PNG
-from utils import is_image, page2img
+import pymysql
+from config import PATH_PDF
+from utils import page2img
+from model import db_files
 
 
 MODE_NORMAL = 0
@@ -35,18 +40,29 @@ class FileAssembler:
             self.received_data += base64.b64decode(b64[1])
 
         output_path = PATH_PDF
+
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         output_path = os.path.join(output_path, self.file_name)
         with open(output_path, "wb") as output_file:
             output_file.write(self.received_data)
 
+        md5_hash = hashlib.md5(self.received_data).hexdigest()
+        print(f"{self.file_name} {md5_hash}")
+        try:
+            db_files.insert_file_record(self.file_name, md5_hash, output_path)
+        except pymysql.MySQLError as err:
+            if err.args[0] == 1062:  # Duplicate entry error code
+                print(
+                    f"Duplicate entry for {self.file_name} with hash {md5_hash}")
+            else:
+                print(f"Error occurred while inserting file record: {err}")
+
         return output_path
 
 
-async def pdf2img_split(ws, file_path, options):
-    '''pdf按页转png'''
-    print("===== begin pdf2img =====")
+async def pdf2img(ws, file_path, options):
+    print("===== begin =====")
     doc = fitz.open(file_path)
     total = len(doc)
     start = 0
@@ -55,34 +71,19 @@ async def pdf2img_split(ws, file_path, options):
         start = max(0, int(options['start']) - 1)
     if 'end' in options:
         end = min(total, int(options['end']))
-
     print(f"from {start} to {end}")
+
     for page_number in range(start, end):
         page = doc.load_page(page_number)
-        img_base64 = ""
-
-        if (options['mode'] == MODE_NORMAL):
-            img_base64 = page2img(page, dpi=300)
-        if (options['mode'] == MODE_VECTOR):
-            if is_image(page):
-                img_base64 = page2img(page, dpi=300)
-
-        img_base64 = "" if not img_base64 else f"{BASE64_PNG}{img_base64}"
+        img_base64 = page2img(page, dpi=300)
         await ws.write_message({
             "total": end - start,
             "current": page_number - start + 1,
             "img_base64": img_base64,
-            "file_path": file_path,
-            "options": options
         })
+    await ws.write_message({
+        "complete": 'pdf2img'
+    })
 
     doc.close()
     print("===== done =====")
-
-
-async def write_file_name(ws, file_path, options):
-    '''往前端返回上传文件所在的路径'''
-    await ws.write_message({
-        "file_path": file_path,
-        "options": options
-    })

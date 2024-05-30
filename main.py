@@ -4,14 +4,15 @@ import tornado
 import tornado.web
 import tornado.websocket
 import tornado.options
-import tornado.ioloop
+from tornado.ioloop import PeriodicCallback, IOLoop
 
 
 import handlers
 from config import CONTENT_TYPE_PDF
-from websocket import FileAssembler, pdf2img_split, write_file_name
+from websocket import FileAssembler, pdf2img
 from auth import decode_jwt
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse, parse_qs
 
 
 def need_auth(method):
@@ -28,14 +29,12 @@ class Application(tornado.web.Application):
         router = [
             (r'/api', MainHandler),
             (r'/api/login', handlers.LoginHandler),
-            # (r'/api/logout', LogoutHandler),
             (r'/api/area', handlers.AreaHandler),
             (r'/api/fullPage', handlers.FullPageHandler),
             (r'/api/partCount', handlers.PartCountHandler),
             (r'/api/pageNumber', handlers.PageNumberHandler),
             (r'/api/partCountOcr', handlers.PartCountHandlerOcr),
             (r'/api/line', handlers.LineHandler),
-            # (r'/api/table', TableHandler),
             (r'/api/screw/bags', handlers.ScrewHandler),
             (r'/api/screw/compare', handlers.ScrewHandler),
             (r'/api/language/context', handlers.LanguageHandler),
@@ -44,6 +43,7 @@ class Application(tornado.web.Application):
             (r'/api/size', handlers.SizeHandler),
             (r'/api/ocr_char', OcrHandler),
             (r'/api/ocr_icon', OcrHandler),
+            (r'/api/isFileUploaded', handlers.FileHandler),
             (r"/websocket", WebSocketHandler),
         ]
         settings = {
@@ -101,40 +101,6 @@ class MainHandler(tornado.web.RequestHandler):
             self.write({"error": "Token not provided"})
 
 
-# class LoginHandler(MainHandler):
-#     async def post(self):
-#         params = tornado.escape.json_decode(self.request.body)
-#         username = params['username']
-#         password = params['password']
-#         code, token, message = await handlers.login(username, password)
-#         custom_data = {
-#             'code': code,
-#             'data': {
-#                 'access_token': token,
-#                 'userinfo': {
-#                     'name': username
-#                 }
-#             },
-#             'message': message
-#
-#         }
-#         self.write(custom_data)
-#
-#
-# class LogoutHandler(MainHandler):
-#     async def post(self):
-#         code, username, msg = await handlers.logout()
-#         custom_data = {
-#             'code': code,
-#             'data': {
-#                 'username': username
-#             },
-#             'msg': msg
-#
-#         }
-#         self.write(custom_data)
-
-
 class FullPageHandler(MainHandler):
     @need_auth
     def post(self):
@@ -161,36 +127,6 @@ class FullPageHandler(MainHandler):
         self.write(custom_data)
 
 
-# class PartCountHandler(MainHandler):
-#     @need_auth
-#     def post(self):
-#         username = self.current_user
-#         params = tornado.escape.json_decode(self.request.body)
-#         filename = params['filename']
-#         rect = params['rect']
-#         print(rect)
-#         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
-#         # rect_int= [int(x) for x in rect[1:]]
-#         rect_int = [int(x) for x in rect]
-#         xmin = rect_int[0]
-#         ymin = rect_int[1]
-#         xmax = (rect_int[0] + rect_int[2])
-#         ymax = (rect_int[1] + rect_int[3])
-#         scale_factor = 72/300
-#         pdf_rect = [xmin * scale_factor, ymin * scale_factor,
-#                     xmax * scale_factor, ymax * scale_factor]
-#         print(pdf_rect)
-#         page_number_explore = int(params['page_explore'])
-#         page_number_table = int(params['page_table'])
-#         page_columns = int(params['columnCount'])
-#         page_pair_index = params['pair_index']
-#         print(page_columns, page_pair_index)
-#         custom_data = handlers.check_part_count(
-#             username, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
-#
-#         self.write(custom_data)
-
-
 class PageNumberHandler(MainHandler):
     @need_auth
     def post(self):
@@ -215,22 +151,6 @@ class PageNumberHandler(MainHandler):
 
         }
         self.write(custom_data)
-
-
-# class TableHandler(MainHandler):
-#     @need_auth
-#     def post(self):
-#         username = self.current_user
-#         page_number = int(self.get_argument('pageNumber'))
-#         files = self.get_files()
-#         file = files[0]
-#         body = file["body"]
-#         base64_imgs, error_pages = handlers.compare_table(body, page_number)
-#         custom_data = {
-#             "base64_imgs": base64_imgs,
-#             "error_pages": error_pages,
-#         }
-#         self.write(custom_data)
 
 
 class ScrewHandler(MainHandler):
@@ -301,7 +221,7 @@ class LineHandler(MainHandler):
         custom_data = {
             'code': code,
             'data': {
-                'path':path
+                'path': path
             },
             'msg': msg
         }
@@ -357,10 +277,12 @@ class OcrHandler(MainHandler):
         custom_data = {}
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
-            custom_data = handlers.check_ocr_char(username, filename, crop, page_num)
+            custom_data = handlers.check_ocr_char(
+                username, filename, crop, page_num)
         if mode == self.MODE_ICON:
             print("== MODE_ICON ==")
-            custom_data = handlers.check_ocr_icon(username, filename, crop, page_num)
+            custom_data = handlers.check_ocr_icon(
+                username, filename, crop, page_num)
 
         self.write(custom_data)
 
@@ -369,52 +291,59 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.files = {}
+        self.token = ''
 
     def check_origin(self, origin):
         return True
 
     def open(self):
         print("websocket opened")
-
+        query = urlparse(self.request.uri).query
+        params = parse_qs(query)
+        token = params.get('token', [None])[0]
+        self.token = token
+        # 心跳机制
         self.temp_count = 0
-        self.loop = tornado.ioloop.PeriodicCallback(
-            self.check_per_seconds, 1000)
-        self.loop.start()  # 启动一个循环，每秒向electron端发送数字，该数字在不断递增
-
-    async def on_message(self, message):
-        print("===== get_message =====")
-        data = tornado.escape.json_decode(message)
-        type = data.get('type')
-        file_name = data.get('fileName')
-        file_data = data.get('file')
-        total = int(data.get('total'))
-        current = int(data.get('current'))
-        options = data.get('options')
-
-        if file_name not in self.files:
-            self.files[file_name] = FileAssembler(file_name, total)
-        _file = self.files[file_name]
-        _file.add_slice(current, file_data)
-
-        if _file.is_complete():
-            file_path = _file.assemble()
-            if type == 'upload':
-                await write_file_name(self, file_path, options)
-            if type == 'pdf2img':
-                await pdf2img_split(self, file_path, options)
-            del self.files[file_name]
-
-        custom_data = {"data": f"{file_name} {current}/{total}"}
-        self.write_message(custom_data)
-
-    def on_close(self):
-        print("websocket closed")
-        self.loop.stop()
+        self.loop = PeriodicCallback(self.check_per_seconds, 1000)
+        self.loop.start()
 
     def check_per_seconds(self):
         self.write_message(tornado.escape.json_encode(
             {"data": self.temp_count}))
         self.temp_count += 1
+
+    async def on_message(self, message):
+        data = tornado.escape.json_decode(message)
+        type = data.get('type')
+        if type == 'upload':
+            self.handle_type_upload(data)
+        if type == 'pdf2img':
+            await self.handle_type_pdf2img(data)
+
+    def handle_type_upload(self, data):
+        file_name = data.get('fileName')
+        file_data = data.get('file')
+        total = int(data.get('total'))
+        current = int(data.get('current'))
+        if file_name not in self.files:
+            self.files[file_name] = FileAssembler(file_name, total)
+        file = self.files[file_name]
+        file.add_slice(current, file_data)
+        if file.is_complete():
+            file_path = file.assemble()
+            self.write_message({
+                "file_path": file_path,
+            })
+        pass
+
+    async def handle_type_pdf2img(self, data):
+        file_path = data.get('filePath')
+        options = data.get('options')
+        await pdf2img(self, file_path, options)
+
+    def on_close(self):
+        print("websocket closed")
+        self.loop.stop()
 
 
 def main():
@@ -424,10 +353,8 @@ def main():
     tornado.options.parse_command_line()
     app = Application()
     app.listen(tornado.options.options.port)
-    # await asyncio.Event().wait()
-    tornado.ioloop.IOLoop.current().start()
+    IOLoop.current().start()
 
 
 if __name__ == "__main__":
-    # asyncio.run(main())  # 这是 Python 3.7 引入的新特性
     main()
