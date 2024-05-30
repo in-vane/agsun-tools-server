@@ -7,7 +7,7 @@ import fitz
 from langdetect import detect
 from logger import logger
 import copy
-from save_filesys_db import save_Language
+from save_filesys_db import save_language
 
 from main import MainHandler
 import tornado
@@ -236,8 +236,7 @@ def check_language(username, file, filename, language_message, page):
         'language': language  # A success message
     }
     print("save file")
-    # save_Language(username, doc, filename, CODE_SUCCESS,
-    #               language_pages[0][0], language, None)
+    save_language(username['username'], CODE_SUCCESS, file, language, '')
     print("save success")
     doc.close()
     print("---end check_language---")

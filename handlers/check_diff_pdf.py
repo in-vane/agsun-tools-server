@@ -9,7 +9,7 @@ import os
 import fitz
 from config import BASE64_PNG
 from utils import base64_to_image, img2base64, image_to_base64
-
+from save_filesys_db import save_Diffpdf
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
@@ -189,8 +189,7 @@ def check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, pag
                 mismatch_list.append(i + 1)
 
     mismatch_list, base64_strings, continuous = process_mismatch_lists(mismatch_list, base64_strings, threshold=10)
-    # save_Diffpdf(username, doc1, doc2, file1_name, file2_name, CODE_SUCCESS,
-    #             mismatch_list, base64_strings, continuous, None)
+    save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, continuous, '')
     doc1.close()
     doc2.close()
     return CODE_SUCCESS, mismatch_list, base64_strings, continuous, None

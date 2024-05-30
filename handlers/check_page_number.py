@@ -6,7 +6,7 @@ import re
 import os
 
 from logger import logger
-# from save_filesys_db import save_PageNumber
+from save_filesys_db import save_Page_number
 
 from main import MainHandler
 import tornado
@@ -118,6 +118,7 @@ def extract_page_numbers(doc, rect):
 # 主函数
 def check_page_number(username, file, filename, rect):
     logger.info("---begin check_page_number---")
+    print(username, file, filename, rect)
     logger.info(f"username : {username}")
     if not file:
         code = '文件损坏或者为空文件'
@@ -146,8 +147,7 @@ def check_page_number(username, file, filename, rect):
         doc, physical_page_numbers, issues)
     logger.info(f"error page number:{issues}")
     logger.info("save file")
-    # save_PageNumber(username, doc, filename, CODE_SUCCESS, is_error,
-    #                 issues, error_pages_base64, None)
+    save_Page_number(username['username'], CODE_SUCCESS, file, is_error, issues, note, error_pages_base64, '')
     logger.info("save success")
     doc.close()
     logger.info("---end check_page_number---")

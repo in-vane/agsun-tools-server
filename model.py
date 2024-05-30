@@ -1,5 +1,5 @@
 import pymysql
-
+from datetime import datetime
 # 数据库配置信息
 DB_CONFIG = {
     'host': 'localhost',
@@ -33,27 +33,291 @@ class Files:
     def __init__(self, db_handler):
         self.db_handler = db_handler
 
-    def insert_file_record(self, file_name, md5, file_path):
-        sql = "INSERT INTO files (file_name, md5, file_path) VALUES (%s, %s, %s)"
+    def insert_file_record(self, username, filename, path, md5):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        check_sql = "SELECT COUNT(*) as count FROM files WHERE md5 = %s AND path = %s"
+        insert_sql = "INSERT INTO files (username, datetime, filename, path, md5) VALUES (%s, %s, %s, %s, %s)"
+
         try:
-            self.db_handler.cursor.execute(sql, (file_name, md5, file_path))
-            self.db_handler.commit()
-            print("File record inserted successfully.")
+            # 检查是否存在相同的 md5 和 path
+            self.db_handler.cursor.execute(check_sql, (md5, path))
+            result = self.db_handler.cursor.fetchone()
+            if result and result['count'] > 0:
+                print("Record with the same md5 and path already exists. No insertion needed.")
+            else:
+                # 如果不存在，则插入新的记录
+                self.db_handler.cursor.execute(insert_sql, (username, current_time, filename, path, md5))
+                self.db_handler.commit()
+                print("File record inserted successfully.")
         except pymysql.IntegrityError as e:
             print(f"Error occurred while inserting file record: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
     def query_file_by_md5(self, md5):
         sql = "SELECT * FROM files WHERE md5 = %s"
         self.db_handler.cursor.execute(sql, (md5,))
         return self.db_handler.cursor.fetchone()
+class Result:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
 
 
+    def insert_record(self, user_id, type_id, file_path, path, text):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        date_today = datetime.now().strftime('%Y-%m-%d')
+
+        path = str(path)
+
+        # 检查是否存在相同记录
+        check_sql = """
+            SELECT * FROM result 
+            WHERE DATE(datetime) = %s 
+            AND user_id = %s 
+            AND type_id = %s 
+            AND file_path = %s
+        """
+        self.db_handler.cursor.execute(check_sql, (date_today, user_id, type_id, file_path))
+        existing_records = self.db_handler.cursor.fetchall()
+
+        # 如果存在相同记录，删除这些记录
+        if existing_records:
+            delete_sql = """
+                DELETE FROM result 
+                WHERE DATE(datetime) = %s 
+                AND user_id = %s 
+                AND type_id = %s 
+                AND file_path = %s
+            """
+            self.db_handler.cursor.execute(delete_sql, (date_today, user_id, type_id, file_path))
+            self.db_handler.commit()
+
+        # 插入新的记录
+        insert_sql = """
+            INSERT INTO result (datetime, user_id, type_id, file_path, path, text) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        try:
+            self.db_handler.cursor.execute(insert_sql, (current_time, user_id, type_id, file_path, path, text))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+    def query_record(self, datetime, username, type_id, file_path):
+        sql = "SELECT path, text FROM result WHERE DATE(datetime) = %s AND user_id = %s AND type_id = %s AND file_path = %s"
+        self.db_handler.cursor.execute(sql, (datetime, username, type_id, file_path))
+        rows = self.db_handler.cursor.fetchall()
+
+        paths = [row['path'] for row in rows]
+        texts = [row['text'] for row in rows]
+        texts = texts[0]
+        return paths, texts
+class Area:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_record(self, user_id, type_id, file1_path, file2_path, image1_path, image2_path, image_result):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # 定义插入SQL语句
+        sql = """
+            INSERT INTO area (datetime, user_id, type_id, file1_path, file2_path, image1_path, image2_path, result_path)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """
+        try:
+            self.db_handler.cursor.execute(sql, (
+                current_time, user_id, type_id, file1_path, file2_path, image1_path, image2_path, image_result))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+class Ocr:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_record(self, user_id, type_id, md5, image1_path, image2_path, image_result):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # 定义插入SQL语句
+        image_result = str(image_result)
+        sql = """
+            INSERT INTO ocr (datetime, user_id, type_id, file_md5, image1_path, image2_path, result_path)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """
+        try:
+            self.db_handler.cursor.execute(sql, (
+                current_time, user_id, type_id, md5, image1_path, image2_path, image_result))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+class Line_Result_Files:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_file_record(self, user_id, type_id, file_path, output_path):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        date_today = datetime.now().strftime('%Y-%m-%d')
+
+        # 检查是否存在相同记录
+        check_sql = """
+               SELECT id FROM line_result_files 
+               WHERE DATE(datetime) = %s 
+               AND user_id = %s 
+               AND file_path = %s
+           """
+
+        # 删除已有记录的SQL
+        delete_sql = """
+               DELETE FROM line_result_files 
+               WHERE id = %s
+           """
+
+        # 插入新的记录的SQL
+        insert_sql = """
+               INSERT INTO line_result_files (user_id, type_id, datetime, file_path, path) 
+               VALUES (%s, %s, %s, %s, %s)
+           """
+
+        try:
+            # 检查是否存在相同记录
+            self.db_handler.cursor.execute(check_sql, (date_today, user_id, file_path))
+            existing_records = self.db_handler.cursor.fetchall()
+
+            # 如果存在相同记录，删除这些记录
+            for record in existing_records:
+                record_id = record['id']
+                self.db_handler.cursor.execute(delete_sql, (record_id,))
+
+            # 插入新的记录
+            self.db_handler.cursor.execute(insert_sql, (user_id, type_id, current_time, file_path, output_path))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+    def query_record(self, datetime, user_id, type_id, file_md5):
+        sql = "SELECT path FROM line_result_files WHERE DATE(datetime) = %s AND user_id = %s AND type_id = %s AND file_md5 = %s"
+        self.db_handler.cursor.execute(sql, (datetime, user_id, type_id, file_md5))
+        return [row['path'] for row in self.db_handler.cursor.fetchall()]
+class Diff_Pdf:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_record(self, user_id, type_id, file1_path, file2_path, path, text):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        today_date = datetime.now().strftime('%Y-%m-%d')
+
+        # 将 path 转换为字符串
+        path = str(path)
+
+        # SQL 查询语句，用于检测是否存在相同记录
+        check_sql = """
+               SELECT id FROM diff_pdf 
+               WHERE DATE(datetime) = %s 
+               AND user_id = %s 
+               AND type_id = %s 
+               AND file1_path = %s 
+               AND file2_path = %s
+           """
+
+        # SQL 删除语句，用于删除已有记录
+        delete_sql = """
+               DELETE FROM diff_pdf 
+               WHERE id = %s
+           """
+
+        # SQL 插入语句
+        insert_sql = """
+               INSERT INTO diff_pdf (datetime, user_id, type_id, file1_path, file2_path, path, text)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
+           """
+
+        try:
+            # 检查是否存在相同记录
+            self.db_handler.cursor.execute(check_sql, (today_date, user_id, type_id, file1_path, file2_path))
+            existing_records = self.db_handler.cursor.fetchall()
+
+            # 如果存在相同记录，删除这些记录
+            for record in existing_records:
+                record_id = record['id']
+                self.db_handler.cursor.execute(delete_sql, (record_id,))
+
+            # 插入新的记录
+            self.db_handler.cursor.execute(insert_sql, (
+                current_time, user_id, type_id, file1_path, file2_path, path, text))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+    def query_record(self, datetime, username, type_id, file1_path, file2_path):
+        sql = """
+                   SELECT path, text
+                   FROM diff_pdf
+                   WHERE DATE(datetime) = %s AND user_id = %s AND type_id = %s AND file1_md5 = %s AND file2_md5 = %s
+                   """
+        self.db_handler.cursor.execute(sql, (datetime, username, type_id, file1_path, file2_path))
+        rows = self.db_handler.cursor.fetchall()
+
+        paths = [row['path'] for row in rows]
+        texts = [row['text'] for row in rows]
+        return paths, texts
+class Ce:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+
+    def insert_record(self, user_id, type_id, file1_md5, file2_md5, path):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        path = str(path)
+        # 定义插入SQL语句
+        sql = """
+            INSERT INTO ce (datetime, user_id, type_id, file1_md5, file2_md5, path)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """
+        try:
+            self.db_handler.cursor.execute(sql, (
+                current_time, user_id, type_id, file1_md5, file2_md5, path))
+            self.db_handler.commit()
+            print("File record inserted successfully.")
+        except pymysql.IntegrityError as e:
+            print(f"Error occurred while inserting file record: {e}")
+
+    def query_record(self, datetime, username, type_id, file1_md5, file2_md5):
+        sql = "SELECT path FROM ce WHERE DATE(datetime) = %s AND user_id = %s AND type_id = %s AND file1_md5 = %s AND file2_md5 = %s LIMIT 1"
+        self.db_handler.cursor.execute(sql, (datetime, username, type_id, file1_md5, file2_md5))
+        result = self.db_handler.cursor.fetchone()
+        if result:
+            path = result['path']
+            return path
+        return None
 db_handler = DatabaseHandler(host=DB_CONFIG['host'],
                              user=DB_CONFIG['user'],
                              password=DB_CONFIG['password'],
                              database=DB_CONFIG['database'],
                              charset=DB_CONFIG['charset'])
 db_files = Files(db_handler)
+# 创建Files类的实例
+db_ce = Ce(db_handler)
+
+# 创建result类的实例
+db_result = Result(db_handler)
+
+# 创建Files类的实例
+db_diff_pdf = Diff_Pdf(db_handler)
+# 创建Files类的实例
+db_line_result_files = Line_Result_Files(db_handler)
+# 创建images类的实例
+db_ocr = Ocr(db_handler)
+# 创建images类的实例
+db_area = Area(db_handler)
 
 
 class User:

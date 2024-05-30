@@ -2,8 +2,9 @@
 import io
 import re
 import math
-
+import os
 import cv2
+import docx.opc.exceptions
 import fitz
 import numpy as np
 
@@ -13,7 +14,8 @@ from utils import img2base64
 
 from tornado.concurrent import run_on_executor
 
-from save_filesys_db import save_CEsize
+import tornado
+from save_filesys_db import save_ce_size
 import sys
 sys.path.append("..")
 
@@ -120,7 +122,7 @@ def compare(a, b):
 
 
 def check_size(username, filename, file, options, params):
-    doc = fitz.open(stream=(io.BytesIO(file)))
+    doc = fitz.open(file)
     page = doc.load_page(0)
 
     if options["active"] == MODE_MARK:
@@ -146,7 +148,7 @@ def check_size(username, filename, file, options, params):
 
     img_base64 = img2base64(img)
     img_base64 = f"{BASE64_PNG}{img_base64}"
-    save_CEsize(username, doc, filename, CODE_SUCCESS, is_error, message, img_base64, '')
+    save_ce_size(username['username'], CODE_SUCCESS, file, is_error,message, img_base64, '')
     doc.close()
 
     return CODE_SUCCESS, is_error, message, img_base64, ''
@@ -160,13 +162,19 @@ class SizeHandler(MainHandler):
     @need_auth
     async def post(self):
         username = self.current_user
-        files = self.get_files()
-        filename, body = files[0]["filename"], files[0]["body"]
-        mode = int(self.get_argument('mode', default=0))
-        active = int(self.get_argument('active', default=0))
-        width = int(self.get_argument('width', default=-1))
-        height = int(self.get_argument('height', default=-1))
-        radius = int(self.get_argument('radius', default=-1))
+        param = tornado.escape.json_decode(self.request.body)
+        file = param['filePath']
+        filename = os.path.basename(file)
+        mode = int(param.get('mode', 0))
+        active = int(param.get('active', 0))
+        width = int(param.get('width', -1))
+        height = int(param.get('height', -1))
+        radius = int(param.get('radius', -1))
+        # mode = int(self.get_argument('mode', default=0))
+        # active = int(self.get_argument('active', default=0))
+        # width = int(self.get_argument('width', default=-1))
+        # height = int(self.get_argument('height', default=-1))
+        # radius = int(self.get_argument('radius', default=-1))
 
         options = {
             "mode": mode,
@@ -178,7 +186,7 @@ class SizeHandler(MainHandler):
             "radius": radius,
         }
 
-        code, error, message, img_base64, msg = await self.process_async(username, filename, body, options, params)
+        code, error, message, img_base64, msg = await self.process_async(username, filename, file, options, params)
         custom_data = {
             "code": code,
             "data": {

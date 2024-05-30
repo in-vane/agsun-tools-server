@@ -1,3 +1,9 @@
+HOST = '10.22.78.13'
+PORT = '8088'
+FRONT = f"{HOST}:{PORT}/"
+FLIES_ROOT = './file_system/files'
+IMAGE_ROOT = './file_system/images'
+RESULT_FILE_ROOT = './file_system/line_result'
 # 文件存储路径
 PATH_PDF = './assets/pdf'
 PATH_CSV = './assets/csv'

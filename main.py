@@ -1,5 +1,5 @@
 import os
-import asyncio
+
 import tornado
 import tornado.web
 import tornado.websocket
@@ -11,10 +11,11 @@ import handlers
 from config import CONTENT_TYPE_PDF
 from websocket import FileAssembler, pdf2img
 from auth import decode_jwt
+import jwt
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse, parse_qs
 
-
+SECRET_KEY = "your_secret_key_here"
 def need_auth(method):
     def wrapper(self, *args, **kwargs):
         is_auth = getattr(self, 'is_auth', True)
@@ -302,6 +303,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         params = parse_qs(query)
         token = params.get('token', [None])[0]
         self.token = token
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
+        self.username = decoded_token.get('sub')  # 'sub' is the standard claim
         # 心跳机制
         self.temp_count = 0
         self.loop = PeriodicCallback(self.check_per_seconds, 1000)
@@ -325,8 +328,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         file_data = data.get('file')
         total = int(data.get('total'))
         current = int(data.get('current'))
+        username = self.username
         if file_name not in self.files:
-            self.files[file_name] = FileAssembler(file_name, total)
+            self.files[file_name] = FileAssembler(username, file_name, total)
         file = self.files[file_name]
         file.add_slice(current, file_data)
         if file.is_complete():

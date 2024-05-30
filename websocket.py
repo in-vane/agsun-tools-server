@@ -5,7 +5,7 @@ import hashlib
 
 import fitz
 import pymysql
-from config import PATH_PDF
+from config import PATH_PDF, FLIES_ROOT
 from utils import page2img
 from model import db_files
 
@@ -15,7 +15,8 @@ MODE_VECTOR = 1
 
 
 class FileAssembler:
-    def __init__(self, file_name, total_slices):
+    def __init__(self, username, file_name, total_slices):
+        self.username = username
         self.file_name = file_name
         self.total_slices = total_slices
         self.received_slices = {}
@@ -39,18 +40,19 @@ class FileAssembler:
             b64 = slice_data.split(",", 1)
             self.received_data += base64.b64decode(b64[1])
 
-        output_path = PATH_PDF
+        output_path = FLIES_ROOT  # 替换为实际输出路径
 
         if not os.path.exists(output_path):
             os.makedirs(output_path)
-        output_path = os.path.join(output_path, self.file_name)
+        md5_hash = hashlib.md5(self.received_data).hexdigest()
+        file_name = f"{md5_hash}.pdf"
+        output_path = os.path.join(output_path, file_name)
         with open(output_path, "wb") as output_file:
             output_file.write(self.received_data)
-
-        md5_hash = hashlib.md5(self.received_data).hexdigest()
-        print(f"{self.file_name} {md5_hash}")
+        print(self.username)
+        print(output_path)
         try:
-            db_files.insert_file_record(self.file_name, md5_hash, output_path)
+            db_files.insert_file_record(self.username, self.file_name, md5_hash, output_path)
         except pymysql.MySQLError as err:
             if err.args[0] == 1062:  # Duplicate entry error code
                 print(

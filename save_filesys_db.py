@@ -1,595 +1,430 @@
-from io import BytesIO
-
-import fitz
-from PIL import Image
-import base64
 import os
 from datetime import datetime
-from model import *
-from openpyxl import load_workbook
-from config import BASE64_PNG
-# 全局变量定义
-ROOT = './agsun-tools-server/db'
+import base64
+from model import db_result, db_line_result_files,  db_area, db_ce, db_ocr, db_diff_pdf
+import json
+from config import RESULT_FILE_ROOT, IMAGE_ROOT, FLIES_ROOT, FRONT
 
 
-# 动态设置基础目录的函数
-def setup_directory_paths(userinfo, base_dir):
+def create_directory_path(type_id):
     current_year = datetime.now().strftime('%Y')
-    current_month_day = datetime.now().strftime('%m%d')
-    current_time = datetime.now().strftime('%H-%M-%S')
-    unique_identifier = userinfo['username']  # 根据实际情况动态赋值
-    print(base_dir, current_year,
-          current_month_day, current_time, unique_identifier)
-    pdf_dir = os.path.join(base_dir, current_year,
-                           current_month_day, current_time, unique_identifier)
-    result_dir = os.path.join(pdf_dir, 'result')
-    result_file_path = os.path.join(result_dir, 'result.txt')
-    image_result_dir = os.path.join(result_dir, 'image')
+    current_month_day = datetime.now().strftime('%m')
+    current_day = datetime.now().strftime('%d')
 
-    return pdf_dir, result_dir, result_file_path, image_result_dir
+    # 创建完整的目录路径
+    directory_path = os.path.join(IMAGE_ROOT, current_year, current_month_day, current_day, type_id)
+    # 检查并创建目录
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
 
-def setup_directory_paths_no_time(userinfo,filename,page_number, base_dir):
-    current_year = datetime.now().strftime('%Y')
-    current_month_day = datetime.now().strftime('%m%d')
-    unique_identifier = userinfo['username']  # 根据实际情况动态赋值
-    pdf_dir = os.path.join(base_dir, current_year,
-                            current_month_day, f"{filename}.pdf")
-    user_dir = os.path.join(base_dir, current_year,
-                           current_month_day, f"{filename}.pdf", unique_identifier)
-    result_dir = os.path.join(user_dir, f"page_number_{page_number}")
-    result_file_path = os.path.join(result_dir, f'output.txt')
-    image_result_dir = os.path.join(result_dir, 'image')
-
-    return pdf_dir, result_dir, result_file_path, image_result_dir
-
-def images_to_directory(base64_images, image_result_dir, name='output'):
-    """
-    将Base64编码的图像列表转换为图像并保存到指定目录。
-
-    :param base64_images: 包含Base64编码图像的字符串列表。
-    :param image_result_dir: 输出图像的目录。
-    """
-    # 确保输出目录存在
-    if not os.path.exists(image_result_dir):
-        os.makedirs(image_result_dir)
-    for idx, base64_str in enumerate(base64_images, start=1):
-        # 移除"data:image/jpeg;base64,"部分，仅解码Base64编码的数据
-        img_data = base64.b64decode(base64_str.split(",")[1])
-
-        # 使用BytesIO将二进制数据转换成图像
-        image = Image.open(BytesIO(img_data))
-        # 检查图像模式，如果是'RGBA'，转换为'RGB'
-        if image.mode == 'RGBA':
-            image = image.convert('RGB')
-
-        # 构建输出文件路径
-        output_path = os.path.join(image_result_dir, f"{name}_{idx}.jpeg")
-
-        # 保存图像到文件系统
-        image.save(output_path)
+    return directory_path
 
 
-def save_Screw(username, doc, base_file_name, code, mismatch_dict, match_dict, msg):
-    base_dir = f'{ROOT}/006'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username, base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
+def save_Diffpdf(username, code, file1_path, file2_path, pages, base64_strings, error_msg, msg):
     if code == 1:
-        is_error = 1
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        if mismatch_dict is []:
-            is_error = 1
-            with open(result_file_path, 'w') as result_file:
-                for item in mismatch_dict:
-                    # Extract the necessary information from the current item
-                    model_type = item['type']
-                    total_screws = item['total']
-                    step_total = item['step_total']
-                    step_counts = item['step_count']
-                    step_page_no = item['step_page_no']
-                    # Construct the string for the current item
-                    result = f"型号{model_type}螺丝，螺丝包螺丝有{total_screws}个，而步骤螺丝总和有{step_total}，分别在" + \
-                             "，".join(f"{page}页出现{count}个" for page,
-                             count in zip(step_page_no, step_counts))
-                    result_file.write(result)
-        else:
-            is_error = 0
-            with open(result_file_path, 'w') as result_file:
-                result_file.write(f'该文件螺丝包没错\n')
+        return
+    type_id = '002'
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
 
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_pagenumber_instance = CheckScrew(
-        username=username,
-        dataline=dataline,
-        work_num='001',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-        is_error=is_error
-    )
-    check_pagenumber_instance.save_to_db()
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
+    image_paths = []
+
+    for base64_string in base64_strings:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+
+        image_paths.append(image_path)
+
+    data = {
+        'pages': pages,
+        'error_msg': error_msg,
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+    # 插入图片记录到数据库
+    db_diff_pdf.insert_record(username, type_id, file1_path, file2_path, image_paths, data_str)
 
 
-def save_PageNumber(username, doc, base_file_name, code, is_error, issues, error_pages_base64, msg):
-    base_dir = f'{ROOT}/005'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                                                    base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
+def save_language(username, code, file_path, language, msg):
     if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        if is_error:
-            with open(result_file_path, 'w') as result_file:
-                for issue in issues:
-                    result_file.write(f'{issue}\n')
-            images_to_directory(error_pages_base64, image_result_dir)
-        else:
-            with open(result_file_path, 'w') as result_file:
-                result_file.write(f'该文件页码没错\n')
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_pagenumber_instance = CheckPageNumber(
-        username=username,
-        dataline=dataline,
-        work_num='002',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-        is_error=is_error
-    )
+        return
+    type_id = '008'
 
-    check_pagenumber_instance.save_to_db()
+    data = {
+        'language': language  # A success message
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+
+    # 保存文字记录
+    db_result.insert_record(username, type_id, file_path, '', data_str)
 
 
-def save_Language(username, doc, base_file_name, code, language_page, language, msg):
-    base_dir = f'{ROOT}/009'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username, base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
+def save_Screw(username, code, file_path, result, image_page, msg):
     if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        result_str = f"语言目录在第{language_page}页\n"
-        for lang in language:
-            if not lang['error']:
-                result_str += f"正确语言{lang['language']}，{lang['page_number'][0]}页到{lang['page_number'][1]}页\n"
-            else:
-                result_str += f"错误语言{lang['language']}，{lang['page_number'][0]}页到{lang['page_number'][1]}页，而正文为{lang['actual_language']}\n"
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(result_str)
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
+        return
+    type_id = '005'
+
+    data = {
+        'result': result,
+        'image_page': image_page
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+
+    # 保存文字记录
+    db_result.insert_record(username, type_id, file_path, '', data_str)
+
+
+def save_Page_number(username, code, file_path, error, error_page, note, result, msg):
     if code == 1:
-        is_error = 1
-    else:
-        # Check if any language has error=True
-        is_error = any(lang['error'] for lang in language)
-    check_pagenumber_instance = CheckLanguage(
-        username=username,
-        dataline=dataline,
-        work_num='003',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-        is_error=is_error
-    )
-    check_pagenumber_instance.save_to_db()
+        return
+    type_id = '004'
+    print(result)
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
+    image_paths = []
+
+    for base64_string in result:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+        image_paths.append(image_path)
+
+    data = {
+        "error": error,
+        "error_page": error_page,
+        "note": note,
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+    print(image_paths)
+    # 插入记录到数据库
+    db_result.insert_record(username, type_id, file_path, image_paths, data_str)
 
 
-def save_CE(username, doc, excel_file, name1, name2, work_table, code, image_base64, msg):
-    base_dir = f'{ROOT}/007'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username, base_dir)
-    # 确保PDF和结果目录存在
-    wb = load_workbook(excel_file)
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}')
-    doc.save(pdf_output_path1)  # 使用动态生成的路径保存文件
-    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}')
-    wb.save(pdf_output_path2)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
-    if code:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        img_base64 = []
-        img_base64.append(image_base64)
-        images_to_directory(img_base64, image_result_dir)
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{name1}')
-    pdf_name = f'{name1}'
-    excel_path = os.path.join(pdf_dir, f'{name2}')
-    excel_name = f'{name2}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_pagenumber_instance = CheckCE(
-        username=username,
-        dataline=dataline,
-        work_num='004',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        excel_path=excel_path,
-        excel_name=excel_name,
-        work_table=work_table,
-        result=result_path,
-    )
-    check_pagenumber_instance.save_to_db()
-
-
-def save_Diffpdf(username, doc1, doc2, name1, name2, code, mismatch_list, base64_strings, continuous, msg):
-    base_dir = f'{ROOT}/002'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username, base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path1 = os.path.join(pdf_dir, f'{name1}')
-    pdf_output_path2 = os.path.join(pdf_dir, f'{name2}')
-    doc1.save(pdf_output_path1)  # 使用动态生成的路径保存文件
-    doc2.save(pdf_output_path2)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
-    if code == 1:
-        is_error = 1
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        if mismatch_list is None:
-            is_error = 0
-            with open(result_file_path, 'w') as result_file:
-                result_file.write("这两个pdf对比，一模一样")
-        else:
-            is_error = 1
-            with open(result_file_path, 'w') as result_file:
-                for mismatch in mismatch_list:
-                    result_file.write(f"{mismatch}\n")
-                images_to_directory(base64_strings, image_result_dir)
-            if continuous:
-                with open(result_file_path, 'w') as result_file:
-                    for mismatch in mismatch_list:
-                        result_file.write(f"{mismatch}\n")
-                    result_file.write(continuous)
-                    images_to_directory(base64_strings, image_result_dir)
-
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path1 = os.path.join(pdf_dir, f'{name1}')
-    pdf_path2 = os.path.join(pdf_dir, f'{name2}')
-    pdf_name1 = f'{name1}'
-    pdf_name2 = f'{name2}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_pagenumber_instance = CheckDiffpdf(
-        username=username,
-        dataline=dataline,
-        work_num='005',  # 这里需要根据实际情况赋值
-        pdf_path1=pdf_path1,
-        pdf_name1=pdf_name1,
-        pdf_path2=pdf_path2,
-        pdf_name2=pdf_name2,
-        result=result_path,
-        is_error=is_error
-    )
-    check_pagenumber_instance.save_to_db()
-
-
-def save_Part_count(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
-    base_dir = f'{ROOT}/004'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                                                    base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
-    if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        has_error = False  # 错误标志初始化为False
-
-        # 检查 mapping_results 是否有 false
-        for result in mapping_results:
-            serial, is_correct, explosion_count, detail_count = result
-            if not is_correct:
-                print(
-                    f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
-                with open(result_file_path, 'w') as result_file:
-                    result_file.write(
-                        f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
-                has_error = True  # 发现错误，更新错误标志
-
-        # 检查 error_pages 是否不为空
-        if error_pages:  # 确认存在实际的页码信息
-            error_pages_list = ', '.join(map(str, error_pages[1]))
-            print(f'不同语言的明细表第{error_pages_list}页出现了错误。')
-            with open(result_file_path, 'w') as result_file:
-                result_file.write(f'不同语言的明细表第{error_pages_list}页出现了错误。')
-            images_to_directory(error_pages[0], image_result_dir)
-            has_error = True  # 发现错误，更新错误标志
-        # 如果没有发现任何错误，打印统一的消息
-        if not has_error:
-            print('该文件爆炸图零件和不同语言的零件明细表都无错误。')
-            with open(result_file_path, 'w') as result_file:
-                result_file.write('该文件爆炸图零件和不同语言的零件明细表都无错误。')
-                result_file.write(note)
-        else:
-            with open(result_file_path, 'w') as result_file:
-                result_file.write(note)
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_part_count_instance = CheckPartCount(
-        username=username,
-        dataline=dataline,
-        work_num='006',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-    )
-    check_part_count_instance.save_to_db()
-
-
-def save_Line(username, doc, base_file_name, code, msg):
-    base_dir = f'{ROOT}/011'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(
-        username, base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    output_path = os.path.join(result_dir, f'{base_file_name}')
+def save_Line(username, doc, file_path, filename, code, msg):
+    type_id = '010'
+    # 检查结果文件夹是否存在，不存在则创建
+    if not os.path.exists(RESULT_FILE_ROOT):
+        os.makedirs(RESULT_FILE_ROOT)
+    # 定义保存路径，使用时间戳作为文件名
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    output_path = os.path.join(RESULT_FILE_ROOT, f'{timestamp}.pdf')
+    # 将 doc 保存到指定路径
     doc.save(output_path)
+
     # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    check_pagenumber_instance = CheckLine(
-        username=username,
-        dataline=dataline,
-        work_num='007',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-        result_file=output_path,
-    )
-    check_pagenumber_instance.save_to_db()
+    db_line_result_files.insert_file_record(username, type_id, file_path, output_path)
+
+    # 返回保存路径
     return output_path
 
 
-def save_CEsize(username, doc, base_file_name, code, is_error, message, img_base64, msg):
-    base_dir = f'{ROOT}/008'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                                                    base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
+def save_ce(username, code, file1_md5, file2_md5, excel_image_base64, pdf_image_base64, msg):
     if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(f'{message}')
-        image_base64 = []
-        image_base64.append(img_base64)
-        images_to_directory(image_base64, image_result_dir)
+        return
+    type_id = '006'
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
 
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_pagenumber_instance = CheckCEsize(
-        username=username,
-        dataline=dataline,
-        work_num='008',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-        is_error=is_error
-    )
-    check_pagenumber_instance.save_to_db()
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
+    image_paths = []
+    base64_strings = []
+    base64_strings.append(excel_image_base64)
+    base64_strings.append(pdf_image_base64)
+    for base64_string in base64_strings:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+
+        image_paths.append(image_path)
+
+    # 插入图片记录到数据库
+    db_ce.insert_record(username, type_id, file1_md5, file2_md5, image_paths)
 
 
-def save_Area(username, doc1, file_name1, doc2, file_name2, code, base64_data_old, base64_data_new, img_base64, msg):
-    base_dir = f'{ROOT}/001'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                      base_dir)
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path1 = os.path.join(pdf_dir, f'{file_name1}')
-    pdf_output_path2 = os.path.join(pdf_dir, f'{file_name2}')
-    doc1.save(pdf_output_path1)
-    doc2.save(pdf_output_path2)
-    # 如果存在错误，则保存问题列表
+def save_ce_size(username, code, file_path, is_error, message, img_base64, msg):
     if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        old = []
-        new = []
-        out = []
-        base64_data_old = f"{BASE64_PNG}{base64_data_old}"
-        base64_data_new = f"{BASE64_PNG}{base64_data_new}"
-        img_base64 = f"{BASE64_PNG}{img_base64}"
-        old.append(base64_data_old)
-        new.append(base64_data_new)
-        out.append(img_base64)
-        images_to_directory(old, image_result_dir, name='old')
-        images_to_directory(new, image_result_dir, name='new')
-        images_to_directory(out, image_result_dir, name='output')
+        return
+    type_id = '007'
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
 
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path1 = os.path.join(pdf_dir, f'{file_name1}')
-    pdf_name1 = f'{file_name1}'
-    pdf_path2 = os.path.join(pdf_dir, f'{file_name2}')
-    pdf_name2 = f'{file_name2}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    CheckArea_instance = CheckArea(
-        username=username,
-        dataline=dataline,
-        work_num='009',  # 这里需要根据实际情况赋值
-        pdf_path1=pdf_path1,
-        pdf_name1=pdf_name1,
-        pdf_path2=pdf_path2,
-        pdf_name2=pdf_name2,
-        result=result_path,
-    )
-    CheckArea_instance.save_to_db()
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+
+    image_paths = []
+    base64_strings = []
+    base64_strings.append(img_base64)
+    for base64_string in base64_strings:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+
+        image_paths.append(image_path)
+
+    data = {
+        "error": is_error,
+        "message": message
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+
+    # 保存记录
+    db_result.insert_record(username, type_id, file_path, image_paths, data_str)
 
 
-def save_Icon(username, doc, base_file_name, page_number, custom_data):
-    base_dir = f'{ROOT}/010'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths_no_time(username,
-                                                      base_file_name,page_number, base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}.pdf')
-    if not os.path.exists(pdf_output_path):
-        # 文件不存在，要保存
-        doc.save(pdf_output_path)
-    if custom_data.get('error', False) == False:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(custom_data['result'][0])
-    else:
-        image_base64 = custom_data["result"]
-        images_to_directory(image_base64, image_result_dir)
+def save_part_count(username, md5, code, data, msg):
+    if code == 1 or len(data.get("error_pages")) ==0:
+        return
+    type_id = '003'
+    print(username, md5, code, data, msg)
+    note = data.get("note")
+    mapping_results = data.get("mapping_results")
+    error_pages = data.get("error_pages")
+    image = error_pages[0]
+    page = error_pages[1]
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
 
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    CheckIcon_instance = CheckIcon(
-        username=username,
-        dataline=dataline,
-        work_num='010',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-    )
-    CheckIcon_instance.save_to_db()
+    image_paths = []
 
-def save_Part_count_ocr(username, doc, base_file_name, code, mapping_results, note, error_pages, msg):
-    base_dir = f'{ROOT}/012'
-    pdf_dir, result_dir, result_file_path, image_result_dir = setup_directory_paths(username,
-                                                                                    base_dir)
-    # 确保PDF和结果目录存在
-    os.makedirs(pdf_dir, exist_ok=True)
-    os.makedirs(result_dir, exist_ok=True)
-    # 保存文件系统
-    # 动态设置PDF输出路径
-    pdf_output_path = os.path.join(pdf_dir, f'{base_file_name}')
-    doc.save(pdf_output_path)  # 使用动态生成的路径保存文件
-    # 如果存在错误，则保存问题列表
+    for base64_string in image:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+
+        image_paths.append(image_path)
+
+    data = {
+        "error_pages": error_pages[1],
+        "mapping_results": mapping_results,
+        "note": note,
+    }
+    # 将 data 转换为字符串
+    data_str = json.dumps(data, ensure_ascii=False)
+    # 保存文字记录
+    db_result.insert_record(username, type_id, md5, image_path, data_str)
+
+
+def save_area(username, code, file1_path, file2_path, image_one, image_two, image_result, msg):
     if code == 1:
-        with open(result_file_path, 'w') as result_file:
-            result_file.write(msg)
-    else:
-        has_error = False  # 错误标志初始化为False
+        return
+    type_id = '001'
+    # 获取存储图片的文件夹
+    directory_path = create_directory_path(type_id)
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+        # 获取当前时间戳
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
 
-        # 检查 mapping_results 是否有 false
-        for result in mapping_results:
-            serial, is_correct, explosion_count, detail_count = result
-            if not is_correct:
-                print(
-                    f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
-                with open(result_file_path, 'w') as result_file:
-                    result_file.write(
-                        f'序号为{serial}的零件，爆炸图有{explosion_count}个，而明细表有{detail_count}个。')
-                has_error = True  # 发现错误，更新错误标志
+    # 移除 base64 前缀并解码，保存图片
+    image_one_path = os.path.join(directory_path, f"{timestamp}_one.png")
+    img_data_one = base64.b64decode(image_one.split(",")[1])
+    with open(image_one_path, 'wb') as f:
+        f.write(img_data_one)
 
-        # 检查 error_pages 是否不为空
-        if error_pages:  # 确认存在实际的页码信息
-            images_to_directory(error_pages[1], image_result_dir)
-            has_error = True  # 发现错误，更新错误标志
-        # 如果没有发现任何错误，打印统一的消息
-        if not has_error:
-            print('该文件爆炸图零件和不同语言的零件明细表都无错误。')
-            with open(result_file_path, 'w') as result_file:
-                result_file.write('该文件爆炸图零件和不同语言的零件明细表都无错误。')
-                result_file.write(note)
-        else:
-            with open(result_file_path, 'w') as result_file:
-                result_file.write(note)
-    # 保存数据库
-    dataline = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    pdf_path = os.path.join(pdf_dir, f'{base_file_name}')
-    pdf_name = f'{base_file_name}'
-    result_path = result_dir
-    # 创建实例并保存到数据库
-    check_part_count_instance = CheckPartCount(
-        username=username,
-        dataline=dataline,
-        work_num='008',  # 这里需要根据实际情况赋值
-        pdf_path=pdf_path,
-        pdf_name=pdf_name,
-        result=result_path,
-    )
-    check_part_count_instance.save_to_db()
+    image_two_path = os.path.join(directory_path, f"{timestamp}_two.png")
+    img_data_two = base64.b64decode(image_two.split(",")[1])
+    with open(image_two_path, 'wb') as f:
+        f.write(img_data_two)
+
+    image_result_path = os.path.join(directory_path, f"{timestamp}_result.png")
+    img_data_result = base64.b64decode(image_result.split(",")[1])
+    with open(image_result_path, 'wb') as f:
+        f.write(img_data_result)
+        # 插入数据库记录
+    db_area.insert_record(username, type_id, file1_path, file2_path, image_one_path, image_two_path, image_result_path)
+
+
+def save_ocr(username, doc, md5, page_num, image_one, data):
+    type_id = '009'
+    # 获取存储图片的文件夹
+    image = data.get("result")
+
+    directory_path = create_directory_path(type_id)
+    # 确保目录存在
+    if not os.path.exists(directory_path):
+        os.makedirs(directory_path)
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    # 移除 base64 前缀并解码，保存图片
+    image_one_path = os.path.join(directory_path, f"{timestamp}_one.png")
+    img_data_one = base64.b64decode(image_one.split(",")[1])
+    with open(image_one_path, 'wb') as f:
+        f.write(img_data_one)
+    image_paths = []
+    for base64_string in image:
+        # 生成时间戳作为文件名
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        image_path = os.path.join(directory_path, f"{timestamp}.png")
+
+        # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
+        img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
+        # 解码base64字符串并保存为图片
+        with open(image_path, "wb") as image_file:
+            image_file.write(base64.b64decode(img_base64_cleaned))
+        image_paths.append(image_path)
+
+    db_ocr.insert_record(username, type_id, md5, image_one_path, image_path)
+
+
+def images_to_base64_list(directory_path):
+    base64_list = []
+
+    # 获取目录下所有文件
+    for file_name in os.listdir(directory_path):
+        file_path = os.path.join(directory_path, file_name)
+
+        # 检查是否为文件且扩展名为常见图像格式
+        if os.path.isfile(file_path) and file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
+            with open(file_path, "rb") as image_file:
+                # 读取图像文件内容并进行base64编码
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                base64_list.append(f"data:image/{file_name.split('.')[-1]};base64,{encoded_string}")
+
+    return base64_list
+
+
+# base64_list = images_to_base64_list('image1')
+
+# save_language("username", 0, '123456', [
+#     {
+#         'language': 'EN',
+#         'page_number': [1, 4],
+#         'error': False,
+#         'actual_language': 'EN'
+#     },
+#     {
+#         'language': 'FR',
+#         'page_number': [5, 8],
+#         'error': True,
+#         'actual_language': 'ES'
+#     },
+#     {
+#         'language': 'DE',
+#         'page_number': [9, 12],
+#         'error': False,
+#         'actual_language': 'DE'
+#     }
+# ]
+# , '')
+
+
+# save_Screw("username", 0, '231456', [
+#         {
+#             'type': 'A',
+#             'total': 17,
+#             'step_total': 15,
+#             'step_count': [5, 3, 7],
+#             'step_page_no': [2, 4, 6]
+#         },
+#         {
+#             'type': 'B',
+#             'total': 18,
+#             'step_total': 18,
+#             'step_count': [10, 8],
+#             'step_page_no': [3, 5]
+#         },
+#         {
+#             'type': 'C',
+#             'total': 2,
+#             'step_total': 2,
+#             'step_count': [1, 1],
+#             'step_page_no': [1, 7]
+#         },
+#         {
+#             'type': 'D',
+#             'total': 4,
+#             'step_total': 3,
+#             'step_count': [2, 1],
+#             'step_page_no': [8, 10]
+#         },
+#         {
+#             'type': 'E',
+#             'total': 4,
+#             'step_total': 0,
+#             'step_count': [],
+#             'step_page_no': []
+#         }
+#     ], [3,6,5], '')
+# save_Page_number("username", 0, '345678', True, [3, 5, 7],'页码错误',base64_list, '')
+# save_ce_size("username", 0, '123456', True, "尺寸不一致, 标注为(100 x 50), 检测结果为(98 x 52)", base64_list[0], '')
+
+
+# import fitz
+# doc = fitz.open('D:\\agsun-tools-server\\tasks\\1\ACE 6-14.pdf')
+# save_Line("username", doc, '123456', 'ACE 6-14', 0, '')
+#
+
+
+# save_area("username", 0, '123456', base64_list[0], base64_list[1], base64_list[2], '')
+
+
+# save_Diffpdf("username", 0, 'file1_md5', "file2_md5", [2, 3, 4], base64_list, '', '')
+
+# save_ce("username", 0, "file1_md5", "file2_md5", base64_list[0], base64_list[1], '')
+
+
+# data = {
+#     "mapping_results": [
+#         ["1", True, 10, 10],
+#         ["2", False, 5, 8]
+#     ],
+#     "error_pages": [
+#         [
+#             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAACThk5UAAAAA3NCSVQICAjb4U/gAAAgAElEQVR4...",
+#             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAACThk5UAAAAA3NCSVQICAjb4U/gAAAgAElEQVR4..."
+#         ],
+#         [2, 3]
+#     ],
+#     "note": "零件计数：检测成功\n明细表检测：检测成功,序号 1,2 有误"
+# }
+# save_part_count("username", "md5", 0, data, '')

@@ -7,7 +7,7 @@ import base64
 from PIL import Image
 from io import BytesIO
 
-from save_filesys_db import save_Area
+from save_filesys_db import save_area
 
 from main import MainHandler, need_auth
 from config import BASE64_PNG
@@ -128,10 +128,8 @@ def compare_explore(username, filename1, file1, filename2, file2, base64_data_ol
             cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
 
     image_base64 = img2base64(filled_after)
-    doc1 = fitz.open(file1)
-    doc2 = fitz.open(file2)
     msg = ''
-    save_Area(username, doc1, filename1, doc2, filename2, CODE_SUCCESS, base64_data_old, base64_data_new, image_base64, msg)
+    save_area(username['username'], CODE_SUCCESS, file1, file2, f"{BASE64_PNG}{base64_data_old}", f"{BASE64_PNG}{base64_data_new}", f"{BASE64_PNG}{image_base64}", msg)
     return CODE_SUCCESS, f"{BASE64_PNG}{image_base64}", msg
 
 

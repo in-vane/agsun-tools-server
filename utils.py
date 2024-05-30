@@ -5,7 +5,7 @@ import cv2
 import fitz
 import numpy as np
 from PIL import Image
-from config import BASE64_PNG
+from config import BASE64_PNG, FRONT
 
 
 def is_image(page):
@@ -57,3 +57,18 @@ def image_to_base64(image):
     buffered = BytesIO()
     image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+def process_paths(paths):
+    processed_paths = []
+    for p in paths:
+        if p.startswith('.'):
+            p = p[1:]  # Remove the leading '.'
+        processed_paths.append(FRONT + p)
+    return processed_paths
+def add_url(path):
+    if path.startswith('.'):
+        path = path[1:]  # Remove the leading '.'
+    url = f"{FRONT}{path}"
+    return url
+

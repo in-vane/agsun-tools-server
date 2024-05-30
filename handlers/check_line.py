@@ -10,9 +10,12 @@ import tornado
 from tornado.concurrent import run_on_executor
 
 from save_filesys_db import save_Line
+from utils import add_url
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
+
+
 # PDF_OUTPUT = './assets/pdf/temp.pdf'
 
 def thicken_lines_in_all_pages(doc, new_line_width=0.5):
@@ -33,16 +36,16 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
         # Commit the drawing operations to the page
         shape.commit()
 
-
-
     # doc.save(PDF_OUTPUT)
 
 
 def check_line(username, file, filename):
     doc = fitz.open(file)
     thicken_lines_in_all_pages(doc)
-    output_path = save_Line(username, doc, filename, CODE_SUCCESS,'')
-    return CODE_SUCCESS, output_path, ''
+    output_path = save_Line(username['username'], doc, file, filename, CODE_SUCCESS, '')
+    url = add_url(output_path)
+    print(f"url:{url}")
+    return CODE_SUCCESS, url, ''
 
 
 # pdf_path = '1.pdf'  # Replace with the path to your PDF file
@@ -51,6 +54,7 @@ class LineHandler(MainHandler):
     @run_on_executor
     def process_async(self, username, file, filename):
         return check_line(username, file, filename)
+
     async def post(self):
         param = tornado.escape.json_decode(self.request.body)
         username = self.current_user
