@@ -2,6 +2,7 @@ import tornado
 from tornado.concurrent import run_on_executor
 from main import MainHandler, need_auth
 from model import db_files
+import datetime
 
 
 import sys
@@ -10,6 +11,8 @@ sys.path.append("..")
 
 def check_md5(file_md5):
     file_info = db_files.query_file_by_md5(file_md5)
+    if file_info and 'datetime' in file_info and isinstance(file_info['datetime'], datetime.datetime):
+        file_info['datetime'] = file_info['datetime'].isoformat()
     print(f"file_info {file_info}")
     return file_info
 

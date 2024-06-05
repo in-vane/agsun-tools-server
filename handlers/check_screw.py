@@ -326,7 +326,7 @@ def check_screw(username, file, filename, table, start, end, page, rect):
     }
     print("save file")
     save_Screw(username['username'], CODE_SUCCESS, file,
-               result, image_page, '')
+               mismatch_dict, match_dict, image_page, '')
     print("save success")
     doc.close()
     print("---end check_screw---")

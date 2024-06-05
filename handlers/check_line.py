@@ -25,7 +25,9 @@ def thicken_lines_in_all_pages(doc, new_line_width=0.5):
         shape = page.new_shape()
         # Analyze the page for vector drawings
         for item in page.get_drawings():
-            if item['type'] == 's' and item['width'] < 0.08 and item['stroke_opacity'] == 1.0 and item[
+            width_in_pt = item['width']
+            width_in_mm = width_in_pt * (25.4 / 72)
+            if item['type'] == 's' and width_in_mm  < 0.08 and item['stroke_opacity'] == 1.0 and item[
                 'dashes'] == "[] 0":
                 for subitem in item['items']:
                     if subitem[0] == 'l':  # Check for line items

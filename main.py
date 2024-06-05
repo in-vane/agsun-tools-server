@@ -45,6 +45,8 @@ class Application(tornado.web.Application):
             (r'/api/ocr_char', OcrHandler),
             (r'/api/ocr_icon', OcrHandler),
             (r'/api/isFileUploaded', handlers.FileHandler),
+            (r'/api/history/files', handlers.Select_FileHandler),
+            (r'/api/history/searchHistory', handlers.SearchHistoryHandler),
             (r"/websocket", WebSocketHandler),
         ]
         settings = {

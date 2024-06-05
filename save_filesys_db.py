@@ -61,37 +61,61 @@ def save_language(username, code, file_path, language, msg):
         return
     type_id = '008'
 
-    data = {
-        'language': language  # A success message
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
+    # 初始化一个空列表用于存储错误信息
+    errors = []
+    # 遍历每个语言信息
+    for lang_info in language:
+        if lang_info['error']:
+            # 生成错误信息并添加到错误列表中
+            errors.append(
+                f"该文档语言目录{lang_info['language']}不准确，正文{lang_info['page_number']}明明是{lang_info['actual_language']}")
+
+    # 如果错误列表为空，则表示所有语言顺序正确
+    if not errors:
+        result = '该文档语言顺序正确'
+    else:
+        # 否则将所有错误信息拼接成一个字符串
+        result = '，'.join(errors)
 
     # 保存文字记录
-    db_result.insert_record(username, type_id, file_path, '', data_str)
+    db_result.insert_record(username, type_id, file_path, '', result)
 
 
-def save_Screw(username, code, file_path, result, image_page, msg):
+def save_Screw(username, code, file_path, mismatch_dict, match_dict, image_page, msg):
     if code == 1:
         return
     type_id = '005'
+    # 检查两个列表是否为空
+    if not mismatch_dict and not image_page:
+        result = '该文档螺丝无错误'
+    elif not mismatch_dict and image_page:
+        result = f'该文档的{image_page}页为图片，请仔细检查'
+    elif mismatch_dict and not image_page:
+        # 构建不匹配螺丝信息字符串
+        result_list = []
+        for mismatch in mismatch_dict:
+            result_list.append(
+                f'螺丝{mismatch["type"]}，螺丝包{mismatch["total"]}个，步骤螺丝{mismatch["step_total"]}个，分别在{mismatch["step_page_no"]}页出现{mismatch["step_count"]}个')
+        result = '，'.join(result_list)
+    else:
+        # 当两个列表都不为空时，结合两个结果
+        mismatch_result_list = []
+        for mismatch in mismatch_dict:
+            mismatch_result_list.append(
+                f'螺丝{mismatch["type"]}，螺丝包{mismatch["total"]}个，步骤螺丝{mismatch["step_total"]}个，分别在{mismatch["step_page_no"]}页出现{mismatch["step_count"]}个')
+        mismatch_result = '，'.join(mismatch_result_list)
+        image_result = f'该文档的{image_page}页为图片，请仔细检查'
+        result = f'{mismatch_result}，{image_result}'
 
-    data = {
-        'result': result,
-        'image_page': image_page
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
 
     # 保存文字记录
-    db_result.insert_record(username, type_id, file_path, '', data_str)
+    db_result.insert_record(username, type_id, file_path, '', result)
 
 
 def save_Page_number(username, code, file_path, error, error_page, note, result, msg):
     if code == 1:
         return
     type_id = '004'
-    print(result)
     # 获取存储图片的文件夹
     directory_path = create_directory_path(type_id)
     # 确保目录存在
@@ -112,16 +136,14 @@ def save_Page_number(username, code, file_path, error, error_page, note, result,
             image_file.write(base64.b64decode(img_base64_cleaned))
         image_paths.append(image_path)
 
-    data = {
-        "error": error,
-        "error_page": error_page,
-        "note": note,
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
-    print(image_paths)
+    if not error:
+        text = note
+    else:
+        error_pages_str = ', '.join(map(str, error_page))
+        text = f"[{error_pages_str}]页，{note}"
+
     # 插入记录到数据库
-    db_result.insert_record(username, type_id, file_path, image_paths, data_str)
+    db_result.insert_record(username, type_id, file_path, image_paths, text)
 
 
 def save_Line(username, doc, file_path, filename, code, msg):
@@ -201,15 +223,10 @@ def save_ce_size(username, code, file_path, is_error, message, img_base64, msg):
 
         image_paths.append(image_path)
 
-    data = {
-        "error": is_error,
-        "message": message
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
+    text = message
 
     # 保存记录
-    db_result.insert_record(username, type_id, file_path, image_paths, data_str)
+    db_result.insert_record(username, type_id, file_path, image_paths, text)
 
 
 def save_part_count(username, md5, code, data, msg):
@@ -243,15 +260,27 @@ def save_part_count(username, md5, code, data, msg):
 
         image_paths.append(image_path)
 
-    data = {
-        "error_pages": error_pages[1],
-        "mapping_results": mapping_results,
-        "note": note,
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
+
+
+    if not mapping_results and not error_pages:
+        text = note
+
+    # Extract error parts from mapping_results
+    error_parts = [
+        f"零件{result[0]}的爆炸图有{result[2]}个而明细表有{result[3]}个"
+        for result in mapping_results if not result[1]
+    ]
+
+    # Extract error pages from error_pages
+    error_page_numbers = error_pages[1] if len(error_pages) > 1 else []
+
+    # Construct the text
+    error_parts_text = "，".join(error_parts)
+    error_pages_text = f"第 {error_page_numbers}页的明细表错误" if error_page_numbers else ""
+
+    text = f"爆炸图{error_parts_text}。{error_pages_text}，{note}"
     # 保存文字记录
-    db_result.insert_record(username, type_id, md5, image_path, data_str)
+    db_result.insert_record(username, type_id, md5, image_path, text)
 
 
 def save_area(username, code, file1_path, file2_path, image_one, image_two, image_result, msg):
