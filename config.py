@@ -1,5 +1,5 @@
-HOST = '10.22.78.13'
-PORT = '8088'
+HOST = '192.168.0.54'
+PORT = '8888'
 FRONT = f"{HOST}:{PORT}/"
 FLIES_ROOT = './file_system/files'
 IMAGE_ROOT = './file_system/images'

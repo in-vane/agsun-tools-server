@@ -121,9 +121,9 @@ def check_page_number(username, file, filename, rect):
     print(username, file, filename, rect)
     logger.info(f"username : {username}")
     if not file:
-        code = '文件损坏或者为空文件'
-        logger.info(code)
-        return CODE_ERROR, None, code
+        msg = '文件损坏或者为空文件'
+        logger.info(msg)
+        return CODE_ERROR, None, msg
     doc = fitz.open(file)
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))

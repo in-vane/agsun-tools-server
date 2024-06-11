@@ -59,7 +59,6 @@ def extract_Screw_bags(doc, page_number, rect):
     texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
     # 转换所有小写字母为大写
     texts = texts.upper()
-    print(texts)
     # 按空格分割文本为单个元素
     elements = texts.split()
     # 初始化结果列表
@@ -79,6 +78,7 @@ def extract_Screw_bags(doc, page_number, rect):
             if index < len(result):
                 result[index]['count'] = number
                 index += 1  # 移动到下一个大写字母
+    result = sorted(result, key=lambda x: x['type'])
     return result
 
 
@@ -332,20 +332,7 @@ def check_screw(username, file, filename, table, start, end, page, rect):
     print("---end check_screw---")
     return CODE_SUCCESS, data, None
 
-# 测试
-# def pdf_to_bytes(file_path):
-#     with open(file_path, 'rb') as file:
-#         bytes_content = file.read()
-#     return bytes_content
 
-# file1 = '1/AFA/C043544说明书(K114BFI3-AFA-英国30)-A1-YFKL23951.pdf' # 请根据实际情况修改路径
-# file1 = '2/ACE.pdf'
-# file1 = pdf_to_bytes(file1)
-# result = [{’key‘:1,'type': 'A', 'count': 17}]
-# , {'key': 'B', 'value': 18}, {'key': 'C', 'value': 2}, {'key': 'D', 'value': 4}, {'key': 'E', 'value': 4}]
-# start =6
-# end =14
-# check_screw('username', file1, 'filename', result, start, end)
 class ScrewHandler(MainHandler):
     @run_on_executor
     def process_async1(self, file, page_number, rect):

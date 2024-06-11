@@ -15,6 +15,7 @@ from main import MainHandler
 import tornado
 from tornado.concurrent import run_on_executor
 from config import CONTENT_TYPE_PDF, LIBREOFFICE_PATH
+from utils import convert_files_to_bytesio, ensure_directory_exists
 
 import asposecells
 jpype.startJVM()
@@ -80,7 +81,7 @@ def change_excel(wb, work_table, message_dict):
     wb.save(EXCEL_PATH)
 
 
-def excel_to_iamge(excel_path, num):
+def excel_to_iamge(excel_path, num, zoom=2.0):
     # fitz 的索引是从0开始，而用户是从1开始
     num = num - 1
     # 构建转换命令
@@ -111,7 +112,10 @@ def excel_to_iamge(excel_path, num):
     doc = fitz.open(output_pdf_path)
     if num < len(doc):
         page = doc.load_page(num)
-        pix = page.get_pixmap()
+        # 设置变换矩阵以提高分辨率
+        matrix = fitz.Matrix(zoom, zoom)
+        # 将页面转换为高分辨率图像
+        pix = page.get_pixmap(matrix=matrix)
         img_bytes = pix.tobytes("png")
         img_base64 = base64.b64encode(img_bytes).decode("utf-8")
     else:
@@ -125,11 +129,13 @@ def excel_to_iamge(excel_path, num):
     # jpype.shutdownJVM()
     return f"{BASE64_PNG}{img_base64}"
 
-def pdf_to_image(doc):
+def pdf_to_image(doc, zoom=2.0):
     # 加载第一页
     page = doc.load_page(0)  # 页面索引从0开始，0表示第一页
-    # 将页面转换为图像
-    pix = page.get_pixmap()
+    # 设置变换矩阵以提高分辨率
+    matrix = fitz.Matrix(zoom, zoom)
+    # 将页面转换为高分辨率图像
+    pix = page.get_pixmap(matrix=matrix)
     # 将图像数据转换为PNG格式的二进制数据
     img_data = pix.tobytes("png")
     # 对图像数据进行Base64编码
@@ -198,29 +204,20 @@ def determine_file_type(excel_bytes):
         return 'Unknown'
 
 
-def checkTags(username, excel_file, pdf_file, name1, name2, num):
-    # 获取文件的目录路径
-    directory = os.path.dirname(EXCEL_PATH)
-    # 检查这个目录是否存在
-    if not os.path.exists(directory):
-        # 如果目录不存在，则创建它
-        os.makedirs(directory)
-        print(f"目录 {directory} 已创建。")
-    else:
-        print(f"目录 {directory} 已存在。")
-    excel_type = determine_file_type(excel_file)
-    if excel_type == 'xls':
+def checkTags(username, excel_file, pdf_file, num, file_extension):
+    ensure_directory_exists(EXCEL_PATH)
+    ensure_directory_exists(PDF_PATH)
+    if file_extension == 'xls':
+        print("这是xls文件")
         excel_file = convert_xls_bytes_to_xlsx(excel_file)
-    elif excel_type == 'Unknown':
-        msg = '该文件不是excel文件'
-        return CODE_ERROR, None, msg
+        print("转换为xlsx文件成功")
     doc = fitz.open(stream=BytesIO(pdf_file))
     doc.save(PDF_PATH)
     wb = openpyxl.load_workbook(filename=BytesIO(excel_file))
     sheet_names = wb.sheetnames
     print(f"一共工作表:{sheet_names}")
-    if sheet_names[0]!='label':
-        work_table = sheet_names[num-1]
+    if sheet_names[0] != 'label':
+        work_table = sheet_names[num - 1]
     else:
         work_table = sheet_names[num]
     print(f"工作表为: {work_table}")
@@ -237,33 +234,32 @@ def checkTags(username, excel_file, pdf_file, name1, name2, num):
 
 # 测试
 # def pdf_to_bytes(file_path):
-  #  with open(file_path, 'rb') as file:
-   #     bytes_content = file.read()
-    # return bytes_content
+#  with open(file_path, 'rb') as file:
+#     bytes_content = file.read()
+# return bytes_content
 class CEHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, excel_file, pdf_file, name1, name2, num):
-        return checkTags(username, excel_file, pdf_file, name1, name2, num)
+    def process_async(self, username, excel_file, pdf_file, num, file_extension):
+        return checkTags(username, excel_file, pdf_file, num, file_extension)
+
     async def post(self):
         username = self.current_user
-        mode = self.get_argument('mode', default='0')
-        mode = int(mode)  # 确保将模式转换为整数
-        num = int(self.get_argument('sheet'))
-        files = self.get_files()
-        file_1, file_2 = files[0], files[1]
-        name1 = file_1["filename"]
-        name2 = file_2["filename"]
-        file_1_type, file_1_body = file_1["content_type"], file_1["body"]
-        file_2_body = file_2["body"]
-        if file_1_type == CONTENT_TYPE_PDF:
-            file_pdf, file_excel = file_1_body, file_2_body
-            pdf_name, excel_name = name1, name2
-        else:
-            file_pdf, file_excel = file_2_body, file_1_body
-            pdf_name, excel_name = name2, name1
+        params = tornado.escape.json_decode(self.request.body)
+        mode = params['mode']
+        num = int(params['sheet'])
+        file_paths = params["filePath"]
+        for file_path in file_paths:
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext in ['.xlsx', '.xls']:
+                file_excel = file_path
+            elif ext == '.pdf':
+                file_pdf = file_path
+        # 获取文件后缀名
+        file_extension = os.path.splitext(file_excel)[1].lstrip('.')
+        file_excel, file_pdf = convert_files_to_bytesio(file_excel, file_pdf)
         if mode == 0:
             code, excel_image_base64, pdf_image_base64, msg = await self.process_async(username,
-                                                                    file_excel, file_pdf, pdf_name, excel_name, num)
+                                                                    file_excel, file_pdf, num, file_extension)
         custom_data = {
             "code": code,
             "data": {
