@@ -32,7 +32,14 @@ def select_file(timestamp, username, type_id):
     }
     table = table_map.get(type_id)
     result = db_files.query_files(table, formatted_date, username, type_id)
-    return result
+    data = []
+    seen_paths = set()
+
+    for entry in result:
+        if entry["file_path"] not in seen_paths:
+            data.append(entry)
+            seen_paths.add(entry["file_path"])
+    return data
 
 
 class Select_FileHandler(MainHandler):
@@ -47,11 +54,11 @@ class Select_FileHandler(MainHandler):
         username = params['username']
         type_id = params['type_id']
         datetime = datetime / 1000
-        result = await self.process_async(datetime, username, type_id)
+        data = await self.process_async(datetime, username, type_id)
 
         custom_data = {
             "code": 0,
-            "data": result,
+            "data": data,
             "msg": ''
         }
 

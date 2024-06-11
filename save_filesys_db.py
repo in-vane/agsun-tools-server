@@ -37,7 +37,7 @@ def save_Diffpdf(username, code, file1_path, file2_path, pages, base64_strings, 
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
-
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
         # 解码base64字符串并保存为图片
@@ -46,14 +46,16 @@ def save_Diffpdf(username, code, file1_path, file2_path, pages, base64_strings, 
 
         image_paths.append(image_path)
 
-    data = {
-        'pages': pages,
-        'error_msg': error_msg,
-    }
-    # 将 data 转换为字符串
-    data_str = json.dumps(data, ensure_ascii=False)
+    mismatch_str = f"第{pages}页不同"
+
+    # 拼接结果字符串
+    if error_msg:
+        result = f"{mismatch_str}，{error_msg}"
+    else:
+        result = mismatch_str
+
     # 插入图片记录到数据库
-    db_diff_pdf.insert_record(username, type_id, file1_path, file2_path, image_paths, data_str)
+    db_diff_pdf.insert_record(username, type_id, file1_path, file2_path, image_paths, result)
 
 
 def save_language(username, code, file_path, language, msg):
@@ -68,7 +70,7 @@ def save_language(username, code, file_path, language, msg):
         if lang_info['error']:
             # 生成错误信息并添加到错误列表中
             errors.append(
-                f"该文档语言目录{lang_info['language']}不准确，正文{lang_info['page_number']}明明是{lang_info['actual_language']}")
+                f"该文档语言目录{lang_info['language']}不准确，正文{lang_info['page_number']}是{lang_info['actual_language']}")
 
     # 如果错误列表为空，则表示所有语言顺序正确
     if not errors:
@@ -128,6 +130,7 @@ def save_Page_number(username, code, file_path, error, error_page, note, result,
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
 
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
@@ -154,6 +157,7 @@ def save_Line(username, doc, file_path, filename, code, msg):
     # 定义保存路径，使用时间戳作为文件名
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
     output_path = os.path.join(RESULT_FILE_ROOT, f'{timestamp}.pdf')
+    output_path = os.path.normpath(output_path).replace('\\', '/')  # 确保路径为Linux风格
     # 将 doc 保存到指定路径
     doc.save(output_path)
 
@@ -183,7 +187,7 @@ def save_ce(username, code, file1_md5, file2_md5, excel_image_base64, pdf_image_
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
-
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
         # 解码base64字符串并保存为图片
@@ -214,7 +218,7 @@ def save_ce_size(username, code, file_path, is_error, message, img_base64, msg):
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
-
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
         # 解码base64字符串并保存为图片
@@ -251,7 +255,7 @@ def save_part_count(username, md5, code, data, msg):
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
-
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
         # 解码base64字符串并保存为图片
@@ -297,16 +301,19 @@ def save_area(username, code, file1_path, file2_path, image_one, image_two, imag
 
     # 移除 base64 前缀并解码，保存图片
     image_one_path = os.path.join(directory_path, f"{timestamp}_one.png")
+    image_one_path = os.path.normpath(image_one_path).replace('\\', '/')  # 确保路径为Linux风格
     img_data_one = base64.b64decode(image_one.split(",")[1])
     with open(image_one_path, 'wb') as f:
         f.write(img_data_one)
 
     image_two_path = os.path.join(directory_path, f"{timestamp}_two.png")
+    image_two_path = os.path.normpath(image_two_path).replace('\\', '/')  # 确保路径为Linux风格
     img_data_two = base64.b64decode(image_two.split(",")[1])
     with open(image_two_path, 'wb') as f:
         f.write(img_data_two)
 
     image_result_path = os.path.join(directory_path, f"{timestamp}_result.png")
+    image_result_path = os.path.normpath(image_result_path).replace('\\', '/')  # 确保路径为Linux风格
     img_data_result = base64.b64decode(image_result.split(",")[1])
     with open(image_result_path, 'wb') as f:
         f.write(img_data_result)
@@ -334,7 +341,7 @@ def save_ocr(username, doc, md5, page_num, image_one, data):
         # 生成时间戳作为文件名
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         image_path = os.path.join(directory_path, f"{timestamp}.png")
-
+        image_path = os.path.normpath(image_path).replace('\\', '/')  # 确保路径为Linux风格
         # 清理 base64 字符串，去掉前面的 data:image/png;base64, 部分
         img_base64_cleaned = base64_string.split(',')[1] if ',' in base64_string else base64_string
         # 解码base64字符串并保存为图片
@@ -345,115 +352,7 @@ def save_ocr(username, doc, md5, page_num, image_one, data):
     db_ocr.insert_record(username, type_id, md5, image_one_path, image_path)
 
 
-def images_to_base64_list(directory_path):
-    base64_list = []
-
-    # 获取目录下所有文件
-    for file_name in os.listdir(directory_path):
-        file_path = os.path.join(directory_path, file_name)
-
-        # 检查是否为文件且扩展名为常见图像格式
-        if os.path.isfile(file_path) and file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
-            with open(file_path, "rb") as image_file:
-                # 读取图像文件内容并进行base64编码
-                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                base64_list.append(f"data:image/{file_name.split('.')[-1]};base64,{encoded_string}")
-
-    return base64_list
 
 
-# base64_list = images_to_base64_list('image1')
-
-# save_language("username", 0, '123456', [
-#     {
-#         'language': 'EN',
-#         'page_number': [1, 4],
-#         'error': False,
-#         'actual_language': 'EN'
-#     },
-#     {
-#         'language': 'FR',
-#         'page_number': [5, 8],
-#         'error': True,
-#         'actual_language': 'ES'
-#     },
-#     {
-#         'language': 'DE',
-#         'page_number': [9, 12],
-#         'error': False,
-#         'actual_language': 'DE'
-#     }
-# ]
-# , '')
 
 
-# save_Screw("username", 0, '231456', [
-#         {
-#             'type': 'A',
-#             'total': 17,
-#             'step_total': 15,
-#             'step_count': [5, 3, 7],
-#             'step_page_no': [2, 4, 6]
-#         },
-#         {
-#             'type': 'B',
-#             'total': 18,
-#             'step_total': 18,
-#             'step_count': [10, 8],
-#             'step_page_no': [3, 5]
-#         },
-#         {
-#             'type': 'C',
-#             'total': 2,
-#             'step_total': 2,
-#             'step_count': [1, 1],
-#             'step_page_no': [1, 7]
-#         },
-#         {
-#             'type': 'D',
-#             'total': 4,
-#             'step_total': 3,
-#             'step_count': [2, 1],
-#             'step_page_no': [8, 10]
-#         },
-#         {
-#             'type': 'E',
-#             'total': 4,
-#             'step_total': 0,
-#             'step_count': [],
-#             'step_page_no': []
-#         }
-#     ], [3,6,5], '')
-# save_Page_number("username", 0, '345678', True, [3, 5, 7],'页码错误',base64_list, '')
-# save_ce_size("username", 0, '123456', True, "尺寸不一致, 标注为(100 x 50), 检测结果为(98 x 52)", base64_list[0], '')
-
-
-# import fitz
-# doc = fitz.open('D:\\agsun-tools-server\\tasks\\1\ACE 6-14.pdf')
-# save_Line("username", doc, '123456', 'ACE 6-14', 0, '')
-#
-
-
-# save_area("username", 0, '123456', base64_list[0], base64_list[1], base64_list[2], '')
-
-
-# save_Diffpdf("username", 0, 'file1_md5', "file2_md5", [2, 3, 4], base64_list, '', '')
-
-# save_ce("username", 0, "file1_md5", "file2_md5", base64_list[0], base64_list[1], '')
-
-
-# data = {
-#     "mapping_results": [
-#         ["1", True, 10, 10],
-#         ["2", False, 5, 8]
-#     ],
-#     "error_pages": [
-#         [
-#             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAACThk5UAAAAA3NCSVQICAjb4U/gAAAgAElEQVR4...",
-#             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAIAAACThk5UAAAAA3NCSVQICAjb4U/gAAAgAElEQVR4..."
-#         ],
-#         [2, 3]
-#     ],
-#     "note": "零件计数：检测成功\n明细表检测：检测成功,序号 1,2 有误"
-# }
-# save_part_count("username", "md5", 0, data, '')

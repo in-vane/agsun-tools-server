@@ -44,8 +44,9 @@ class FileAssembler:
 
         if not os.path.exists(output_path):
             os.makedirs(output_path)
+        ext = os.path.splitext(self.file_name)[1].lower()
         md5_hash = hashlib.md5(self.received_data).hexdigest()
-        file_name = f"{md5_hash}.pdf"
+        file_name = f"{md5_hash}{ext}"
         output_path = os.path.join(output_path, file_name)
         with open(output_path, "wb") as output_file:
             output_file.write(self.received_data)

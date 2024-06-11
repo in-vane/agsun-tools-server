@@ -2,28 +2,41 @@ import tornado
 from tornado.concurrent import run_on_executor
 from main import MainHandler, need_auth
 import json
-from model import db_result
+from model import db_result, db_ce, db_diff_pdf, db_area, db_line_result_files, db_ocr
 import datetime
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
 
-def searchHistory(timestamp, username, type_id, file_md5):
-    if type_id and type_id in ['003', '004', '005', '007', '008', '009']:
-        # Convert the timestamp to a datetime object
-        dt_object = datetime.datetime.fromtimestamp(timestamp)
-        # Format the datetime object to a string in 'YYYY-MM-DD' format
-        formatted_date = dt_object.strftime('%Y-%m-%d')
+def searchHistory(timestamp, username, type_id, file_path):
+    # Convert the timestamp to a datetime object
+    dt_object = datetime.datetime.fromtimestamp(timestamp)
+    # Format the datetime object to a string in 'YYYY-MM-DD' format
+    formatted_date = dt_object.strftime('%Y-%m-%d')
+    if type_id and type_id in ['003', '004', '005', '007', '008']:
         # 查询文本内容
-        result = db_result.query_record(formatted_date, username, type_id, file_md5)
-        return result
+        result = db_result.query_record(formatted_date, username, type_id, file_path)
+    elif type_id and type_id =='006':
+        result = db_ce.query_record(formatted_date, username, type_id, file_path)
+    elif type_id and type_id =='001':
+        result = db_area.query_record(formatted_date, username, type_id, file_path)
+    elif type_id and type_id == '002':
+        result = db_diff_pdf.query_record(formatted_date, username, type_id, file_path)
+    elif type_id and type_id == '010':
+        result = db_line_result_files.query_record(formatted_date, username, type_id, file_path)
+    elif type_id and type_id == '009':
+        result = []
+    else:
+        result = []
+
+    return result
 
 
 class SearchHistoryHandler(MainHandler):
     @run_on_executor
-    def process_async(self, timestamp, username, type_id, file_md5):
-        return searchHistory(timestamp, username, type_id, file_md5)
+    def process_async(self, timestamp, username, type_id, file_path):
+        return searchHistory(timestamp, username, type_id, file_path)
 
     @need_auth
     async def post(self):
