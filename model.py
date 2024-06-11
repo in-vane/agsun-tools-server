@@ -7,8 +7,8 @@ from utils import process_paths, merge_records, add_url
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    # 'password': 'h0ld?Fish:Palm',
-    'password': 'admin',
+    'password': 'h0ld?Fish:Palm',
+    # 'password': 'admin',
     'database': 'agsun',
     'charset': 'utf8'
 }
