@@ -1,10 +1,9 @@
 
-import io
+
 import re
 import math
 import os
 import cv2
-import docx.opc.exceptions
 import fitz
 import numpy as np
 
