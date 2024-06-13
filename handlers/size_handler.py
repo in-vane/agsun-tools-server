@@ -132,7 +132,9 @@ def check_size(username, filename, file, options, params):
     # 主逻辑
     img = pdf_to_image(page)
     w_2, h_2, r_2 = find_rectangles(img)
-
+    w_2 = int(w_2)
+    h_2 = int(h_2)
+    r_2 = int(r_2)
     is_error = False
     err_msg = ""
     if options["mode"] == MODE_RECT:
