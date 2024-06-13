@@ -130,7 +130,7 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
     (score, diff) = structural_similarity(before_gray, after_gray, full=True)
     diff = (diff * 255).astype("uint8")
     diff_box = cv2.merge([diff, diff, diff])
-    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
+    thresh = cv2.threshold(diff, 60, 255, cv2.THRESH_BINARY_INV)[1]
     contours = cv2.findContours(
         thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
@@ -216,7 +216,7 @@ def generate_error_message(mismatch_list):
         return ''
 
 
-def check_diff_pdf(username, file1, file2, file1_name, file2_name,  page_num1, page_num2):
+def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end_1, start_2, end_2):
     mismatch_list = []
     base64_strings = []
     doc1 = fitz.open(file1)
@@ -224,41 +224,46 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  page_num1, p
 
     total_page1 = len(doc1)  # 取 pdf1 的页数作为标准
     total_page2 = len(doc2)  # 取 pdf1 的页数作为标准
-    if page_num1 > total_page1 or page_num2 > total_page2:
-        msg = '你输入的范围大于pdf的页号'
-        return CODE_ERROR, [], [], msg
-    if page_num1 != -1 and page_num2 != -1:
-        page_num1 = page_num1 - 1  # 从0开始索引，所以减1
-        page_num2 = page_num2 - 1  # 同理
-        for i in range(page_num1, total_page1):
-            page_index2 = i + (page_num2 - page_num1)  # 计算 pdf2 的对应页码
-            if page_index2 < len(doc2):  # 确保 pdf2 有对应的页
-                img1 = pdf_page_to_image(file1, i)
+    if end_1 > total_page1 or end_2 > total_page2 or start_1 > end_1 or start_2 > end_2 or (end_1 - start_1) != (end_2 - start_2):
+        msg = '输入页号错误'
+        return CODE_ERROR, [], [], msg, msg
+    if start_1 != -1 and start_2 != -1:
+        start_1 = start_1 - 1  # 从0开始索引，所以减1
+        start_2 = start_2 - 1  # 同理
+
+        # 确保对比范围相同
+        length = min(end_1 - start_1, end_2 - start_2)
+
+        for i in range(length):
+            page_index1 = start_1 + i
+            page_index2 = start_2 + i
+
+            if page_index1 < len(doc2) and page_index2 < len(doc2):  # 确保两份文档都有对应的页
+                img1 = pdf_page_to_image(file1, page_index1)
                 img2 = pdf_page_to_image(file2, page_index2)
 
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
-                print(f"第一份文档的{i+1}页与第二份文档的{page_index2+1}页进行对比")
-                abcv_score, differece, abcv_result_base64 = compare_images(base64_img1, base64_img2)
-                print(f"像素对比{abcv_score}")
-                if abcv_score < 0.8 and differece:
-                    ssim_score, differece, ssim_result_base64 = compare_explore(base64_img1, base64_img2)
-                    print(f"像素对比效果不好，结构化对比{ssim_score}")
-                    if ssim_score < 0.9:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(abcv_result_base64)
-                    else:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(ssim_result_base64)
-                else:
-                    if differece:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(abcv_result_base64)
+                print(f"第一份文档的{page_index1 + 1}页与第二份文档的{page_index2 + 1}页进行对比")
+                score, difference, result_base64 = compare_explore(base64_img1, base64_img2)
+                print(f"像素对比{score}")
 
+                if difference:
+                    mismatch_list.append(page_index1 + 1)
+                    base64_strings.append(result_base64)
             else:
-                result_base64 = draw_red_frame(base64_img1)  # 使用绘制红框的函数
-                base64_strings.append(result_base64)
-                mismatch_list.append(i + 1)
+                if page_index1 < len(doc2):
+                    img1 = pdf_page_to_image(file1, page_index1)
+                    base64_img1 = img2base64(img1)
+                    result_base64 = draw_red_frame(base64_img1)
+                    base64_strings.append(result_base64)
+                    mismatch_list.append(page_index1 + 1)
+                if page_index2 < len(doc2):
+                    img2 = pdf_page_to_image(file2, page_index2)
+                    base64_img2 = img2base64(img2)
+                    result_base64 = draw_red_frame(base64_img2)
+                    base64_strings.append(result_base64)
+                    mismatch_list.append(page_index2 + 1)
     else:
         print("对比开始")
         for i in range(total_page1):
@@ -269,21 +274,21 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  page_num1, p
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
                 print(f"第一份文档的{i+1}页与第二份文档的{i+1}页进行对比")
-                abcv_score, differece, abcv_result_base64 = compare_images(base64_img1, base64_img2)
-                print(f"像素对比{abcv_score}")
-                if abcv_score < 0.8 and differece:
-                    ssim_score, differece, ssim_result_base64 = compare_explore(base64_img1, base64_img2)
-                    print(f"像素对比效果不好，结构化对比{ssim_score}")
-                    if ssim_score > 0.6:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(abcv_result_base64)
-                    else:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(ssim_result_base64)
-                else:
-                    if differece:
-                        mismatch_list.append(i + 1)
-                        base64_strings.append(abcv_result_base64)
+                score, differece, result_base64 = compare_explore(base64_img1, base64_img2)
+                print(f"像素对比{score}")
+                # if abcv_score < 0.8 and differece:
+                #     ssim_score, differece, ssim_result_base64 = compare_explore(base64_img1, base64_img2)
+                #     print(f"像素对比效果不好，结构化对比{ssim_score}")
+                #     if ssim_score > 0.6:
+                #         mismatch_list.append(i + 1)
+                #         base64_strings.append(abcv_result_base64)
+                #     else:
+                #         mismatch_list.append(i + 1)
+                #         base64_strings.append(ssim_result_base64)
+                # else:
+                if differece:
+                    mismatch_list.append(i + 1)
+                    base64_strings.append(result_base64)
 
             else:
                 result_base64 = draw_red_frame(base64_img1)  # 使用绘制红框的函数
@@ -294,26 +299,28 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  page_num1, p
     print(mismatch_list)
     print(len(base64_strings))
     error_msg = generate_error_message(mismatch_list)
-    save_Diffpdf(username, CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg,'')
+    save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg,'')
     return CODE_SUCCESS, mismatch_list, base64_strings, error_msg, ''
 
 
 class FullPageHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, file1, file2,file1_name, file2_name, page_num1, page_num2):
-        return check_diff_pdf(username, file1, file2,file1_name, file2_name, page_num1, page_num2)
+    def process_async(self, username, file1, file2,file1_name, file2_name, start_1, end_1, start_2, end_2):
+        return check_diff_pdf(username, file1, file2,file1_name, file2_name, start_1, end_1, start_2, end_2)
     async def post(self):
         username = self.current_user
         param = tornado.escape.json_decode(self.request.body)
         file_path_1 = param['file_path_1']
         file_path_2 = param['file_path_2']
-        page_num1 = int(param['start_1'])
-        page_num2 = int(param['start_2'])
+        start_1 = int(param.get('start_1', -1))
+        end_1 = int(param.get('end_1', -1))
+        start_2 = int(param.get('start_2', -1))
+        end_2 = int(param.get('end_2', -1))
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
         code, pages, imgs_base64, error_msg, msg = await self.process_async(username,
                                                                            file_path_1, file_path_2, filename1,
-                                                                           filename2, page_num1, page_num2)
+                                                                           filename2, start_1, end_1, start_2, end_2 )
         custom_data = {
             "code": code,
             "data": {
