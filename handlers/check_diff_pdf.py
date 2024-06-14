@@ -74,6 +74,14 @@ def resize(base64_1, base64_2):
     keypoints_A, descriptors_A = sift.detectAndCompute(image_A, None)
     keypoints_B, descriptors_B = sift.detectAndCompute(image_B, None)
 
+    # 确保描述符不为空
+    if descriptors_A is None or descriptors_B is None:
+        raise ValueError("One of the descriptors is None, cannot perform matching.")
+
+    # 转换描述符为浮点数
+    descriptors_A = np.float32(descriptors_A)
+    descriptors_B = np.float32(descriptors_B)
+
     # 使用 FLANN 匹配器进行特征匹配
     FLANN_INDEX_KDTREE = 1
     index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
