@@ -138,7 +138,7 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
     (score, diff) = structural_similarity(before_gray, after_gray, full=True)
     diff = (diff * 255).astype("uint8")
     diff_box = cv2.merge([diff, diff, diff])
-    thresh = cv2.threshold(diff, 60, 255, cv2.THRESH_BINARY_INV)[1]
+    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
     contours = cv2.findContours(
         thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
