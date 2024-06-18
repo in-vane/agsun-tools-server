@@ -313,9 +313,12 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.loop.start()
 
     def check_per_seconds(self):
-        self.write_message(tornado.escape.json_encode(
-            {"data": self.temp_count}))
-        self.temp_count += 1
+        try:
+            self.write_message(tornado.escape.json_encode({"data": self.temp_count}))
+            self.temp_count += 1
+        except tornado.websocket.WebSocketClosedError:
+            print("WebSocket closed, stopping heartbeat.")
+            self.loop.stop()
 
     async def on_message(self, message):
         data = tornado.escape.json_decode(message)
@@ -350,6 +353,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         print("websocket closed")
         self.loop.stop()
+        self.files.clear()
 
 
 def main():
