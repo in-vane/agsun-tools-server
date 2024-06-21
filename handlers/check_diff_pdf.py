@@ -77,7 +77,7 @@ def resize(base64_1, base64_2):
     # 确保描述符不为空
     if descriptors_A is None or descriptors_B is None:
         return image_A, image_B
-        raise ValueError("One of the descriptors is None, cannot perform matching.")
+        # raise ValueError("One of the descriptors is None, cannot perform matching.")
 
     # 转换描述符为浮点数
     descriptors_A = np.float32(descriptors_A)
