@@ -80,27 +80,57 @@ def update_key_standard_dict(data_dict):
 
 def extract_table_from_pdf(pdf_path):
     """
-    使用 pdfplumber 从 PDF 的第一页提取最大的表格。
+    使用 tabula-py 从 PDF 的第一页提取最大的表格，如果失败则使用 pdfplumber。
     将表格中每行的第一个单元格作为键，其余单元格（非None值）作为值列表存储到字典中。
 
     :param pdf_path: PDF 文件的路径
     :return: 包含表格数据的字典
     """
-    with pdfplumber.open(pdf_path) as pdf:
-        first_page = pdf.pages[0]  # 获取第一页
-        table = first_page.extract_table()  # 提取表格
+    try:
+        # 尝试使用 tabula-py 提取 PDF 中的表格
+        tables = tabula.read_pdf(pdf_path, pages=1)
 
-        if not table:
-            return {}  # 如果没有表格，返回空字典
+        if not tables or tables[0].empty:
+            raise ValueError("No tables found with tabula")
+
+        # 假设只有一个表格，获取第一个表格
+        table = tables[0]
 
         table_dict = {}
-        for row in table[1:]:  # 假设第一行是表头，从第二行开始处理数据
-            if row[0] is not None:  # 确保键不为None
-                key = row[0].strip()  # 删除可能的前后空白字符
-                values = [item for item in row[1:] if item is not None]  # 过滤掉None值
+        for index, row in table.iterrows():  # 遍历表格的每一行
+            if row[0]:  # 确保键不为空
+                key = str(row[0]).strip()  # 删除可能的前后空白字符
+                values = [str(item) for item in row[1:] if item is not None]  # 过滤掉 None 值
                 table_dict[key] = values
-    # print(table_dict)
-    return table_dict
+        clean_dict = {}
+        for key, values in table_dict.items():
+            if key.lower() != 'nan':
+                clean_values = [value for value in values if value.lower() != 'nan']
+                if clean_values:  # 仅在值列表不为空时添加到字典
+                    clean_dict[key] = clean_values
+        print("Extracted using tabula:", clean_dict)
+        return clean_dict
+
+    except Exception as e:
+        print(f"Tabula extraction failed: {e}")
+
+        # 如果 tabula 失败，使用 pdfplumber 提取表格
+        with pdfplumber.open(pdf_path) as pdf:
+            first_page = pdf.pages[0]  # 获取第一页
+            table = first_page.extract_table()  # 提取表格
+
+            if not table:
+                return {}  # 如果没有表格，返回空字典
+
+            table_dict = {}
+            for row in table[1:]:  # 假设第一行是表头，从第二行开始处理数据
+                if row[0] is not None:  # 确保键不为None
+                    key = row[0].strip()  # 删除可能的前后空白字符
+                    values = [item for item in row[1:] if item is not None]  # 过滤掉None值
+                    table_dict[key] = values
+
+            print("Extracted using pdfplumber:", table_dict)
+            return table_dict
 
 
 def remove_empty_lists(input_dict):
