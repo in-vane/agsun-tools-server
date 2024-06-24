@@ -57,10 +57,11 @@ def change_excel(wb, work_table, message_dict):
     # 如果message_dict中有'CE-sign'键，处理它的值
     if 'CE-sign' in message_dict:
         ce_values = message_dict['CE-sign']  # 获取'CE-sign'对应的值列表
-        for row in sheet.iter_rows():
-            for cell in row:
-                if cell.value in ce_values:  # 如果单元格的值在ce_values列表中
-                    cell.border = green_border  # 更新边框为绿色
+        for ce_value in ce_values:
+            for row in sheet.iter_rows():
+                for cell in row:
+                    if ce_value in str(cell.value):  # 如果单元格的值包含当前 ce_value
+                        cell.border = green_border  # 更新边框为绿色
 
     # 遍历工作表中的每一行，更新其他指定的值的边框
     for row in sheet.iter_rows():
