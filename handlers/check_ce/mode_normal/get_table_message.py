@@ -47,33 +47,46 @@ def get_standard_document_as_dict(wb, sheet_name):
                     red_text_dict[first_cell_value] = red_texts
 
     # print(red_text_dict)
-    red_text_dict = update_key_standard_dict(red_text_dict)
+    red_text_dict = update_key_standard_dict(red_text_dict, wb, sheet_name)
     return red_text_dict
 
 
-def update_key_standard_dict(data_dict):
+def update_key_standard_dict(data_dict, wb, sheet_name):
     """
     对get_standard_document_as_dict函数获取到字典再处理下，
-    的将字典中值为xxxx-xx的键设为CE-sign
-    :param data_dict:一个字典
-    :return:修改后的字典
+    将字典中值为xxxx-xx的键设为CE-sign。
+    如果没有匹配的值，则从指定的Excel表中提取所有文本，找到匹配的内容来更新data_dict。
+
+    :param data_dict: 一个字典
+    :param wb: Excel 工作簿对象
+    :param sheet_name: 工作表名称
+    :return: 修改后的字典
     """
     # 定义匹配'xxxx-xx'格式的正则表达式
     ce_sign_pattern = re.compile(r'\b\d{4}-\d{2}\b')
 
     # 创建一个新字典用于存储更新后的结果
     updated_dict = {}
+    ce_sign_found = False
 
-    # 遍历原始字典中的项
+    # 遍历原始字典中的项，检查是否存在符合模式的值
     for key, values in data_dict.items():
-        # 假设每个键只对应一个值列表中的第一个元素
         values[0] = str(values[0])
         if values and ce_sign_pattern.match(values[0]):
-            # 如果值符合模式，则将键改为'CE-sign'
             updated_dict['CE-sign'] = values
+            ce_sign_found = True
         else:
-            # 否则，保持原键值对不变
             updated_dict[key] = values
+
+    # 如果没有在原始字典中找到符合模式的值，则从Excel表中提取所有文本
+    if not ce_sign_found:
+        sheet = wb[sheet_name]
+        matching_texts = [
+            ce_sign_pattern.search(str(cell.value)).group() for row in sheet.iter_rows()
+            for cell in row if cell.value and ce_sign_pattern.search(str(cell.value))
+        ]
+        if matching_texts:
+            updated_dict['CE-sign'] = matching_texts
 
     return updated_dict
 
@@ -108,7 +121,7 @@ def extract_table_from_pdf(pdf_path):
                 clean_values = [value for value in values if value.lower() != 'nan']
                 if clean_values:  # 仅在值列表不为空时添加到字典
                     clean_dict[key] = clean_values
-        print("Extracted using tabula:", clean_dict)
+        print("Extracted using tabula:")
         return clean_dict
 
     except Exception as e:
@@ -129,7 +142,7 @@ def extract_table_from_pdf(pdf_path):
                     values = [item for item in row[1:] if item is not None]  # 过滤掉None值
                     table_dict[key] = values
 
-            print("Extracted using pdfplumber:", table_dict)
+            print("Extracted using pdfplumber:")
             return table_dict
 
 
@@ -195,3 +208,27 @@ def all(wb, work_table, doc, PDF_PATH1):
     end = time.time()
     print(f"对字典进行匹配耗时{end - start}秒")
     return red_text_data
+
+# import openpyxl
+# import fitz  # 用于处理PDF文件
+#
+# # 假设 compare_dictionaries 函数已经存在
+# # from .get_similarity import compare_dictionaries
+#
+# if __name__ == '__main__':
+#
+#     # 准备 Excel 文件
+#     excel_path = 'K113BCC3.xlsx'
+#     wb = openpyxl.load_workbook(excel_path)
+#     work_table = 'K113BCC3'  # 你的工作表名称
+#
+#     # 准备 PDF 文件
+#     pdf_path = 'C1110800079ACE贴纸K2113BCC3(ACE-印尼30-252x180-白色不干胶贴纸覆膜)-A0_加水印.pdf'
+#     doc = fitz.open(pdf_path)
+#
+#     # 调用 all 函数
+#     result = all(wb, work_table, doc, pdf_path)
+
+
+
+
