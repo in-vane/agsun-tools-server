@@ -88,7 +88,11 @@ def compare_dictionaries(red_text_data, table_data):
         # 比较red_key与table_data中的每个键
         for table_key in table_data.keys():
             similarity = compute_cosine_similarity(red_key, table_key)
-            if similarity > max_similarity:
+            if similarity == 1:
+                max_similarity = 1
+                most_similar_key = table_key
+                break
+            elif similarity > max_similarity:
                 max_similarity = similarity
                 most_similar_key = table_key
 
