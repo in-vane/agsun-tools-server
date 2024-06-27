@@ -273,10 +273,11 @@ class OcrHandler(MainHandler):
     @need_auth
     def post(self):
         username = self.current_user
-        filename = self.get_argument('filename')
-        mode = int(self.get_argument('mode'))
-        page_num = int(self.get_argument('page'))
-        crop = self.get_argument('crop')
+        params = tornado.escape.json_decode(self.request.body)
+        filename = params['filename']
+        mode = int(params['mode'])
+        page_num = int(params['page'])
+        crop = params['crop']
         custom_data = {}
         if mode == self.MODE_CHAR:
             print("== MODE_CHAR ==")
@@ -305,8 +306,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         params = parse_qs(query)
         token = params.get('token', [''])[0]
         self.token = token
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
-        self.username = decoded_token.get('sub')  # 'sub' is the standard claim
+        # decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
+        # self.username = decoded_token.get('sub')  # 'sub' is the standard claim
+        self.username = 'hello'  # 'sub' is the standard claim
         # 心跳机制
         self.temp_count = 0
         self.loop = PeriodicCallback(self.check_per_seconds, 1000)
