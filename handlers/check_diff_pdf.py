@@ -9,6 +9,7 @@ from utils import base642img, img2base64
 import sys
 from PIL import Image, ImageChops, ImageStat
 from utils import base64_to_image, img2base64, image_to_base64
+import time
 
 sys.path.append("..")
 from save_filesys_db import save_Diffpdf
@@ -125,6 +126,41 @@ def resize(base64_1, base64_2):
 
     return image_A, image_B_aligned
 
+def compare_explore_no_resize(base64_data_old: str, base64_data_new: str):
+    differece = False
+    # img_[number]: base64
+    before = base642img(base64_data_old)
+    after = base642img(base64_data_new)
+
+    # Convert images to grayscale
+    before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
+    after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
+
+    # Compute SSIM between the two images
+    (score, diff) = structural_similarity(before_gray, after_gray, full=True)
+    if score < 0.95:
+        print(f"不resize其相识度为{score}小于0.95,则调整图片")
+        score, differece, image_base64 = compare_explore(base64_data_old,base64_data_new)
+        return score, differece, image_base64
+    diff = (diff * 255).astype("uint8")
+    diff_box = cv2.merge([diff, diff, diff])
+    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
+    contours = cv2.findContours(
+        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours[0] if len(contours) == 2 else contours[1]
+
+    filled_after = after.copy()
+
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area > 40:
+            x, y, w, h = cv2.boundingRect(c)
+            cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
+            cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
+            differece = True
+
+    image_base64 = img2base64(filled_after)
+    return score, differece, f"{BASE64_PNG}{image_base64}"
 
 def compare_explore(base64_data_old: str, base64_data_new: str):
     differece = False
@@ -157,45 +193,45 @@ def compare_explore(base64_data_old: str, base64_data_new: str):
     image_base64 = img2base64(filled_after)
     return score, differece, f"{BASE64_PNG}{image_base64}"
 
-def compare_images(image1_base64, image2_base64):
-    differece = True
-    image_one = base64_to_image(image1_base64).convert('RGB')
-    image_two = base64_to_image(image2_base64).convert('RGB')
-
-    if image_one.size != image_two.size:
-        width_one, height_one = image_one.size
-        width_two, height_two = image_two.size
-
-        if width_two < width_one or height_two < height_one:
-            new_image = Image.new("RGBA", (width_one, height_one), (255, 255, 255, 0))
-            new_image.paste(image_two, (0, 0))
-            image_two = new_image
-        elif width_two > width_one or height_two > height_one:
-            image_two = image_two.crop((0, 0, width_one, height_one))
-
-    image_one_cv = cv2.cvtColor(np.array(image_one), cv2.COLOR_RGB2BGR)
-    image_two_cv = cv2.cvtColor(np.array(image_two), cv2.COLOR_RGB2BGR)
-
-    gray_image_one = cv2.cvtColor(image_one_cv, cv2.COLOR_BGR2GRAY)
-    gray_image_two = cv2.cvtColor(image_two_cv, cv2.COLOR_BGR2GRAY)
-
-    score, diff = structural_similarity(gray_image_one, gray_image_two, full=True)
-    absdiff = cv2.absdiff(image_one_cv, image_two_cv)
-    absdiff_gray = cv2.cvtColor(absdiff, cv2.COLOR_BGR2GRAY)
-    _, absdiff_thresh = cv2.threshold(absdiff_gray, 30, 255, cv2.THRESH_BINARY)
-    if np.count_nonzero(absdiff_thresh) < 20:
-        differece = False
-        image_base64 = image_to_base64(image_one)
-        return score, differece, f"{BASE64_PNG}{image_base64}"
-
-    red_image = np.zeros_like(image_one_cv)
-    red_image[:, :] = [0, 0, 255]
-
-    highlighted_image = np.where(absdiff_thresh[..., None], red_image, image_one_cv)
-    highlighted_image = Image.fromarray(cv2.cvtColor(highlighted_image, cv2.COLOR_BGR2RGB))
-
-    image_base64 = image_to_base64(highlighted_image)
-    return score, differece, f"{BASE64_PNG}{image_base64}"
+# def compare_images(image1_base64, image2_base64):
+#     differece = True
+#     image_one = base64_to_image(image1_base64).convert('RGB')
+#     image_two = base64_to_image(image2_base64).convert('RGB')
+#
+#     if image_one.size != image_two.size:
+#         width_one, height_one = image_one.size
+#         width_two, height_two = image_two.size
+#
+#         if width_two < width_one or height_two < height_one:
+#             new_image = Image.new("RGBA", (width_one, height_one), (255, 255, 255, 0))
+#             new_image.paste(image_two, (0, 0))
+#             image_two = new_image
+#         elif width_two > width_one or height_two > height_one:
+#             image_two = image_two.crop((0, 0, width_one, height_one))
+#
+#     image_one_cv = cv2.cvtColor(np.array(image_one), cv2.COLOR_RGB2BGR)
+#     image_two_cv = cv2.cvtColor(np.array(image_two), cv2.COLOR_RGB2BGR)
+#
+#     gray_image_one = cv2.cvtColor(image_one_cv, cv2.COLOR_BGR2GRAY)
+#     gray_image_two = cv2.cvtColor(image_two_cv, cv2.COLOR_BGR2GRAY)
+#
+#     score, diff = structural_similarity(gray_image_one, gray_image_two, full=True)
+#     absdiff = cv2.absdiff(image_one_cv, image_two_cv)
+#     absdiff_gray = cv2.cvtColor(absdiff, cv2.COLOR_BGR2GRAY)
+#     _, absdiff_thresh = cv2.threshold(absdiff_gray, 30, 255, cv2.THRESH_BINARY)
+#     if np.count_nonzero(absdiff_thresh) < 20:
+#         differece = False
+#         image_base64 = image_to_base64(image_one)
+#         return score, differece, f"{BASE64_PNG}{image_base64}"
+#
+#     red_image = np.zeros_like(image_one_cv)
+#     red_image[:, :] = [0, 0, 255]
+#
+#     highlighted_image = np.where(absdiff_thresh[..., None], red_image, image_one_cv)
+#     highlighted_image = Image.fromarray(cv2.cvtColor(highlighted_image, cv2.COLOR_BGR2RGB))
+#
+#     image_base64 = image_to_base64(highlighted_image)
+#     return score, differece, f"{BASE64_PNG}{image_base64}"
 def generate_error_message(mismatch_list):
     if not mismatch_list:
         return ''
@@ -254,8 +290,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
                 print(f"第一份文档的{page_index1 + 1}页与第二份文档的{page_index2 + 1}页进行对比")
-                score, difference, result_base64 = compare_explore(base64_img1, base64_img2)
-                print(f"像素对比{score}")
+                score, difference, result_base64 = compare_explore_no_resize(base64_img1, base64_img2)
+                print(f"对比{score}")
 
                 if difference:
                     mismatch_list.append(page_index1 + 1)
@@ -283,11 +319,11 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
                 print(f"第一份文档的{i+1}页与第二份文档的{i+1}页进行对比")
-                score, differece, result_base64 = compare_explore(base64_img1, base64_img2)
-                print(f"像素对比{score}")
+                score, differece, result_base64 = compare_explore_no_resize(base64_img1, base64_img2)
+                print(f"结构化对比对比{score}")
                 # if abcv_score < 0.8 and differece:
                 #     ssim_score, differece, ssim_result_base64 = compare_explore(base64_img1, base64_img2)
-                #     print(f"像素对比效果不好，结构化对比{ssim_score}")
+                #     print(f"结构化对比对比效果不好，结构化对比{ssim_score}")
                 #     if ssim_score > 0.6:
                 #         mismatch_list.append(i + 1)
                 #         base64_strings.append(abcv_result_base64)
@@ -318,6 +354,7 @@ class FullPageHandler(MainHandler):
         return check_diff_pdf(username, file1, file2,file1_name, file2_name, start_1, end_1, start_2, end_2)
     async def post(self):
         username = self.current_user
+        start = time.time()
         param = tornado.escape.json_decode(self.request.body)
         file_path_1 = param['file_path_1']
         file_path_2 = param['file_path_2']
@@ -339,4 +376,6 @@ class FullPageHandler(MainHandler):
             },
             "msg": msg
         }
+        end = time.time()
+        print(f"接口总耗时{end-start}秒")
         self.write(custom_data)
