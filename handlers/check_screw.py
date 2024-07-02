@@ -3,10 +3,6 @@ from io import BytesIO
 import fitz
 # from logger import logger
 import re
-import easyocr
-import base64
-from PIL import Image
-import io
 
 import time
 import cv2
@@ -23,68 +19,233 @@ from tornado.concurrent import run_on_executor
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 
-# ocr识别螺丝包
-def extract_Screw_bags(doc, page_number, rect):
+def extract_text_from_page(doc, page_number, clip_rect=None):
     """
-    使用PaddleOCR从PDF的指定页面和区域中提取文字。
+    使用PyMuPDF从PDF的指定页面提取文字并按位置排序。
     :param doc: PyMuPDF的文档对象
     :param page_number: 整数，表示页码（从1开始计数）
     :param rect: 列表或元组，格式为[x, y, w, h]，代表矩形区域，
                  其中x, y是矩形左上角的坐标，w是宽度，h是高度
-    :return: 识别的文字
+    :return: 排序后的该页所有文字及其坐标
     """
     # 加载指定的页面
-    page = doc.load_page(page_number)
-    print(page_number)
-    print(rect)
-    # 从页面中获取指定矩形区域的图像
+    page = doc.load_page(page_number)  # 页码从0开始，所以减1
+    if clip_rect:
+        text_dict = page.get_text("dict", clip=clip_rect)
+    else:
+        text_dict = page.get_text("dict")
+    blocks = text_dict["blocks"]
+
+    # 提取所有文字块
+    lines = []
+    for block in blocks:
+        if "lines" in block:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    lines.append({
+                        "text": span["text"],
+                        "bbox": span["bbox"]
+                    })
+
+    # 按垂直和水平位置排序
+    # lines.sort(key=lambda x: (x["bbox"][1], x["bbox"][0]))
+    # 按垂直和水平位置排序，忽略小数部分
+    lines.sort(key=lambda x: (int(x["bbox"][1]), int(x["bbox"][0])))
+
+    # 组合排序后的文字及其坐标
+    # sorted_text = " ".join([line["text"] for line in lines])
+
+    sorted_lines = group_lines_by_y(lines)
+    return sorted_lines
+
+def group_lines_by_y(lines):
+    """
+    按 y 坐标对提取的文字进行分组，并返回按行的 y 坐标排序的集合。
+    :param lines: 包含文字及其坐标的字典列表
+    :return: 按行的 y 坐标排序的集合，每个元素是属于同一行的文字字符串
+    """
+    # 定义一个字典用于按行分组
+    y_dict = {}
+
+    for line in lines:
+        text = line["text"]
+        bbox = line["bbox"]
+        y_center = (bbox[1] + bbox[3]) / 2  # 计算 y 中心坐标
+
+        # 找到与当前 y 中心坐标接近的键
+        found = False
+        for key in y_dict.keys():
+            if abs(key - y_center) < 5:  # 可以根据需要调整这个阈值
+                y_dict[key].append((bbox[0], text))
+                found = True
+                break
+
+        if not found:
+            y_dict[y_center] = [(bbox[0], text)]
+
+    # 对每行的文字按 x 坐标排序，并按 y 坐标排序整个行的集合
+    sorted_lines = []
+    for y in sorted(y_dict.keys()):
+        line_texts = [text for x, text in sorted(y_dict[y])]
+        sorted_lines.append(" ".join(line_texts))
+
+    return sorted_lines
+
+
+def extract_Screw_bags(doc, page_number, rect):
+    """
+       提取型号及其对应的数量。
+       :param text: 包含型号行和数量行的列表
+       :return: 型号及其对应数量的列表，每个元素包含时间戳、型号和数量
+       """
+    print(f"螺丝包页号{page_number+1}")
+    print(f"螺丝包区域{rect}")
     clip_rect = fitz.Rect(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
-    pix = page.get_pixmap(clip=clip_rect)
+    text = extract_text_from_page(doc, page_number, clip_rect)
+    print(f"文字识别获取到的文字{text}")
+    if not text:
+        print("文字提取没找到型号行,ocr开始")
+        page = doc.load_page(page_number)
+        pix = page.get_pixmap(clip=clip_rect)
 
-    # 将图像数据转换为OpenCV格式
-    img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+        # 将图像数据转换为NumPy数组格式
+        img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
 
-    # 如果图像是四通道（RGBA），转换为三通道（BGR），因为PaddleOCR默认处理BGR格式
-    if pix.n == 4:
-        img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
+        # 如果图像是四通道（RGBA），转换为三通道（BGR）
+        if pix.n == 4:
+            img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
+        elif pix.n == 1:
+            img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2BGR)
 
-    # 创建PaddleOCR TextSystem
-    ocr_system = TextSystem()
+        # 初始化EasyOCR阅读器
+        reader = easyocr.Reader(['en'])
 
-    # 使用PaddleOCR识别图像中的文字
-    results = ocr_system.detect_and_ocr(img_np)
+        # 使用EasyOCR识别图像中的文字
+        results = reader.readtext(img_np)
 
-    # 打印results以便理解其结构
+        # 提取并排序结果
+        lines = {}
+        for (bbox, text, prob) in results:
+            y_center = (bbox[0][1] + bbox[2][1]) / 2
+            if y_center not in lines:
+                lines[y_center] = []
+            lines[y_center].append((bbox[0][0], text))
 
-    texts = ' '.join([boxed_result.ocr_text for boxed_result in results])
-    # 转换所有小写字母为大写
-    texts = texts.upper()
-    # 按空格分割文本为单个元素
-    elements = texts.split()
-    # 初始化结果列表
+        # 对每行的文字按 x 坐标排序，并按 y 坐标排序整个行的集合
+        sorted_lines = []
+        for y in sorted(lines.keys()):
+            line_texts = [text for x, text in sorted(lines[y])]
+            sorted_lines.append(" ".join(line_texts))
+
+        # 将识别到的所有文字拼接成一个字符串
+        ocr_text = " ".join(sorted_lines)
+        screw_models = re.findall(r'\b[A-Z]\b', ocr_text)
+        # 使用正则表达式匹配所有包含数字的字符串
+        counts = re.findall(r'\d+', ocr_text)
+
+        # 生成结果列表
+        result = []
+        for model, count in zip(screw_models, counts):
+            result.append({
+                'key': time.time(),
+                'type': model,
+                'count': int(count)
+            })
+        if not result:
+            default_time = time.time()
+            result = [
+                {'key': default_time, 'type': 'A', 'count': 0},
+                {'key': default_time, 'type': 'B', 'count': 0},
+                {'key': default_time, 'type': 'C', 'count': 0}
+            ]
+        return result
+
+    # 找到包含最多单独大写字母的行作为型号行
+    max_uppercase_count = 0
+    model_line = ''
+    model_index = -1
+
+    for index, line in enumerate(text):
+        words = line.split()
+        # 计算单独大写字母的数量
+        uppercase_count = sum(1 for word in words if len(word) == 1 and word.isupper())
+        if uppercase_count > max_uppercase_count:
+            max_uppercase_count = uppercase_count
+            model_line = line
+            model_index = index
+
+    # 分割型号行
+    models = [word for word in model_line.split() if len(word) == 1 and word.isupper()]
+    total_count = len(model_line.split())  # 计算所有元素的数量
+    if max_uppercase_count / total_count <= 0.5:
+        print("螺丝包为列排列:", model_line)
+        # 使用每行的第一个单独的大写英文字母作为型号，最后的数字作为数量
+        result = []
+        for line in text:
+            model_match = re.search(r'\b[A-Z]\b', line)
+            count_match = re.findall(r'\d+', line)
+            if model_match and count_match:
+                result.append({
+                    'key': time.time(),
+                    'type': model_match.group(),
+                    'count': int(count_match[-1])
+                })
+        if not result:
+            default_time = time.time()
+            result = [
+                {'key': default_time, 'type': 'A', 'count': 0},
+                {'key': default_time, 'type': 'B', 'count': 0},
+                {'key': default_time, 'type': 'C', 'count': 0}
+            ]
+        return result
+
+    # 提取数量行（假设数量行紧跟在型号行之后）
+    if model_index + 1 >= len(text):
+        print("没有找到数量行")
+        default_time = time.time()
+        result = [
+            {'key': default_time, 'type': 'A', 'count': 0},
+            {'key': default_time, 'type': 'B', 'count': 0},
+            {'key': default_time, 'type': 'C', 'count': 0}
+        ]
+        return result
+
+    counts = text[model_index + 1].split()
+    counts = [re.search(r'\d+', count_text).group() if re.search(r'\d+', count_text) else '0' for count_text in counts]
+
+    # 补全数量行
+    while len(counts) < len(models):
+        counts.append('0')
+    if len(counts) > len(models):
+        counts = counts[:len(models)]
+
+    # 生成结果列表
     result = []
-    # 遍历每个元素
-    for element in elements:
-        # 检查是否为单个大写字母
-        if re.fullmatch(r'[A-Z]', element):
-            result.append({'key': time.time(),'type': element, 'count': 0})
-    index = 0
-    # 再次遍历元素，这次寻找包含数字的元素
-    for element in elements:
-        if re.search(r'\d+', element):
-            # 提取第一组数字
-            number = int(re.search(r'\d+', element).group())
-            # 只有当result中还有未分配的条目时，才分配数字
-            if index < len(result):
-                result[index]['count'] = number
-                index += 1  # 移动到下一个大写字母
-    result = sorted(result, key=lambda x: x['type'])
+    for model, count_text in zip(models, counts):
+        if not model.isalpha() or not model.isupper():
+            continue
+        count = int(count_text)
+        result.append({
+            'key': time.time(),
+            'type': model,
+            'count': count
+        })
+
+    if not result:
+        default_time = time.time()
+        result = [
+            {'key': default_time, 'type': 'A', 'count': 0},
+            {'key': default_time, 'type': 'B', 'count': 0},
+            {'key': default_time, 'type': 'C', 'count': 0}
+        ]
+
     return result
 
 
 def get_Screw_bags(file, page_number, rect):
     doc = fitz.open(file)
     result = extract_Screw_bags(doc, page_number, rect)
+    result = sorted(result, key=lambda x: x['type'])
     print(f"识别到的螺丝包{result}")
     data = {
         'result': result
@@ -131,7 +292,6 @@ def extract_text_from_pdf(doc, page_number):
         texts = ''
     return texts
 # 提取步骤页，需要的步骤螺丝
-# 提取步骤页，需要的步骤螺丝
 def replace_special_chars(text):
     # 替换 'z' 或 'Z' 在 'x' 或 'X' 之后或大写字母前的情况
     result = re.sub(r'(?i)(z)(?=(x|[A-Z]))', '2', text)
@@ -177,8 +337,8 @@ def text_below_rect(doc, page_number, rect):
     clip_rect = fitz.Rect(rect[0], rect[1] + rect[3], rect[0] + rect[2], page_height)
 
     # 提取该区域的文本
-    text = page.get_text("text", clip=clip_rect)
-    return text
+    text_list = extract_text_from_page(doc, page_number-1, clip_rect)
+    return text_list
 
 def get_step_screw(doc, pages, result_dict, rect_page, rect):
     rect_page = rect_page + 1
@@ -189,19 +349,24 @@ def get_step_screw(doc, pages, result_dict, rect_page, rect):
     # 将键转换为字符类用于正则表达式
     key_pattern = '[' + ''.join(keys) + ']'
     # 构建正则表达式，包括所有提取的键
-    pattern = fr'(\d+)\s*[xX*]\s*({key_pattern})|({key_pattern})\s*[xX*]\s*(\d+)'
+    pattern = fr'(\d+)\s*[×xX*]\s*({key_pattern})|({key_pattern})\s*[×xX*]\s*(\d+)'
     image_page = []
     letter_counts = {}
     letter_pageNumber = {}
     letter_count = {}
 
     for page_num in pages:
-        page = doc.load_page(page_num - 1)  # Page numbering starts from 0
+        page = doc.load_page(page_num - 1)
         if rect_page == page_num:
             print(f"第{page_num}和螺丝包相同")
-            text = text_below_rect(doc, page_num ,rect)
+            text_list = text_below_rect(doc, page_num, rect)
+            print(f"第{page_num}页，提取到的文字为{text_list}")
+            text = '\n'.join(text_list)
         else:
-            text = page.get_text()
+            text_list = extract_text_from_page(doc, page_num - 1)
+            print(f"第{page_num}页，提取到的文字为{text_list}")
+            text = '\n'.join(text_list)
+
         # text = extract_text_from_pdf(doc, page_num)
         matches = re.findall(pattern, text)
         print(f"matches:{matches}matches")
@@ -365,6 +530,7 @@ class ScrewHandler(MainHandler):
             print("文件名:", file_name)
             code, data, msg = await self.process_async2(
                 username, file, file_name, table, start, end, page, rect)
+            data['result'] = sorted(data['result'], key=lambda x: x['type'])
         else:
             code = 1
             data = {}
