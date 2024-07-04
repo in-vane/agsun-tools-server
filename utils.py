@@ -89,12 +89,12 @@ def merge_records(records):
     })
 
     for record in records:
-        key = tuple((f['file_name'], f['file_path']) for f in record['related files'])
+        key = tuple((f['file_name'], f['file_path']) for f in record['related_files'])
         if not merged_records[key]['username']:
             merged_records[key]['username'] = record['username']
             merged_records[key]['type_id'] = record['type_id']
             merged_records[key]['text'] = record['text']
-            merged_records[key]['related files'] = record['related files']
+            merged_records[key]['related_files'] = record['related_files']
         merged_records[key]['images'].extend(record['images'])
         merged_records[key]['datetime'] = max(merged_records[key]['datetime'], record['datetime'])
 
