@@ -1,6 +1,6 @@
 HOST = '192.168.0.54'
 PORT = '8888'
-FRONT = f"{HOST}/"
+FRONT = f"http://{HOST}/"
 FLIES_ROOT = './file_system/files'
 IMAGE_ROOT = './file_system/images'
 RESULT_FILE_ROOT = './file_system/line_result'
