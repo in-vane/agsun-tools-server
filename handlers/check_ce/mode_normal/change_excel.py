@@ -21,7 +21,7 @@ import asposecells
 jpype.startJVM()
 from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
 
-from .get_table_message import all
+from .get_table_message import compare
 
 
 # LIBREOFFICE_PATH = "/usr/bin/soffice"
@@ -212,8 +212,7 @@ def checkTags(username, excel_file, pdf_file, num, file_extension):
         print("这是xls文件")
         excel_file = convert_xls_bytes_to_xlsx(excel_file)
         print("转换为xlsx文件成功")
-    doc = fitz.open(stream=BytesIO(pdf_file))
-    doc.save(PDF_PATH)
+    doc = fitz.open(pdf_file)
     wb = openpyxl.load_workbook(filename=BytesIO(excel_file))
     sheet_names = wb.sheetnames
     print(f"一共工作表:{sheet_names}")
@@ -222,11 +221,10 @@ def checkTags(username, excel_file, pdf_file, num, file_extension):
     else:
         work_table = sheet_names[num]
     print(f"工作表为: {work_table}")
-    message_dict = all(wb, work_table, doc, PDF_PATH)
+    message_dict = compare(wb, work_table, doc, pdf_file)
     change_excel(wb, work_table, message_dict)
     excel_image_base64 = excel_to_iamge(EXCEL_PATH, num)
     os.remove(EXCEL_PATH)
-    os.remove(PDF_PATH)
     pdf_image_base64 = pdf_to_image(doc)
     doc.close()
     wb.close()
@@ -257,7 +255,7 @@ class CEHandler(MainHandler):
                 file_pdf = file_path
         # 获取文件后缀名
         file_extension = os.path.splitext(file_excel)[1].lstrip('.')
-        file_excel, file_pdf = convert_files_to_bytesio(file_excel, file_pdf)
+        file_excel = convert_files_to_bytesio(file_excel)
         if mode == 0:
             code, excel_image_base64, pdf_image_base64, msg = await self.process_async(username,
                                                                     file_excel, file_pdf, num, file_extension)

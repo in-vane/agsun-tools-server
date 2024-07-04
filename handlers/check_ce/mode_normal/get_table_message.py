@@ -1,9 +1,14 @@
+import pdfplumber
+import tabula
+import fitz
 import re
 import time
 import tabula
 import pandas as pd
 import pdfplumber
+# from .get_similarity import compare_dictionaries
 from .get_similarity import compare_dictionaries
+import openpyxl
 
 
 def get_standard_document_as_dict(wb, sheet_name):
@@ -47,6 +52,13 @@ def get_standard_document_as_dict(wb, sheet_name):
                     red_text_dict[first_cell_value] = red_texts
 
     # print(red_text_dict)
+    # Remove None values from the dictionary
+    for key in list(red_text_dict.keys()):
+        red_text_dict[key] = [value for value in red_text_dict[key] if value is not None]
+        # Remove keys with empty lists
+        if not red_text_dict[key]:
+            del red_text_dict[key]
+
     red_text_dict = update_key_standard_dict(red_text_dict, wb, sheet_name)
     return red_text_dict
 
@@ -91,59 +103,83 @@ def update_key_standard_dict(data_dict, wb, sheet_name):
     return updated_dict
 
 
+def extract_with_pdfplumber(pdf_path):
+    """
+    使用 pdfplumber 从 PDF 的第一页提取最大的表格。
+    :param pdf_path: PDF 文件的路径
+    :return: 包含表格数据的字典
+    """
+    with pdfplumber.open(pdf_path) as pdf:
+        first_page = pdf.pages[0]  # 获取第一页
+        tables = first_page.extract_tables()  # 提取所有表格
+
+        if not tables:
+            raise ValueError("No tables found with pdfplumber")
+
+        # 获取最大的表格
+        largest_table = max(tables, key=lambda table: len(table))
+        num_rows = len(largest_table)
+        num_columns = len(largest_table[0]) if num_rows > 0 else 0
+
+        table_dict = {}
+        for row in largest_table[1:]:  # 假设第一行是表头，从第二行开始处理数据
+            if row[0] is not None:  # 确保键不为None
+                key = row[0].strip()  # 删除可能的前后空白字符
+                values = [item for item in row[1:] if item is not None]  # 过滤掉None值
+                table_dict[key] = values
+
+        return table_dict
+
+
+def extract_with_tabula(pdf_path):
+    """
+    使用 tabula-py 从 PDF 的第一页提取最大的表格。
+    :param pdf_path: PDF 文件的路径
+    :return: 包含表格数据的字典
+    """
+    tables = tabula.read_pdf(pdf_path, pages=1, multiple_tables=True)
+
+    if not tables or all(table.empty for table in tables):
+        raise ValueError("No tables found with tabula")
+
+    # 获取最大的表格
+    largest_table = max(tables, key=lambda t: len(t))
+    num_rows, num_columns = largest_table.shape
+
+    table_dict = {}
+    for index, row in largest_table.iterrows():  # 遍历表格的每一行
+        if row[0]:  # 确保键不为空
+            key = str(row[0]).strip()  # 删除可能的前后空白字符
+            values = [str(item).strip() for item in row[1:] if
+                      item is not None and str(item).strip().lower() != 'nan']  # 过滤掉 None 值和 'nan'
+            if key.lower() != 'nan' and values:  # 确保键和值不为 'nan' 并且值列表不为空
+                table_dict[key] = values
+
+    return table_dict
+
+
 def extract_table_from_pdf(pdf_path):
     """
-    使用 tabula-py 从 PDF 的第一页提取最大的表格，如果失败则使用 pdfplumber。
-    将表格中每行的第一个单元格作为键，其余单元格（非None值）作为值列表存储到字典中。
-
+    先尝试使用 pdfplumber 提取表格，如果失败或者提取的表格数量小于等于5，则使用 tabula 提取。
     :param pdf_path: PDF 文件的路径
     :return: 包含表格数据的字典
     """
     try:
-        # 尝试使用 tabula-py 提取 PDF 中的表格
-        tables = tabula.read_pdf(pdf_path, pages=1)
-
-        if not tables or tables[0].empty:
-            raise ValueError("No tables found with tabula")
-
-        # 假设只有一个表格，获取第一个表格
-        table = tables[0]
-
-        table_dict = {}
-        for index, row in table.iterrows():  # 遍历表格的每一行
-            if row[0]:  # 确保键不为空
-                key = str(row[0]).strip()  # 删除可能的前后空白字符
-                values = [str(item) for item in row[1:] if item is not None]  # 过滤掉 None 值
-                table_dict[key] = values
-        clean_dict = {}
-        for key, values in table_dict.items():
-            if key.lower() != 'nan':
-                clean_values = [value for value in values if value.lower() != 'nan']
-                if clean_values:  # 仅在值列表不为空时添加到字典
-                    clean_dict[key] = clean_values
-        print("Extracted using tabula:")
-        return clean_dict
+        table_dict = extract_with_pdfplumber(pdf_path)
+        if len(table_dict) <= 5:
+            raise ValueError("用pdfplumber获取到的键值对小于6个")
+        print("Extracted using pdfplumber:")
+        return table_dict
 
     except Exception as e:
-        print(f"Tabula extraction failed: {e}")
-
-        # 如果 tabula 失败，使用 pdfplumber 提取表格
-        with pdfplumber.open(pdf_path) as pdf:
-            first_page = pdf.pages[0]  # 获取第一页
-            table = first_page.extract_table()  # 提取表格
-
-            if not table:
-                return {}  # 如果没有表格，返回空字典
-
-            table_dict = {}
-            for row in table[1:]:  # 假设第一行是表头，从第二行开始处理数据
-                if row[0] is not None:  # 确保键不为None
-                    key = row[0].strip()  # 删除可能的前后空白字符
-                    values = [item for item in row[1:] if item is not None]  # 过滤掉None值
-                    table_dict[key] = values
-
-            print("Extracted using pdfplumber:")
+        print(f"Pdfplumber extraction failed or insufficient data: {e}")
+        try:
+            table_dict = extract_with_tabula(pdf_path)
+            print("Extracted using tabula:")
             return table_dict
+        except Exception as e:
+            print(f"Tabula extraction failed: {e}")
+            return {}
 
 
 def remove_empty_lists(input_dict):
@@ -154,7 +190,8 @@ def remove_empty_lists(input_dict):
     :return: 更新后的字典，其中不包含空列表的键值对
     """
     # 使用字典推导式来创建一个新的字典，其中仅包含非空列表的键值对
-    new_dict = {key: [item for item in value if item] for key, value in input_dict.items() if value and any(item for item in value if item)}
+    new_dict = {key: [item for item in value if item] for key, value in input_dict.items() if
+                value and any(item for item in value if item)}
 
     return new_dict
 
@@ -172,8 +209,8 @@ def add_ce_signs_to_dict(doc, input_dict):
     # 用于存储所有找到的CE标记的列表
     ce_signs = []
 
-    # 正则表达式匹配XXXX-XX模式，其中X是1到9的数字
-    pattern = re.compile(r'\b[0-9]{4}-[0-9]{2}\b')
+    # 定义正则表达式
+    pattern = re.compile(r'\b[0-9]{4}[-/][0-9]{2}\b')
 
     # 遍历PDF中的每一页
     for page_num in range(len(doc)):
@@ -189,45 +226,17 @@ def add_ce_signs_to_dict(doc, input_dict):
     return input_dict
 
 
-def all(wb, work_table, doc, PDF_PATH1):
-    # 假设Excel文件已经保存在以下路径
-    # 调用函数并打印结果
+def compare(wb, work_table, doc, PDF_PATH1):
 
     red_text_data = get_standard_document_as_dict(wb, work_table)
-    print(f"吉盛标准ce表:{red_text_data}")
+    print(f"excel表格:{red_text_data}")
 
-    # 调用函数并传入PDF文件的路径
-    table_content_dict = extract_table_from_pdf(PDF_PATH1)
-    table_content_dict = remove_empty_lists(table_content_dict)
-    table_content_dict = add_ce_signs_to_dict(doc, table_content_dict)
-    print(f"客户ce表：{table_content_dict}")
-
-    start = time.time()
-    red_text_data = compare_dictionaries(red_text_data, table_content_dict)
-    print(red_text_data)
-    end = time.time()
-    print(f"对字典进行匹配耗时{end - start}秒")
-    return red_text_data
-
-# import openpyxl
-# import fitz  # 用于处理PDF文件
-#
-# # 假设 compare_dictionaries 函数已经存在
-# # from .get_similarity import compare_dictionaries
-#
-# if __name__ == '__main__':
-#
-#     # 准备 Excel 文件
-#     excel_path = 'K113BCC3.xlsx'
-#     wb = openpyxl.load_workbook(excel_path)
-#     work_table = 'K113BCC3'  # 你的工作表名称
-#
-#     # 准备 PDF 文件
-#     pdf_path = 'C1110800079ACE贴纸K2113BCC3(ACE-印尼30-252x180-白色不干胶贴纸覆膜)-A0_加水印.pdf'
-#     doc = fitz.open(pdf_path)
-#
-#     # 调用 all 函数
-#     result = all(wb, work_table, doc, pdf_path)
+    table_data = extract_table_from_pdf(PDF_PATH1)
+    table_data = remove_empty_lists(table_data)
+    table_data = add_ce_signs_to_dict(doc, table_data)
+    print(f"pdf表格:{table_data}")
+    message_dict = compare_dictionaries(red_text_data, table_data)
+    return message_dict
 
 
 

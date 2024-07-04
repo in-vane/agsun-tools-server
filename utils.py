@@ -101,22 +101,16 @@ def merge_records(records):
     return list(merged_records.values())
 
 
-def convert_files_to_bytesio(excel_file_path, pdf_file_path):
+def convert_files_to_bytesio(excel_file_path):
     """
-           将excel和pdf转换为字节流
+           将excel转换为字节流
     """
 
     # 读取Excel文件内容到字节流
     with open(excel_file_path, 'rb') as f:
         excel_file_bytes = f.read()
     excel_file_stream = BytesIO(excel_file_bytes).getvalue()
-
-    # 读取PDF文件内容到字节流
-    with open(pdf_file_path, 'rb') as f:
-        pdf_file_bytes = f.read()
-    pdf_file_stream = BytesIO(pdf_file_bytes).getvalue()
-
-    return excel_file_stream, pdf_file_stream
+    return excel_file_stream
 
 def ensure_directory_exists(file_path):
     # 确保目录存在
