@@ -33,7 +33,6 @@ def compare_lists(list1, list2):
     mismatched_indices = []
     for index, (item1, item2) in enumerate(zip(list1, list2)):
         if clean_string(item1) != clean_string(item2):
-            print(f"{clean_string(item1)} != {clean_string(item2)}")
             mismatched_indices.append(index + 1)  # 索引从1开始
     return mismatched_indices
 
@@ -131,11 +130,10 @@ def compare_dictionaries(red_text_data, table_data):
                 message_dict[red_key] = list(range(1, len(red_text_data_copy[red_key]) + 1))
             else:
                 mismatched_indices = compare_lists(red_text_data_copy[red_key], table_data_copy[most_similar_key])
+                del table_data_copy[most_similar_key]
+                del red_text_data_copy[red_key]
                 if mismatched_indices:
                     message_dict[red_key] = mismatched_indices
-            # 删除已经匹配的键
-            # if not mismatched_indices:
-            #     del table_data_copy[most_similar_key]
         else:
             message_dict[red_key] = list(range(1, len(red_text_data_copy[red_key]) + 1))
 
@@ -148,7 +146,8 @@ def compare_dictionaries(red_text_data, table_data):
         if 'CE-sign' in red_text_data and 'CE-sign' in table_data:
             red_ce_values = red_text_data['CE-sign']
             table_ce_values = table_data['CE-sign']
-            if all(value in table_ce_values for value in red_ce_values):
+            if all(any(clean_string(value1) == clean_string(value2) for value2 in table_ce_values) for value1 in
+                   red_ce_values):
                 del message_dict['CE-sign']
             else:
                 message_dict['CE-sign'] = red_text_data['CE-sign']
