@@ -137,10 +137,18 @@ def compare_explore_no_resize(base64_data_old: str, base64_data_new: str):
     after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
 
     # Compute SSIM between the two images
-    (score, diff) = structural_similarity(before_gray, after_gray, full=True)
+    try:
+        print(before_gray.shape)
+        print(after_gray.shape)
+        (score, diff) = structural_similarity(before_gray, after_gray, full=True)
+    except ValueError as e:
+        print("不resize发生错误,则调整图片")
+        # 调用备用函数并返回备用结果
+        score, differece, image_base64 = compare_explore(base64_data_old, base64_data_new)
+        return score, differece, image_base64
     if score < 0.95:
         print(f"不resize其相识度为{score}小于0.95,则调整图片")
-        score, differece, image_base64 = compare_explore(base64_data_old,base64_data_new)
+        score, differece, image_base64 = compare_explore(base64_data_old, base64_data_new)
         return score, differece, image_base64
     diff = (diff * 255).astype("uint8")
     diff_box = cv2.merge([diff, diff, diff])
