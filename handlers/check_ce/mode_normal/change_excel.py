@@ -22,6 +22,7 @@ jpype.startJVM()
 from asposecells.api import Workbook, FileFormatType, PdfSaveOptions
 
 from .get_table_message import compare
+from save_filesys_db import save_ce
 
 
 # LIBREOFFICE_PATH = "/usr/bin/soffice"
@@ -205,7 +206,7 @@ def determine_file_type(excel_bytes):
         return 'Unknown'
 
 
-def checkTags(username, excel_file, pdf_file, num, file_extension):
+def checkTags(username, excel_file, pdf_file, num, file_extension, excel):
     ensure_directory_exists(EXCEL_PATH)
     ensure_directory_exists(PDF_PATH)
     if file_extension == 'xls':
@@ -228,6 +229,7 @@ def checkTags(username, excel_file, pdf_file, num, file_extension):
     pdf_image_base64 = pdf_to_image(doc)
     doc.close()
     wb.close()
+    save_ce(username, CODE_SUCCESS, pdf_file, excel, excel_image_base64, pdf_image_base64)
     return CODE_SUCCESS, excel_image_base64, pdf_image_base64, None
 
 
@@ -238,8 +240,8 @@ def checkTags(username, excel_file, pdf_file, num, file_extension):
 # return bytes_content
 class CEHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, excel_file, pdf_file, num, file_extension):
-        return checkTags(username, excel_file, pdf_file, num, file_extension)
+    def process_async(self, username, excel_file, pdf_file, num, file_extension, excel):
+        return checkTags(username, excel_file, pdf_file, num, file_extension, excel)
 
     async def post(self):
         username = self.current_user
@@ -250,15 +252,15 @@ class CEHandler(MainHandler):
         for file_path in file_paths:
             ext = os.path.splitext(file_path)[1].lower()
             if ext in ['.xlsx', '.xls']:
-                file_excel = file_path
+                excel = file_path
             elif ext == '.pdf':
                 file_pdf = file_path
         # 获取文件后缀名
-        file_extension = os.path.splitext(file_excel)[1].lstrip('.')
-        file_excel = convert_files_to_bytesio(file_excel)
+        file_extension = os.path.splitext(excel)[1].lstrip('.')
+        file_excel = convert_files_to_bytesio(excel)
         if mode == 0:
             code, excel_image_base64, pdf_image_base64, msg = await self.process_async(username,
-                                                                    file_excel, file_pdf, num, file_extension)
+                                                                    file_excel, file_pdf, num, file_extension, excel)
         custom_data = {
             "code": code,
             "data": {
