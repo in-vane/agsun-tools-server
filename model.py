@@ -586,7 +586,7 @@ class Diff_Pdf:
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": row['text'],
-                "images": row['images'],
+                "images": images_list,
                 "related_files": [
                     {
                         "file_name": row['file1_name'],
@@ -725,6 +725,8 @@ db_ocr = Ocr(db_handler)
 # 创建images类的实例
 db_area = Area(db_handler)
 
+result= db_diff_pdf.query_record('2024-07-09','admin','002')
+print(result)
 # result = db_files.query_files("diff_pdf",'2024-06-05','admin','002')
 
 # db_result.query_record('2024-06-08','admin','004')
