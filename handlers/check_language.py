@@ -23,7 +23,84 @@ LANGUAGES = [
 CODE_SUCCESS = 0
 CODE_ERROR = 1
 # 获取目录
+def extract_text_from_page(doc, page_number, clip_rect=None):
+    """
+    使用PyMuPDF从PDF的指定页面提取文字并按位置排序。
+    :param doc: PyMuPDF的文档对象
+    :param page_number: 整数，表示页码（从1开始计数）
+    :param rect: 列表或元组，格式为[x, y, w, h]，代表矩形区域，
+                 其中x, y是矩形左上角的坐标，w是宽度，h是高度
+    :return: 排序后的该页所有文字及其坐标
+    """
+    # 加载指定的页面
+    page = doc.load_page(page_number)  # 页码从0开始，所以减1
+    if clip_rect:
+        text_dict = page.get_text("dict", clip=clip_rect)
+    else:
+        text_dict = page.get_text("dict")
+    blocks = text_dict["blocks"]
+
+    # 提取所有文字块
+    lines = []
+    for block in blocks:
+        if "lines" in block:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    lines.append({
+                        "text": span["text"],
+                        "bbox": span["bbox"]
+                    })
+
+    # 按垂直和水平位置排序
+    # lines.sort(key=lambda x: (x["bbox"][1], x["bbox"][0]))
+    # 按垂直和水平位置排序，忽略小数部分
+    lines.sort(key=lambda x: (int(x["bbox"][1]), int(x["bbox"][0])))
+
+    # 组合排序后的文字及其坐标
+    # sorted_text = " ".join([line["text"] for line in lines])
+
+    sorted_lines = group_lines_by_y(lines)
+    return sorted_lines
+
+def group_lines_by_y(lines):
+    """
+    按 y 坐标对提取的文字进行分组，并返回按行的 y 坐标排序的集合。
+    :param lines: 包含文字及其坐标的字典列表
+    :return: 按行的 y 坐标排序的集合，每个元素是属于同一行的文字字符串
+    """
+    # 定义一个字典用于按行分组
+    y_dict = {}
+
+    for line in lines:
+        text = line["text"]
+        bbox = line["bbox"]
+        y_center = (bbox[1] + bbox[3]) / 2  # 计算 y 中心坐标
+
+        # 找到与当前 y 中心坐标接近的键
+        found = False
+        for key in y_dict.keys():
+            if abs(key - y_center) < 5:  # 可以根据需要调整这个阈值
+                y_dict[key].append((bbox[0], text))
+                found = True
+                break
+
+        if not found:
+            y_dict[y_center] = [(bbox[0], text)]
+
+    # 对每行的文字按 x 坐标排序，并按 y 坐标排序整个行的集合
+    sorted_lines = []
+    for y in sorted(y_dict.keys()):
+        line_texts = [text for x, text in sorted(y_dict[y])]
+        sorted_lines.append(" ".join(line_texts))
+
+    return sorted_lines
+
 def extract_language_message(line):
+    """
+    从给定行中提取语言信息和起始页码。
+    :param line: 输入的文本行
+    :return: 包含语言和起始页码的字典，如果没有找到匹配的，返回None
+    """
     # 创建正则表达式，检测语言缩写和至少一个数字，可能有范围
     pattern = rf"\b({'|'.join(LANGUAGES)})\b.*?(\d+)(?:-\d+)?"
 
@@ -32,29 +109,29 @@ def extract_language_message(line):
     if match:
         language = match.group(1)  # 语言缩写
         start_page = int(match.group(2))  # 起始页码
-        dict = {language: start_page}
-        return dict
+        return {language: start_page}
 
-    return None
+    return None  # 如果没有匹配，返回None
 
 def extract_language(pdf_path, num):
-    num = int(num)
+    """
+    从PDF文件的指定页提取语言信息。
+    :param pdf_path: PDF文件的路径
+    :param num: 要提取的页码
+    :return: 包含语言信息的列表和第一个语言的起始页码
+    """
+    num = int(num)  # 确保页码是整数
     language_message = {}  # 初始化一个空字典来存储所有语言信息
-    # 打开 PDF 文件
-    with pdfplumber.open(pdf_path) as pdf:
-        page = pdf.pages[num - 1]  # 页面索引从0开始，因此第三页是索引2
-        text = page.extract_text()
-        # 如果第三页有文本，按行打印
-        if text:
-            for line in text.split('\n'):
-                result = extract_language_message(line)
-                if result:
-                    language_message.update(result)  # 更新字典
-        else:
-            language_message = {}
-    if len(language_message) == 0:
+    doc = fitz.open(pdf_path)
+    lines = extract_text_from_page(doc, num-1)
+    for line in lines:
+        result = extract_language_message(line)
+        print(line)
+        if result:
+            language_message.update(result)  # 更新字典
+    # 如果没有找到任何语言信息，设置默认值
+    if not language_message:
         language_message = {'DE': 0, 'EN': 0, 'NL': 0}
-        # 如果没有找到任何语言信息，使用OCR扫描页面
     result_list = []
     for type_key, count_value in language_message.items():
         result_list.append({
@@ -62,6 +139,7 @@ def extract_language(pdf_path, num):
             'language': type_key,  # 语言代码
             'start': count_value  # 对应的页码
         })
+    # 按起始页码排序
     result_list = sorted(result_list, key=lambda x: x['start'])
     first_start = result_list[0]['start']
     return result_list, first_start
@@ -74,6 +152,10 @@ def get_language_directory(pdf_path, num):
         'start': first_start
     }
     return CODE_SUCCESS, data, ''
+
+
+
+
 
 
 def convert_list_to_dict(items_list):
