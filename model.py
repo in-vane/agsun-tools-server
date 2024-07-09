@@ -7,8 +7,8 @@ from utils import process_paths, merge_records, add_url
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'h0ld?Fish:Palm',
-    # 'password': 'admin',
+    # 'password': 'h0ld?Fish:Palm',
+    'password': 'admin',
     'database': 'agsun',
     'charset': 'utf8'
 }
@@ -586,7 +586,7 @@ class Diff_Pdf:
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": row['text'],
-                "images": process_paths(row['images']),
+                "images": row['images'],
                 "related_files": [
                     {
                         "file_name": row['file1_name'],
@@ -599,6 +599,7 @@ class Diff_Pdf:
                 ],
                 "result_file": ""
             }
+            record['images'] = process_paths(record['images'])
             result.append(record)
         return result
 
@@ -684,7 +685,7 @@ class Ce:
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": "",  # text 直接设置为空字符串
-                "images": process_paths(images_list),
+                "images": images_list,
                 "related_files": [
                     {
                         "file_name": file1_name,
@@ -697,6 +698,7 @@ class Ce:
                 ],
                 "result_file": ""
             }
+            record['images'] = process_paths(record['images'])
             result.append(record)
         print(result)
         return result
@@ -726,6 +728,7 @@ db_area = Area(db_handler)
 # result = db_files.query_files("diff_pdf",'2024-06-05','admin','002')
 
 # db_result.query_record('2024-06-08','admin','004')
+# db_ce.insert_record('admin','006','./file_system/files/595b1d146df14c8b96f8352b5c236992.xls','./file_system/files/7829d90e141d0f1ef7d5b2d45f373203.pdf',['file_system/images/2024/06/14/002/20240614005753098529.png', 'file_system/images/2024/06/14/002/20240614005753103818.png'])
 class User:
     def __init__(self, username, password):
         self.username = username

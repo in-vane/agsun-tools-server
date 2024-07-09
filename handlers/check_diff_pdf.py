@@ -138,8 +138,6 @@ def compare_explore_no_resize(base64_data_old: str, base64_data_new: str):
 
     # Compute SSIM between the two images
     try:
-        print(before_gray.shape)
-        print(after_gray.shape)
         (score, diff) = structural_similarity(before_gray, after_gray, full=True)
     except ValueError as e:
         print("不resize发生错误,则调整图片")
