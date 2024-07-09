@@ -199,7 +199,7 @@ class Result:
                 "related_files": [
                     {
                         "file_name": row['file_name'],
-                        "file_path": row['file_path']
+                        "file_path": add_url(row['file_path'])
                     }
                 ],
                 "result_file": ""
@@ -293,11 +293,11 @@ class Area:
                 "related_files": [
                     {
                         "file_name": row['file1_name'],
-                        "file_path": row['file1_path']
+                        "file_path": add_url(row['file1_path'])
                     },
                     {
                         "file_name": row['file2_name'],
-                        "file_path": row['file2_path']
+                        "file_path": add_url(row['file2_path'])
                     }
                 ],
                 "result_file": row['images']
@@ -586,22 +586,20 @@ class Diff_Pdf:
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": row['text'],
-                "images": row['images'],
+                "images": process_paths(row['images']),
                 "related_files": [
                     {
                         "file_name": row['file1_name'],
-                        "file_path": row['file1_path']
+                        "file_path": add_url(row['file1_path'])
                     },
                     {
                         "file_name": row['file2_name'],
-                        "file_path": row['file2_path']
+                        "file_path": add_url(row['file2_path'])
                     }
                 ],
                 "result_file": ""
             }
             result.append(record)
-        print(result)
-        print(len(result))
         return result
 
 
@@ -609,17 +607,17 @@ class Ce:
     def __init__(self, db_handler):
         self.db_handler = db_handler
 
-    def insert_record(self, user_id, type_id, file1_md5, file2_md5, path):
+    def insert_record(self, user_id, type_id, file1_path, file2_path, path):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         path = str(path)
         # 定义插入SQL语句
         sql = """
-            INSERT INTO ce (datetime, user_id, type_id, file1_md5, file2_md5, path)
+            INSERT INTO ce (datetime, user_id, type_id, file1_path, file2_path, path)
             VALUES (%s, %s, %s, %s, %s, %s)
             """
         try:
             self.db_handler.cursor.execute(sql, (
-                current_time, user_id, type_id, file1_md5, file2_md5, path))
+                current_time, user_id, type_id, file1_path, file2_path, path))
             self.db_handler.commit()
             print("File record inserted successfully.")
         except pymysql.IntegrityError as e:
@@ -690,11 +688,11 @@ class Ce:
                 "related_files": [
                     {
                         "file_name": file1_name,
-                        "file_path": file1_path
+                        "file_path": add_url(file1_path)
                     },
                     {
                         "file_name": file2_name,
-                        "file_path": file2_path
+                        "file_path": add_url(file2_path)
                     }
                 ],
                 "result_file": ""
@@ -727,7 +725,6 @@ db_area = Area(db_handler)
 
 # result = db_files.query_files("diff_pdf",'2024-06-05','admin','002')
 
-# db_files.query_files("result",'2024-06-05','admin','004')
 # db_result.query_record('2024-06-08','admin','004')
 class User:
     def __init__(self, username, password):

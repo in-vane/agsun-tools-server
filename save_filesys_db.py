@@ -168,7 +168,7 @@ def save_Line(username, doc, file_path, filename, code, msg):
     return output_path
 
 
-def save_ce(username, code, file1_md5, file2_md5, excel_image_base64, pdf_image_base64, msg):
+def save_ce(username, code, file1_path, file2_path, excel_image_base64, pdf_image_base64):
     if code == 1:
         return
     type_id = '006'
@@ -197,7 +197,7 @@ def save_ce(username, code, file1_md5, file2_md5, excel_image_base64, pdf_image_
         image_paths.append(image_path)
 
     # 插入图片记录到数据库
-    db_ce.insert_record(username, type_id, file1_md5, file2_md5, image_paths)
+    db_ce.insert_record(username, type_id, file1_path, file2_path, image_paths)
 
 
 def save_ce_size(username, code, file_path, is_error, message, img_base64, msg):
