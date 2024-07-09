@@ -882,5 +882,5 @@ class PartCountHandlerOcr(MainHandler):
         table_dict=params['table_dict']
         custom_data = await self.process_async(
             username,file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
-        # save_part_count(username, file, custom_data['code'], custom_data['data'], custom_data['msg'])
+        save_part_count(username, file, custom_data['code'], custom_data['data'], custom_data['msg'])
         self.write(custom_data)

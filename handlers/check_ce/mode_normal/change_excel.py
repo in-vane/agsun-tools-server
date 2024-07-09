@@ -229,7 +229,7 @@ def checkTags(username, excel_file, pdf_file, num, file_extension, excel):
     pdf_image_base64 = pdf_to_image(doc)
     doc.close()
     wb.close()
-    # save_ce(username, CODE_SUCCESS, pdf_file, excel, excel_image_base64, pdf_image_base64)
+    save_ce(username['username'], CODE_SUCCESS, pdf_file, excel, excel_image_base64, pdf_image_base64)
     return CODE_SUCCESS, excel_image_base64, pdf_image_base64, None
 
 
