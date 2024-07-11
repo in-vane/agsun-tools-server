@@ -233,11 +233,10 @@ def save_ce_size(username, code, file_path, is_error, message, img_base64, msg):
     db_result.insert_record(username, type_id, file_path, image_paths, text)
 
 
-def save_part_count(username, md5, code, data, msg):
-    if code == 1 or len(data.get("error_pages")) ==0:
+def save_part_count(username, file_path, code, data, msg):
+    if code == 1 or len(data.get("error_pages")) == 0:
         return
     type_id = '003'
-    print(username, md5, code, data, msg)
     note = data.get("note")
     mapping_results = data.get("mapping_results")
     error_pages = data.get("error_pages")
@@ -263,28 +262,21 @@ def save_part_count(username, md5, code, data, msg):
             image_file.write(base64.b64decode(img_base64_cleaned))
 
         image_paths.append(image_path)
-
-
-
     if not mapping_results and not error_pages:
         text = note
-
-    # Extract error parts from mapping_results
     error_parts = [
         f"零件{result[0]}的爆炸图有{result[2]}个而明细表有{result[3]}个"
         for result in mapping_results if not result[1]
     ]
 
-    # Extract error pages from error_pages
     error_page_numbers = error_pages[1] if len(error_pages) > 1 else []
 
-    # Construct the text
     error_parts_text = "，".join(error_parts)
     error_pages_text = f"第 {error_page_numbers}页的明细表错误" if error_page_numbers else ""
 
     text = f"爆炸图{error_parts_text}。{error_pages_text}，{note}"
     # 保存文字记录
-    db_result.insert_record(username, type_id, md5, image_path, text)
+    db_result.insert_record(username, type_id, file_path, image_path, text)
 
 
 def save_area(username, code, file1_path, file2_path, image_one, image_two, image_result, msg):
