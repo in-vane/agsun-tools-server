@@ -310,17 +310,17 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         # self.username = decoded_token.get('sub')  # 'sub' is the standard claim
         self.username = 'hello'  # 'sub' is the standard claim
         # 心跳机制
-        self.temp_count = 0
-        self.loop = PeriodicCallback(self.check_per_seconds, 1000)
-        self.loop.start()
+        # self.temp_count = 0
+        # self.loop = PeriodicCallback(self.check_per_seconds, 1000)
+        # self.loop.start()
 
-    def check_per_seconds(self):
-        try:
-            self.write_message(tornado.escape.json_encode({"data": self.temp_count}))
-            self.temp_count += 1
-        except tornado.websocket.WebSocketClosedError:
-            print("WebSocket closed, stopping heartbeat.")
-            self.loop.stop()
+    # def check_per_seconds(self):
+    #     try:
+    #         self.write_message(tornado.escape.json_encode({"data": self.temp_count}))
+    #         self.temp_count += 1
+    #     except tornado.websocket.WebSocketClosedError:
+    #         print("WebSocket closed, stopping heartbeat.")
+    #         self.loop.stop()
 
     async def on_message(self, message):
         data = tornado.escape.json_decode(message)
@@ -354,7 +354,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_close(self):
         print("websocket closed")
-        self.loop.stop()
+        # self.loop.stop()
         self.files.clear()
 
 
