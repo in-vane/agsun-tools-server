@@ -4,6 +4,7 @@ import requests
 import hashlib
 from langdetect import detect
 from config import MiniLM_PATH, app_id, secret_key
+
 def compute_cosine_similarity(text1, text2):
     """
     该函数为了，计算两个句子的语义相似度,比如'你好'和'hello'，会先把两个都翻译成英语
@@ -28,6 +29,7 @@ def clean_string(s):
     # 移除所有非字母数字字符，包括空格、标点符号、回车符和换行符
     cleaned = re.sub(r'\W+', '', s.replace('\n', '').replace('\r', '')).strip().lower()
     return cleaned
+
 def compare_lists(list1, list2):
     """对两个列表的值进行比较，忽略大小写、空格和符号，并返回不匹配的索引列表"""
     mismatched_indices = []
@@ -35,6 +37,7 @@ def compare_lists(list1, list2):
         if clean_string(item1) != clean_string(item2):
             mismatched_indices.append(index + 1)  # 索引从1开始
     return mismatched_indices
+
 
 def compare_dictionaries(red_text_data, table_data):
     """
@@ -152,6 +155,8 @@ def compare_dictionaries(red_text_data, table_data):
             else:
                 message_dict['CE-sign'] = red_text_data['CE-sign']
 
+    if 'CE-sign' in message_dict:
+        message_dict['CE-sign'] = red_text_data['CE-sign']
     print(f"最终的对比结果{message_dict}")
     return message_dict
 

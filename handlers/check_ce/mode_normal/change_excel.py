@@ -54,14 +54,16 @@ def change_excel(wb, work_table, message_dict):
         top=Side(style='thick', color='0000FF'),
         bottom=Side(style='thick', color='0000FF')
     )
-
-    # 如果message_dict中有'CE-sign'键，处理它的值
+# 检查 message_dict 中是否包含 'CE-sign' 键
     if 'CE-sign' in message_dict:
-        ce_values = message_dict['CE-sign']  # 获取'CE-sign'对应的值列表
-        for ce_value in ce_values:
+        ce_values = message_dict['CE-sign']
+        print(ce_values)
+        if ce_values:
+            ce_value = ce_values[0]  # 获取'CE-sign'对应列表的第一个元素
+            # 遍历工作表中的每一行和每一个单元格
             for row in sheet.iter_rows():
                 for cell in row:
-                    if ce_value in str(cell.value):  # 如果单元格的值包含当前 ce_value
+                    if cell.value is not None and str(cell.value) == str(ce_value):  # 如果单元格的值等于 ce_value
                         cell.border = green_border  # 更新边框为绿色
 
     # 遍历工作表中的每一行，更新其他指定的值的边框
