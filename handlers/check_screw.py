@@ -177,6 +177,13 @@ def extract_Screw_bags(doc, page_number, rect):
     # 分割型号行
     models = [word for word in model_line.split() if len(word) == 1 and word.isupper()]
     total_count = len(model_line.split())  # 计算所有元素的数量
+    if total_count == 0:
+        default_time = time.time()
+        result = [
+            {'key': default_time, 'type': 'A', 'count': 0},
+        ]
+        return result
+
     if max_uppercase_count / total_count <= 0.5:
         print("螺丝包为列排列:", model_line)
         # 使用每行的第一个单独的大写英文字母作为型号，最后的数字作为数量

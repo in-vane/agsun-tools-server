@@ -348,8 +348,9 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
     doc1.close()
     doc2.close()
     print(mismatch_list)
-    print(len(base64_strings))
     error_msg = generate_error_message(mismatch_list)
+    if len(mismatch_list) == 0:
+        error_msg = '没有差异'
     save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg,'')
     return CODE_SUCCESS, mismatch_list, base64_strings, error_msg, ''
 

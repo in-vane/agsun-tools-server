@@ -10,11 +10,15 @@ sys.path.append("..")
 
 
 def check_md5(file_md5):
-    file_info = db_files.query_file_by_md5(file_md5)
-    if file_info and 'datetime' in file_info and isinstance(file_info['datetime'], datetime.datetime):
-        file_info['datetime'] = file_info['datetime'].isoformat()
-    print(f"file_info {file_info}")
-    return file_info
+    try:
+        file_info = db_files.query_file_by_md5(file_md5)
+        if file_info and 'datetime' in file_info and isinstance(file_info['datetime'], datetime.datetime):
+            file_info['datetime'] = file_info['datetime'].isoformat()
+        print(f"file_info {file_info}")
+        return file_info
+    except Exception as e:
+        print(f"Error querying file info: {e}")
+        return None
 
 
 class FileHandler(MainHandler):
