@@ -32,27 +32,32 @@ def pdf_page_to_image(pdf_path, page_number, zoom_x=3.0, zoom_y=3.0):
     doc.close()
     return img
 
-
-def draw_red_frame(base64_img):
+def draw_frame(base64_img, color):
     # 将 base64 编码转换为图像
     img_data = base64.b64decode(base64_img)
     img_array = np.frombuffer(img_data, dtype=np.uint8)
     img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
-    # 在图像上绘制一个红色的框
+    # 确定框的颜色
+    if color == 'red':
+        frame_color = (0, 0, 255)  # 红色
+    elif color == 'blue':
+        frame_color = (255, 0, 0)  # 蓝色
+    else:
+        raise ValueError("color 参数必须是 'red' 或 'blue'")
+
+    # 在图像上绘制一个框
     height, width, _ = img.shape
-    cv2.rectangle(img, (0, 0), (width, height), (0, 0, 255), 10)  # 红色框, 线宽为20
+    cv2.rectangle(img, (0, 0), (width, height), frame_color, 20)  # 线宽为20
 
     # 将图像转换回 base64 编码
     _, buffer = cv2.imencode('.jpg', img)
     image_base64 = base64.b64encode(buffer).decode('utf-8')
     return f"{BASE64_PNG}{image_base64}"
 
-
 def resize(base64_1, base64_2):
     image_A = base642img(base64_1)
     image_B = base642img(base64_2)
-
     # 计算最大尺寸
     max_height = max(image_A.shape[0], image_B.shape[0])
     max_width = max(image_A.shape[1], image_B.shape[1])
@@ -142,130 +147,102 @@ def compare_explore_no_resize(base64_data_old: str, base64_data_new: str):
     except ValueError as e:
         print("不resize发生错误,则调整图片")
         # 调用备用函数并返回备用结果
-        score, differece, image_base64 = compare_explore(base64_data_old, base64_data_new)
-        return score, differece, image_base64
+
+        score, differece, image_base64, image2_base64 = compare_explore(base64_data_old, base64_data_new)
+        return score, differece, image_base64, image2_base64
     if score < 0.95:
         print(f"不resize其相识度为{score}小于0.95,则调整图片")
-        score, differece, image_base64 = compare_explore(base64_data_old, base64_data_new)
-        return score, differece, image_base64
+        score, differece, image_base64, image2_base64 = compare_explore(base64_data_old, base64_data_new)
+        return score, differece, image_base64, image2_base64
     diff = (diff * 255).astype("uint8")
     diff_box = cv2.merge([diff, diff, diff])
-    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
-    contours = cv2.findContours(
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 调整后的阈值化代码
+    threshold_value = 150  # 可以根据需要调整这个值
+    thresh = cv2.threshold(diff, threshold_value, 255, cv2.THRESH_BINARY_INV)[1]
+
+    # 调整后的轮廓检测代码
+    contours = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
+    # 复制图像用于绘制差异
+    filled_before = before.copy()
     filled_after = after.copy()
 
+    # 创建一个掩膜图像，用于标记差异区域
+    mask_before = np.zeros_like(filled_before)
+    mask_after = np.zeros_like(filled_after)
+    # 调整后的绘制差异区域代码
     for c in contours:
         area = cv2.contourArea(c)
-        if area > 40:
+        if area > 40:  # 只处理大于40的区域
             x, y, w, h = cv2.boundingRect(c)
-            cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
-            cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
-            differece = True
+            # 在掩膜上绘制深红色差异区域
+            cv2.rectangle(mask_before, (x, y), (x + w, y + h), (0, 0, 139), -1)  # 深红色填充
+            # 在掩膜上绘制深蓝色差异区域
+            cv2.rectangle(mask_after, (x, y), (x + w, y + h), (255, 0, 0), -1)  # 蓝色填充
 
-    image_base64 = img2base64(filled_after)
-    return score, differece, f"{BASE64_PNG}{image_base64}"
+            differece = True
+    # 将掩膜应用到原图像上
+    filled_before = cv2.addWeighted(before, 1.0, mask_before, 1, 0)
+    filled_after = cv2.addWeighted(after, 1.0, mask_after, 1, 0)
+
+    # 编码图像为Base64
+    image_base64_before = img2base64(filled_before)
+    image_base64_after = img2base64(filled_after)
+
+    return score, differece, f"data:image/png;base64,{image_base64_before}", f"data:image/png;base64,{image_base64_after}"
 
 def compare_explore(base64_data_old: str, base64_data_new: str):
     differece = False
-    # img_[number]: base64
+    # 调整图像大小
     before, after = resize(base64_data_old, base64_data_new)
 
-    # Convert images to grayscale
+    # 将图像转换为灰度图像
     before_gray = cv2.cvtColor(before, cv2.COLOR_BGR2GRAY)
     after_gray = cv2.cvtColor(after, cv2.COLOR_BGR2GRAY)
 
-    # Compute SSIM between the two images
+    # 计算两幅图像之间的结构相似度（SSIM）
     (score, diff) = structural_similarity(before_gray, after_gray, full=True)
     diff = (diff * 255).astype("uint8")
-    diff_box = cv2.merge([diff, diff, diff])
-    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
-    contours = cv2.findContours(
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 调整后的阈值化代码
+    threshold_value = 150  # 可以根据需要调整这个值
+    thresh = cv2.threshold(diff, threshold_value, 255, cv2.THRESH_BINARY_INV)[1]
+
+    # 调整后的轮廓检测代码
+    contours = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
 
+    # 复制图像用于绘制差异
+    filled_before = before.copy()
     filled_after = after.copy()
 
+    # 创建一个掩膜图像，用于标记差异区域
+    mask_before = np.zeros_like(filled_before)
+    mask_after = np.zeros_like(filled_after)
+    # 调整后的绘制差异区域代码
     for c in contours:
         area = cv2.contourArea(c)
-        if area > 40:
+        if area > 40:  # 只处理大于40的区域
             x, y, w, h = cv2.boundingRect(c)
-            cv2.rectangle(diff_box, (x, y), (x + w, y + h), (24, 31, 172), 2)
-            cv2.drawContours(filled_after, [c], 0, (24, 31, 172), -1)
+            # 在掩膜上绘制深红色差异区域
+            cv2.rectangle(mask_before, (x, y), (x + w, y + h), (0, 0, 139), -1)  # 深红色填充
+            # 在掩膜上绘制深蓝色差异区域
+            cv2.rectangle(mask_after, (x, y), (x + w, y + h), (255, 0, 0), -1)  # 蓝色填充
+
             differece = True
 
-    image_base64 = img2base64(filled_after)
-    return score, differece, f"{BASE64_PNG}{image_base64}"
 
-# def compare_images(image1_base64, image2_base64):
-#     differece = True
-#     image_one = base64_to_image(image1_base64).convert('RGB')
-#     image_two = base64_to_image(image2_base64).convert('RGB')
-#
-#     if image_one.size != image_two.size:
-#         width_one, height_one = image_one.size
-#         width_two, height_two = image_two.size
-#
-#         if width_two < width_one or height_two < height_one:
-#             new_image = Image.new("RGBA", (width_one, height_one), (255, 255, 255, 0))
-#             new_image.paste(image_two, (0, 0))
-#             image_two = new_image
-#         elif width_two > width_one or height_two > height_one:
-#             image_two = image_two.crop((0, 0, width_one, height_one))
-#
-#     image_one_cv = cv2.cvtColor(np.array(image_one), cv2.COLOR_RGB2BGR)
-#     image_two_cv = cv2.cvtColor(np.array(image_two), cv2.COLOR_RGB2BGR)
-#
-#     gray_image_one = cv2.cvtColor(image_one_cv, cv2.COLOR_BGR2GRAY)
-#     gray_image_two = cv2.cvtColor(image_two_cv, cv2.COLOR_BGR2GRAY)
-#
-#     score, diff = structural_similarity(gray_image_one, gray_image_two, full=True)
-#     absdiff = cv2.absdiff(image_one_cv, image_two_cv)
-#     absdiff_gray = cv2.cvtColor(absdiff, cv2.COLOR_BGR2GRAY)
-#     _, absdiff_thresh = cv2.threshold(absdiff_gray, 30, 255, cv2.THRESH_BINARY)
-#     if np.count_nonzero(absdiff_thresh) < 20:
-#         differece = False
-#         image_base64 = image_to_base64(image_one)
-#         return score, differece, f"{BASE64_PNG}{image_base64}"
-#
-#     red_image = np.zeros_like(image_one_cv)
-#     red_image[:, :] = [0, 0, 255]
-#
-#     highlighted_image = np.where(absdiff_thresh[..., None], red_image, image_one_cv)
-#     highlighted_image = Image.fromarray(cv2.cvtColor(highlighted_image, cv2.COLOR_BGR2RGB))
-#
-#     image_base64 = image_to_base64(highlighted_image)
-#     return score, differece, f"{BASE64_PNG}{image_base64}"
-def generate_error_message(mismatch_list):
-    if not mismatch_list:
-        return ''
+    # 将掩膜应用到原图像上
+    filled_before = cv2.addWeighted(before, 1.0, mask_before, 1, 0)
+    filled_after = cv2.addWeighted(after, 1.0, mask_after, 1, 0)
 
-    mismatch_list.sort()
-    continuous_segments = []
-    current_segment = [mismatch_list[0]]
+    # 编码图像为Base64
+    image_base64_before = img2base64(filled_before)
+    image_base64_after = img2base64(filled_after)
 
-    # 寻找连续序列
-    for i in range(1, len(mismatch_list)):
-        if mismatch_list[i] == mismatch_list[i - 1] + 1:
-            current_segment.append(mismatch_list[i])
-        else:
-            if len(current_segment) >= 6:
-                continuous_segments.append(current_segment)
-            current_segment = [mismatch_list[i]]
-
-    if len(current_segment) >= 6:
-        continuous_segments.append(current_segment)
-
-    if continuous_segments:
-        error_msg = '本文档'
-        for segment in continuous_segments:
-            error_msg += f"{segment[0]}到{segment[-1]}页文档形式差别较大，"
-        return error_msg.rstrip('，')
-    else:
-        return ''
-
+    return score, differece, f"data:image/png;base64,{image_base64_before}", f"data:image/png;base64,{image_base64_after}"
 
 def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end_1, start_2, end_2):
     mismatch_list = []
@@ -296,23 +273,30 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
                 print(f"第一份文档的{page_index1 + 1}页与第二份文档的{page_index2 + 1}页进行对比")
-                score, difference, result_base64 = compare_explore_no_resize(base64_img1, base64_img2)
-                print(f"对比{score}")
+                score, difference, result_base64, result2_base64 = compare_explore_no_resize(base64_img1, base64_img2)
+                print(f"结构化对比对比{score}")
 
                 if difference:
                     mismatch_list.append(page_index1 + 1)
+                    mismatch_list.append(page_index1 + 1)
+                    mismatch_list.append(page_index1 + 1)
+                    mismatch_list.append(page_index1 + 1)
                     base64_strings.append(result_base64)
+                    base64_strings.append(result2_base64)
+                    base64_strings.append(f"data:image/png;base64,{base64_img1}")
+                    base64_strings.append(f"data:image/png;base64,{base64_img2}")
+            # 当页号范围不匹配
             else:
                 if page_index1 < len(doc2):
                     img1 = pdf_page_to_image(file1, page_index1)
                     base64_img1 = img2base64(img1)
-                    result_base64 = draw_red_frame(base64_img1)
+                    result_base64 = draw_frame(base64_img1, 'red')
                     base64_strings.append(result_base64)
                     mismatch_list.append(page_index1 + 1)
                 if page_index2 < len(doc2):
                     img2 = pdf_page_to_image(file2, page_index2)
                     base64_img2 = img2base64(img2)
-                    result_base64 = draw_red_frame(base64_img2)
+                    result_base64 = draw_frame(base64_img2, 'blue')
                     base64_strings.append(result_base64)
                     mismatch_list.append(page_index2 + 1)
     else:
@@ -324,34 +308,38 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
 
                 base64_img1 = img2base64(img1)
                 base64_img2 = img2base64(img2)
-                print(f"第一份文档的{i+1}页与第二份文档的{i+1}页进行对比")
-                score, differece, result_base64 = compare_explore_no_resize(base64_img1, base64_img2)
+                print(f"第一份文档的{i + 1}页与第二份文档的{i + 1}页进行对比")
+                score, difference, result_base64, result2_base64 = compare_explore_no_resize(base64_img1, base64_img2)
                 print(f"结构化对比对比{score}")
-                # if abcv_score < 0.8 and differece:
-                #     ssim_score, differece, ssim_result_base64 = compare_explore(base64_img1, base64_img2)
-                #     print(f"结构化对比对比效果不好，结构化对比{ssim_score}")
-                #     if ssim_score > 0.6:
-                #         mismatch_list.append(i + 1)
-                #         base64_strings.append(abcv_result_base64)
-                #     else:
-                #         mismatch_list.append(i + 1)
-                #         base64_strings.append(ssim_result_base64)
-                # else:
-                if differece:
+                if difference:
+                    mismatch_list.append(i + 1)
+                    mismatch_list.append(i + 1)
+                    mismatch_list.append(i + 1)
                     mismatch_list.append(i + 1)
                     base64_strings.append(result_base64)
-
+                    base64_strings.append(result2_base64)
+                    base64_strings.append(f"data:image/png;base64,{base64_img1}")
+                    base64_strings.append(f"data:image/png;base64,{base64_img2}")
             else:
-                result_base64 = draw_red_frame(base64_img1)  # 使用绘制红框的函数
+                img1 = pdf_page_to_image(file1, i)
+                base64_img1 = img2base64(img1)
+                result_base64 = draw_frame(base64_img1, 'red')  # 使用绘制红框的函数
                 base64_strings.append(result_base64)
                 mismatch_list.append(i + 1)
+        # 处理 file2 有页而 file1 没有的情况
+        for i in range(total_page1, len(doc2)):
+            img2 = pdf_page_to_image(file2, i)
+            base64_img2 = img2base64(img2)
+            result_base64 = draw_frame(base64_img2, 'blue')  # 使用绘制蓝框的函数
+            base64_strings.append(result_base64)
+            mismatch_list.append(i + 1)
     doc1.close()
     doc2.close()
     print(mismatch_list)
-    error_msg = generate_error_message(mismatch_list)
+    error_msg = f"{list(set(mismatch_list))}页有差异"
     if len(mismatch_list) == 0:
         error_msg = '没有差异'
-    save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg,'')
+    save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg, '')
     return CODE_SUCCESS, mismatch_list, base64_strings, error_msg, ''
 
 

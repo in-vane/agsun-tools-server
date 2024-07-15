@@ -46,13 +46,7 @@ def save_Diffpdf(username, code, file1_path, file2_path, pages, base64_strings, 
 
         image_paths.append(image_path)
 
-    mismatch_str = f"第{pages}页不同"
-
-    # 拼接结果字符串
-    if error_msg:
-        result = f"{mismatch_str}，{error_msg}"
-    else:
-        result = mismatch_str
+    result = error_msg
 
     # 插入图片记录到数据库
     db_diff_pdf.insert_record(username, type_id, file1_path, file2_path, image_paths, result)
