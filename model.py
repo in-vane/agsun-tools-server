@@ -2,6 +2,7 @@ import pymysql
 from datetime import datetime
 import ast
 from utils import process_paths, merge_records, add_url
+from DBUtils.PooledDB import PooledDB
 
 # 数据库配置信息
 DB_CONFIG = {
@@ -13,14 +14,27 @@ DB_CONFIG = {
     'charset': 'utf8'
 }
 
+# 配置数据库连接池
+POOL = PooledDB(
+    creator=pymysql,
+    maxconnections=50,  # 连接池最大连接数，适当设置为比用户数多一些
+    mincached=5,        # 初始化时连接池中至少创建的空闲连接数
+    maxcached=10,       # 连接池中最多可用的空闲连接数
+    blocking=True,      # 达到最大连接数时是否阻塞
+    maxusage=None,      # 每个连接最多重复使用的次数，None 表示无限制
+    setsession=[],      # 开始会话前执行的命令列表
+    ping=1,             # 检查连接的状态
+    host=DB_CONFIG['host'],
+    user=DB_CONFIG['user'],
+    password=DB_CONFIG['password'],
+    db=DB_CONFIG['database'],
+    charset=DB_CONFIG['charset'],
+    cursorclass=pymysql.cursors.DictCursor  # 重点在这里
+)
+
 class DatabaseHandler:
-    def __init__(self, host, user, password, database, charset):
-        self.conn = pymysql.connect(host=host,
-                                    user=user,
-                                    password=password,
-                                    database=database,
-                                    charset=charset,
-                                    cursorclass=pymysql.cursors.DictCursor)
+    def __init__(self):
+        self.conn = POOL.connection()
         self.cursor = self.conn.cursor()
 
     def commit(self):
@@ -704,11 +718,7 @@ class Ce:
         return result
 
 
-db_handler = DatabaseHandler(host=DB_CONFIG['host'],
-                             user=DB_CONFIG['user'],
-                             password=DB_CONFIG['password'],
-                             database=DB_CONFIG['database'],
-                             charset=DB_CONFIG['charset'])
+db_handler = DatabaseHandler()
 db_files = Files(db_handler)
 # 创建Files类的实例
 db_ce = Ce(db_handler)
@@ -725,12 +735,6 @@ db_ocr = Ocr(db_handler)
 # 创建images类的实例
 db_area = Area(db_handler)
 
-# result= db_diff_pdf.query_record('2024-07-09','admin','002')
-# print(result)
-# result = db_files.query_files("diff_pdf",'2024-06-05','admin','002')
-
-# db_result.query_record('2024-06-08','admin','004')
-# db_ce.insert_record('admin','006','./file_system/files/595b1d146df14c8b96f8352b5c236992.xls','./file_system/files/7829d90e141d0f1ef7d5b2d45f373203.pdf',['file_system/images/2024/06/14/002/20240614005753098529.png', 'file_system/images/2024/06/14/002/20240614005753103818.png'])
 class User:
     def __init__(self, username, password):
         self.username = username
