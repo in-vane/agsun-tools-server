@@ -23,7 +23,7 @@ from tornado.concurrent import run_on_executor
 
 
 
-def pdf_page_to_image(pdf_path, page_number, poppler_path=r"E:\poppler-23.01.0\Library\bin"):
+def pdf_page_to_image(pdf_path, page_number, poppler_path=r"/usr/bin"):
     try:
         page_number = page_number + 1
         images = convert_from_path(pdf_path, dpi=100 , first_page=page_number, last_page=page_number, poppler_path=poppler_path)
