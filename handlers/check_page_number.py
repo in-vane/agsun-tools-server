@@ -47,7 +47,17 @@ def annotate_page_number_issues(doc, physical_page_numbers, issues):
     return error_pages_base64
 
 
-def check_page_number_issues(printed_page_numbers, physical_page_numbers):
+def check_page_number_issues(printed_page_numbers, physical_page_numbers, start, end):
+    if start != -1 and end != -1:
+        # 确保 start 和 end 的值在有效范围内
+        start = max(1, start)  # 保证start不小于1
+        end = min(len(printed_page_numbers), end)  # 保证end不大于列表长度
+        # 将 start 和 end 调整为从0开始的索引
+        start_index = start - 1
+        end_index = end
+        printed_page_numbers = printed_page_numbers[start_index:end_index]
+        physical_page_numbers = physical_page_numbers[start_index:end_index]
+    printed = printed_page_numbers
     issues = []  # 初始化问题列表
     start_index = None  # 找到第一个非None打印页码的索引
     correct_page_numbers = printed_page_numbers.copy()  # 创建正确页码的副本以进行修改
@@ -71,7 +81,7 @@ def check_page_number_issues(printed_page_numbers, physical_page_numbers):
         if printed_page_numbers[i] != correct_page_numbers[i]:
             issues.append(physical_page_numbers[i])
 
-    return issues
+    return issues, printed
 
 
 def extract_page_numbers(doc, rect):
@@ -116,7 +126,7 @@ def extract_page_numbers(doc, rect):
 
 
 # 主函数
-def check_page_number(username, file, filename, rect):
+def check_page_number(username, file, filename, rect, start, end):
     logger.info("---begin check_page_number---")
     print(username, file, filename, rect)
     logger.info(f"username : {username}")
@@ -125,6 +135,8 @@ def check_page_number(username, file, filename, rect):
         logger.info(msg)
         return CODE_ERROR, None, msg
     doc = fitz.open(file)
+    if end == -1:
+        end = len(doc)
     # 生成物理页码列表，从1开始到总页数
     physical_page_numbers = list(range(1, len(doc) + 1))
     logger.info(f"physical_page_numbers:{physical_page_numbers}")
@@ -132,17 +144,17 @@ def check_page_number(username, file, filename, rect):
     printed_page_numbers = extract_page_numbers(doc,rect)
     logger.info(f"printed_page_numbers:{printed_page_numbers}")
     # 对比两个页码表
-    issues = check_page_number_issues(
-        printed_page_numbers, physical_page_numbers)
+    issues, printed = check_page_number_issues(
+        printed_page_numbers, physical_page_numbers, start, end)
     is_error = False if len(issues) == 0 else True
     # 在错误的页码附近标注错误
     # 检查列表中的所有元素是否都是 None
     if all(x is None for x in printed_page_numbers):
         note = '区域里未检测到数字页码，请检查是否有页码，页码是否为文字'
     elif is_error == True:
-        note = '页码错误'
+        note = f'页码错误,{printed}'
     else:
-        note = '页码无误'
+        note = f'页码无误,{printed}'
     error_pages_base64 = annotate_page_number_issues(
         doc, physical_page_numbers, issues)
     logger.info(f"error page number:{issues}")
@@ -156,8 +168,8 @@ def check_page_number(username, file, filename, rect):
 
 class PageNumberHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, file, filename, rect):
-        return check_page_number(username, file, filename, rect)
+    def process_async(self, username, file, filename, rect, start, end):
+        return check_page_number(username, file, filename, rect, start, end)
     async def post(self):
         username = self.current_user
         params = tornado.escape.json_decode(self.request.body)
@@ -166,8 +178,10 @@ class PageNumberHandler(MainHandler):
         rect = params['rect']
         rect = [value * 72 / 300 for value in rect]
         filename = os.path.basename(file)
+        start = int(params.get('start', -1))
+        end = int(params.get('end', -1))
         code, error, error_page, result, note, msg = await self.process_async(username,
-                                                                          file, filename, rect)
+                                                                          file, filename, rect,start, end)
         custom_data = {
             'code': code,
             'data': {
