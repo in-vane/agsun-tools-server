@@ -20,11 +20,15 @@ sys.path.append("..")
 
 CODE_SUCCESS = 0
 CODE_ERROR = 1
-MODE_RECT = 0  # 检测矩形
-MODE_CIR = 1  # 检测圆形
+
+MODE_CORN = 0  # 检测边角
+MODE_RECT = 1  # 检测矩形
+MODE_CIR = 2  # 检测圆形
+
 MODE_MARK = 0  # 使用标注尺寸
 MODE_USER = 1  # 使用用户输入尺寸
 REG_SIZE = r'(\d+)\s*[xX\*]\s*(\d+)'
+
 PIXELS_TO_MM = 25.4 / 600
 
 
@@ -134,7 +138,7 @@ def find_rect(image):
 
 
 # 检测半径
-def find_radius(img):
+def find_largest_rect(img):
     '''获取最大矩形的尺寸'''
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # 转为灰度图
     # 使用Canny算法检测边缘
@@ -185,7 +189,7 @@ def find_radius(img):
 
     radius_mm = (width_mm + height_mm) * math.sqrt(2) / 2
 
-    return round(radius_mm, 2)
+    return round(width_mm, 2), round(height_mm, 2), round(radius_mm, 2)
 
 
 def find_largest_size(sizes):
@@ -216,7 +220,7 @@ def compare(a, b):
     return abs(a - b) > 1
 
 
-def check_size(username, filename, file, options, params):
+def check_size(username, file, options, params):
     doc = fitz.open(file)
     page = doc.load_page(0)
 
@@ -231,14 +235,19 @@ def check_size(username, filename, file, options, params):
 
     img = pdf_to_image(page)
 
-    if options["mode"] == MODE_RECT:
+    if options["mode"] == MODE_CORN:
         w_2, h_2 = find_rect(img)
         print(abs(w_1 - w_2), abs(h_1 - h_2))
         if abs(w_1 - w_2) > 1 or abs(h_1 - h_2) > 1:
             is_error = True
         err_msg = f"标注为({w_1} x {h_1}), 检测结果为({w_2} x {h_2})"
+    if options["mode"] == MODE_RECT:
+        w_2, h_2, _ = find_largest_rect(img)
+        if abs(w_1 - w_2) > 1 or abs(h_1 - h_2) > 1:
+            is_error = True
+        err_msg = f"标注为({w_1} x {h_1}), 检测结果为({w_2} x {h_2})"
     if options["mode"] == MODE_CIR:
-        r_2 = find_radius(img)
+        _1, _2, r_2 = find_largest_rect(img)
         if abs(r_1 - r_2) > 1:
             is_error = True
         err_msg = f"标注为({r_1}), 检测结果为({r_2})"
@@ -257,20 +266,19 @@ def check_size(username, filename, file, options, params):
 
 class SizeHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, filename, body, options, params):
-        return check_size(username, filename, body, options, params)
+    def process_async(self, username, body, options, params):
+        return check_size(username, body, options, params)
 
     @need_auth
     async def post(self):
         username = self.current_user
-        param = tornado.escape.json_decode(self.request.body)
-        file = param['filePath']
-        filename = os.path.basename(file)
-        mode = int(param.get('mode', 0))
-        active = int(param.get('active', 0))
-        width = int(param.get('width', -1))
-        height = int(param.get('height', -1))
-        radius = int(param.get('radius', -1))
+        params = tornado.escape.json_decode(self.request.body)
+        file = params['filePath']
+        mode = int(params.get('mode', 0))
+        active = int(params.get('active', 0))
+        width = int(params.get('width', -1))
+        height = int(params.get('height', -1))
+        radius = int(params.get('radius', -1))
 
         options = {
             "mode": mode,
@@ -282,7 +290,7 @@ class SizeHandler(MainHandler):
             "radius": radius,
         }
 
-        code, error, message, img_base64, msg = await self.process_async(username, filename, file, options, params)
+        code, error, message, img_base64, msg = await self.process_async(username, file, options, params)
         custom_data = {
             "code": code,
             "data": {
