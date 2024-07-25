@@ -299,7 +299,7 @@ def merge_images(base64_img1, base64_img2):
     # 返回合并后的图片的base64编码字符串
     return img_base64_str
 
-def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end_1, start_2, end_2, mode):
+def check_diff_pdf(username, file1, file2, start_1, end_1, start_2, end_2, mode):
     mismatch_list = []
     base64_strings = []
     doc1 = fitz.open(file1)
@@ -409,8 +409,8 @@ def check_diff_pdf(username, file1, file2, file1_name, file2_name,  start_1, end
 
 class FullPageHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, file1, file2,file1_name, file2_name, start_1, end_1, start_2, end_2, mode):
-        return check_diff_pdf(username, file1, file2,file1_name, file2_name, start_1, end_1, start_2, end_2, mode)
+    def process_async(self, username, file1, file2, start_1, end_1, start_2, end_2, mode):
+        return check_diff_pdf(username, file1, file2, start_1, end_1, start_2, end_2, mode)
     async def post(self):
         username = self.current_user
         start = time.time()
@@ -429,8 +429,7 @@ class FullPageHandler(MainHandler):
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
         code, pages, imgs_base64, error_msg, msg = await self.process_async(username,
-                                                                           file_path_1, file_path_2, filename1,
-                                                                           filename2, start_1, end_1, start_2, end_2, mode )
+                                                                           file_path_1, file_path_2, start_1, end_1, start_2, end_2, mode)
         custom_data = {
             "code": code,
             "data": {
