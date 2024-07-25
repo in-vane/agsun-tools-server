@@ -31,4 +31,5 @@ assets/pdf/*
 assets/csv/*
 db/
 assets/
+file_system/
 *.tsbuildinfo
