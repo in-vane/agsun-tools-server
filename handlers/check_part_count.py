@@ -866,7 +866,7 @@ class PartCountHandler(MainHandler):
                     xmax * scale_factor, ymax * scale_factor]
         print(pdf_rect)
         page_number_explore = int(params['page_explore'])
-        page_number_table = int(params['page_table'])
+        page_number_table = int(params['page_table'][0])
         page_columns = int(params['columnCount'])
         page_pair_index = params['pair_index']
         print(page_columns, page_pair_index)

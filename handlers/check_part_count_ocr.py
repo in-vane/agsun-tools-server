@@ -878,7 +878,7 @@ class PartCountHandlerOcr(MainHandler):
                     xmax * scale_factor, ymax * scale_factor]
         print(pdf_rect)
         page_number_explore = int(params['page_explore'])
-        page_number_table = params['page_table']
+        page_number_table = int(params['page_table'][0])
         table_dict=params['table_dict']
         custom_data = await self.process_async(
             username,file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
