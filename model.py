@@ -79,8 +79,20 @@ class Files:
         self.db_handler.cursor.execute(sql, (md5,))
         return self.db_handler.cursor.fetchone()
 
-    def query_files(self, table, datetime_str, username=None, type_id=None):
-        print(f"Querying table: {table} for date: {datetime_str}, user: {username}, type_id: {type_id}")
+    def query_files(self, table, datetime_range, username=None, type_id=None):
+        start_date, end_date = datetime_range
+        print(
+            f"Querying table: {table} for date range: {start_date} to {end_date}, user: {username}, type_id: {type_id}")
+
+        params = [start_date, end_date]
+        additional_conditions = ""
+
+        if username:
+            additional_conditions += " AND t.user_id = %s"
+            params.append(username)
+        if type_id:
+            additional_conditions += " AND t.type_id = %s"
+            params.append(type_id)
 
         if type_id and type_id in ['003', '004', '005', '007', '008', '009', '010']:
             # 连表查询，获取 file_path, file_name 和 file_datetime
@@ -88,15 +100,8 @@ class Files:
                 SELECT t.file_path, f.file_name, f.datetime AS file_datetime
                 FROM {table} t
                 JOIN files f ON t.file_path = f.file_path
-                WHERE DATE(t.datetime) = %s
+                WHERE DATE(t.datetime) BETWEEN %s AND %s {additional_conditions}
             """
-            params = [datetime_str]
-            if username:
-                sql += " AND t.user_id = %s"
-                params.append(username)
-            if type_id:
-                sql += " AND t.type_id = %s"
-                params.append(type_id)
         else:
             # 连表查询，获取 file1_path, file2_path, 和对应的 file_name, file_datetime
             sql = f"""
@@ -105,15 +110,8 @@ class Files:
                 FROM {table} t
                 LEFT JOIN files f1 ON t.file1_path = f1.file_path
                 LEFT JOIN files f2 ON t.file2_path = f2.file_path
-                WHERE DATE(t.datetime) = %s
+                WHERE DATE(t.datetime) BETWEEN %s AND %s {additional_conditions}
             """
-            params = [datetime_str]
-            if username:
-                sql += " AND t.user_id = %s"
-                params.append(username)
-            if type_id:
-                sql += " AND t.type_id = %s"
-                params.append(type_id)
 
         # 执行查询
         self.db_handler.cursor.execute(sql, params)
@@ -179,8 +177,9 @@ class Result:
 
         # 根据传入参数动态添加查询条件
         if datetime:
-            sql += " AND DATE(r.datetime) = %s"
-            params.append(datetime)
+            start_date, end_date = datetime
+            sql += " AND DATE(r.datetime) BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
         if username:
             sql += " AND r.user_id = %s"
             params.append(username)
@@ -270,8 +269,9 @@ class Area:
 
         # 根据传入参数动态添加查询条件
         if datetime:
-            sql += " AND DATE(a.datetime) = %s"
-            params.append(datetime)
+            start_date, end_date = datetime
+            sql += " AND DATE(a.datetime) BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
         if username:
             sql += " AND a.user_id = %s"
             params.append(username)
@@ -281,14 +281,10 @@ class Area:
         if file_paths:
             if len(file_paths) == 1:
                 sql += " AND (a.file1_path = %s OR a.file2_path = %s)"
-                params.append(file_paths[0])
-                params.append(file_paths[0])
+                params.extend([file_paths[0], file_paths[0]])
             elif len(file_paths) == 2:
                 sql += " AND ((a.file1_path = %s AND a.file2_path = %s) OR (a.file1_path = %s AND a.file2_path = %s))"
-                params.append(file_paths[0])
-                params.append(file_paths[1])
-                params.append(file_paths[1])
-                params.append(file_paths[0])
+                params.extend([file_paths[0], file_paths[1], file_paths[1], file_paths[0]])
 
         # 执行查询
         self.db_handler.cursor.execute(sql, params)
@@ -338,7 +334,6 @@ class Area:
         print(result)
         print(len(result))
         return result
-
 
 class Ocr:
     def __init__(self, db_handler):
@@ -422,8 +417,9 @@ class Line_Result_Files:
 
         # 根据传入参数动态添加查询条件
         if datetime:
-            sql += " AND DATE(lrf.datetime) = %s"
-            params.append(datetime)
+            start_date, end_date = datetime
+            sql += " AND DATE(lrf.datetime) BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
         if user_id:
             sql += " AND lrf.user_id = %s"
             params.append(user_id)
@@ -536,8 +532,9 @@ class Diff_Pdf:
 
         # 根据传入参数动态添加查询条件
         if datetime:
-            sql += " AND DATE(diff_pdf.datetime) = %s"
-            params.append(datetime)
+            start_date, end_date = datetime
+            sql += " AND DATE(diff_pdf.datetime) BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
         if username:
             sql += " AND diff_pdf.user_id = %s"
             params.append(username)
@@ -566,28 +563,10 @@ class Diff_Pdf:
             formatted_datetime = row['datetime'].strftime('%Y-%m-%d %H:%M:%S')
 
             # 确定 file_name 和 file_path
-            if file_paths:
-                if len(file_paths) == 1:
-                    if row['file1_path'] == file_paths[0]:
-                        file_name = row['file1_name']
-                        file_path_value = row['file1_path']
-                    else:
-                        file_name = row['file2_name']
-                        file_path_value = row['file2_path']
-                elif len(file_paths) == 2:
-                    if row['file1_path'] == file_paths[0] and row['file2_path'] == file_paths[1]:
-                        file_name = row['file1_name']
-                        file_path_value = row['file1_path']
-                    else:
-                        file_name = row['file2_name']
-                        file_path_value = row['file2_path']
-            else:
-                if row['file1_path']:
-                    file_name = row['file1_name']
-                    file_path_value = row['file1_path']
-                else:
-                    file_name = row['file2_name']
-                    file_path_value = row['file2_path']
+            file1_name = row['file1_name']
+            file1_path = row['file1_path']
+            file2_name = row['file2_name']
+            file2_path = row['file2_path']
 
             # 将 images 字段从字符串转换为列表
             try:
@@ -595,29 +574,30 @@ class Diff_Pdf:
             except (ValueError, SyntaxError):
                 images_list = row['images']  # 如果转换失败，则保持原始字符串
 
+            related_files = []
+            if file1_path:
+                related_files.append({
+                    "file_name": file1_name,
+                    "file_path": add_url(file1_path) if file1_path else None
+                })
+            if file2_path:
+                related_files.append({
+                    "file_name": file2_name,
+                    "file_path": add_url(file2_path) if file2_path else None
+                })
+
             record = {
                 "username": row['user_id'],
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": row['text'],
                 "images": images_list,
-                "related_files": [
-                    {
-                        "file_name": row['file1_name'],
-                        "file_path": add_url(row['file1_path'])
-                    },
-                    {
-                        "file_name": row['file2_name'],
-                        "file_path": add_url(row['file2_path'])
-                    }
-                ],
+                "related_files": related_files,
                 "result_file": ""
             }
             record['images'] = process_paths(record['images'])
             result.append(record)
         return result
-
-
 class Ce:
     def __init__(self, db_handler):
         self.db_handler = db_handler
@@ -653,8 +633,9 @@ class Ce:
 
         # 根据传入参数动态添加查询条件
         if datetime:
-            sql += " AND DATE(ce.datetime) = %s"
-            params.append(datetime)
+            start_date, end_date = datetime
+            sql += " AND DATE(ce.datetime) BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
         if username:
             sql += " AND ce.user_id = %s"
             params.append(username)
@@ -694,30 +675,31 @@ class Ce:
             except (ValueError, SyntaxError):
                 images_list = row['images']  # 如果转换失败，则保持原始字符串
 
+            related_files = []
+            if file1_path:
+                related_files.append({
+                    "file_name": file1_name,
+                    "file_path": add_url(file1_path) if file1_path else None
+                })
+            if file2_path:
+                related_files.append({
+                    "file_name": file2_name,
+                    "file_path": add_url(file2_path) if file2_path else None
+                })
+
             record = {
                 "username": row['user_id'],
                 "datetime": formatted_datetime,
                 "type_id": row['type_id'],
                 "text": "",  # text 直接设置为空字符串
                 "images": images_list,
-                "related_files": [
-                    {
-                        "file_name": file1_name,
-                        "file_path": add_url(file1_path)
-                    },
-                    {
-                        "file_name": file2_name,
-                        "file_path": add_url(file2_path)
-                    }
-                ],
+                "related_files": related_files,
                 "result_file": ""
             }
             record['images'] = process_paths(record['images'])
             result.append(record)
         print(result)
         return result
-
-
 db_handler = DatabaseHandler()
 db_files = Files(db_handler)
 # 创建Files类的实例

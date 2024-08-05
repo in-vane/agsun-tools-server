@@ -11,20 +11,22 @@ CODE_ERROR = 1
 
 def searchHistory(timestamp, username, type_id, file_path):
     # Convert the timestamp to a datetime object
-    dt_object = datetime.datetime.fromtimestamp(timestamp)
+    dt_start = datetime.datetime.fromtimestamp(timestamp[0])
+    dt_end = datetime.datetime.fromtimestamp(timestamp[1])
     # Format the datetime object to a string in 'YYYY-MM-DD' format
-    formatted_date = dt_object.strftime('%Y-%m-%d')
+    timestamp[0] = dt_start.strftime('%Y-%m-%d')
+    timestamp[1] = dt_end.strftime('%Y-%m-%d')
     if type_id and type_id in ['003', '004', '005', '007', '008']:
         # 查询文本内容
-        result = db_result.query_record(formatted_date, username, type_id, file_path)
+        result = db_result.query_record(timestamp, username, type_id, file_path)
     elif type_id and type_id =='006':
-        result = db_ce.query_record(formatted_date, username, type_id, file_path)
+        result = db_ce.query_record(timestamp, username, type_id, file_path)
     elif type_id and type_id =='001':
-        result = db_area.query_record(formatted_date, username, type_id, file_path)
+        result = db_area.query_record(timestamp, username, type_id, file_path)
     elif type_id and type_id == '002':
-        result = db_diff_pdf.query_record(formatted_date, username, type_id, file_path)
+        result = db_diff_pdf.query_record(timestamp, username, type_id, file_path)
     elif type_id and type_id == '010':
-        result = db_line_result_files.query_record(formatted_date, username, type_id, file_path)
+        result = db_line_result_files.query_record(timestamp, username, type_id, file_path)
     elif type_id and type_id == '009':
         result = []
     else:
@@ -45,7 +47,8 @@ class SearchHistoryHandler(MainHandler):
         datetime = params['datetime']
         type_id = params['type_id']
         file_path = params['file_path']
-        datetime = datetime / 1000
+        datetime[0] = datetime[0] / 1000
+        datetime[1] = datetime[1] / 1000
         result = await self.process_async(datetime, username, type_id, file_path)
         custom_data = {
             "code": CODE_SUCCESS,

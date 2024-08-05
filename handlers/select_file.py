@@ -14,9 +14,11 @@ from model import db_files
 
 def select_file(timestamp, username, type_id):
     # Convert the timestamp to a datetime object
-    dt_object = datetime.datetime.fromtimestamp(timestamp)
+    dt_start = datetime.datetime.fromtimestamp(timestamp[0])
+    dt_end = datetime.datetime.fromtimestamp(timestamp[1])
     # Format the datetime object to a string in 'YYYY-MM-DD' format
-    formatted_date = dt_object.strftime('%Y-%m-%d')
+    timestamp[0] = dt_start.strftime('%Y-%m-%d')
+    timestamp[1] = dt_end.strftime('%Y-%m-%d')
     # Determine the table name based on type_id
     table_map = {
         '001': 'area',
@@ -31,7 +33,7 @@ def select_file(timestamp, username, type_id):
         '010': 'line_result_files'
     }
     table = table_map.get(type_id)
-    result = db_files.query_files(table, formatted_date, username, type_id)
+    result = db_files.query_files(table, timestamp, username, type_id)
     data = []
     seen_paths = set()
 
@@ -53,7 +55,8 @@ class Select_FileHandler(MainHandler):
         datetime = params['datetime']
         username = params['username']
         type_id = params['type_id']
-        datetime = datetime / 1000
+        datetime[0] = datetime[0] / 1000
+        datetime[1] = datetime[1] / 1000
         data = await self.process_async(datetime, username, type_id)
 
         custom_data = {
