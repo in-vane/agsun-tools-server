@@ -34,7 +34,7 @@ class Application(tornado.web.Application):
             (r'/api/fullPage', handlers.FullPageHandler),
             (r'/api/partCount', handlers.PartCountHandler),
             (r'/api/pageNumber', handlers.PageNumberHandler),
-            (r'/api/partCountOcr', handlers.PartCountHandlerOcr),
+            (r'/api/partCountOcr', handlers.PartCountHandler),
             (r'/api/line', handlers.LineHandler),
             (r'/api/screw/bags', handlers.ScrewHandler),
             (r'/api/screw/compare', handlers.ScrewHandler),
