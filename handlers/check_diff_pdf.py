@@ -39,7 +39,7 @@ def pdf_page_to_image(pdf_path, page_number, poppler_path=r"/usr/bin"):
         print("fitz转化图片")
         ''' pdf转换为图片 '''
         doc = fitz.open(pdf_path)
-        page = doc.load_page(page_number)  # 从0开始索引
+        page = doc.load_page(page_number-1)  # 从0开始索引
         mat = fitz.Matrix(2.0, 2.0)  # 定义缩放因子以提高图像质量
         pix = page.get_pixmap(matrix=mat)
         img = cv2.imdecode(np.frombuffer(pix.tobytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -147,9 +147,9 @@ def resize(base64_1, base64_2):
 
 def compare_explore_no_resize(base64_data_old: str, base64_data_new: str, mode):
     if mode == 0:
-        threshold_value = 150
+        threshold_value = 200
     else:
-        threshold_value = 75
+        threshold_value = 100
 
     differece = False
     # img_[number]: base64
@@ -215,9 +215,9 @@ def compare_explore_no_resize(base64_data_old: str, base64_data_new: str, mode):
 def compare_explore(base64_data_old: str, base64_data_new: str, mode):
     differece = False
     if mode == 0:
-        threshold_value = 150
+        threshold_value = 200
     else:
-        threshold_value = 75
+        threshold_value = 100
     # 调整图像大小
     before, after = resize(base64_data_old, base64_data_new)
 

@@ -10,21 +10,23 @@ import pandas as pd
 from pdf2image import convert_from_path
 import math
 import os
-from PIL import ImageDraw, ImageFont,Image
+from PIL import ImageDraw, ImageFont
 from save_filesys_db import save_part_count
 import easyocr
 from main import MainHandler
 import tornado
 from tornado.concurrent import run_on_executor
+
 os.environ["JAVA_TOOL_OPTIONS"] = "-Djava.awt.headless=true"
 DPI = 600
 ZOOM = DPI / 72
 
-BASE64_PNG_PREFIX = 'data:image/png;base64,'
+BASE64_PNG = 'data:image/png;base64,'
 # Setting pandas display options
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
+
 
 def is_column_increasing(column_data):
     """检查单列数据是否递增"""
@@ -54,7 +56,7 @@ def get_error_pages_as_base64(mismatched_details, pdf_path):
                                   ",".join(map(str, line_indices)) + " 有误"
             error_lines_info_en = "Entry numbers " + \
                                   ",".join(map(str, line_indices)) + \
-                " are incorrect"
+                                  " are incorrect"
             text_position = (30, 10)  # 在左上角显示信息
             draw.text(text_position, error_lines_info_en,
                       fill=(255, 0, 0), font=font)
@@ -62,9 +64,11 @@ def get_error_pages_as_base64(mismatched_details, pdf_path):
             buffered = io.BytesIO()
             image.save(buffered, format="PNG")
             img_str = base64.b64encode(buffered.getvalue()).decode()
-            images_base64.append(f"{BASE64_PNG_PREFIX}{img_str}")
+            images_base64.append(f"{BASE64_PNG}{img_str}")
         mismatched_page.append(page_number)
     return images_base64, mismatched_page, error_lines_info_cn
+
+
 def convert_to_int(a, b):
     """ 尝试将两个值转换为整数，如果转换失败，保持原值 """
     try:
@@ -77,7 +81,8 @@ def convert_to_int(a, b):
         pass
     return a, b
 
-def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, num_columns, pdf_path,page_pair_index):
+
+def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, num_columns, pdf_path, page_pair_index):
     mismatched_pages_list = {}
     # 遍历每一页
     for page_number in range(exact_pagenumber + 1, len(doc.pages)):
@@ -89,7 +94,7 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
             print(f"解析页面 {page_number} 的表格时发生错误: {e}")
         # 先过滤出尺寸接近要求的表格
         for table_data in tables:
-            if not table_data.empty and len(table_data.columns)  == len(table.columns):
+            if not table_data.empty and len(table_data.columns) == len(table.columns):
                 # 计算每一行的非 NaN 值的数量
                 thresh = math.ceil(len(table_data.columns) * 0.5)  # 设置阈值为列数的一半
                 # 删除非 NaN 值少于阈值的行
@@ -133,21 +138,24 @@ def find_matching_table_with_pdfplumber(doc, table, exact_pagenumber, num_rows, 
                                 expected_count = table.iloc[row_index, count_column]
                                 actual_index = table_data.iloc[row_index, index_column]
                                 actual_count = table_data.iloc[row_index, count_column]
+                                print(expected_index, expected_count, actual_index, actual_count)
                                 # 处理 expected_index 和 actual_index
                                 if not pd.isna(expected_index):
                                     expected_index, actual_index = convert_to_int(expected_index, actual_index)
                                     if isinstance(expected_index, int):
                                         if expected_index != actual_index and expected_index not in current_page_mismatches:
                                             current_page_mismatches.append(expected_index)
-                        
+
                                 # 处理 expected_count 和 actual_count
                                 if not pd.isna(expected_count):
                                     expected_count, actual_count = convert_to_int(expected_count, actual_count)
                                     if isinstance(expected_count, int):
-                                        if expected_count != actual_count and expected_index not in current_page_mismatches and not pd.isna(expected_index):
+                                        if expected_count != actual_count and expected_index not in current_page_mismatches and not pd.isna(
+                                                expected_index):
                                             current_page_mismatches.append(expected_index)
                         # 如果当前页有不匹配的行，更新mismatched_details字典
                         if current_page_mismatches:
+                            print(current_page_mismatches)
                             # 页面编号从1开始
                             mismatched_pages_list[page_number +
                                                   1] = current_page_mismatches
@@ -429,6 +437,8 @@ def calculate_center(bbox):
     center_x = (x_min + x_max) / 2
     center_y = (y_min + y_max) / 2
     return (center_x, center_y)
+
+
 def get_easy_results(easy_results):
     combined_results = []
     for (bbox, text, prob) in easy_results:
@@ -437,6 +447,8 @@ def get_easy_results(easy_results):
         unified_bbox = unify_bbox_format(bbox)
         combined_results.append((unified_bbox, text, prob))
     return combined_results
+
+
 # 定义一个函数来统一边框格式为[x_min, y_min, x_max, y_max]
 def unify_bbox_format(bbox):
     x_min = min([point[0] for point in bbox])
@@ -444,6 +456,8 @@ def unify_bbox_format(bbox):
     x_max = max([point[0] for point in bbox])
     y_max = max([point[1] for point in bbox])
     return [x_min, y_min, x_max, y_max]
+
+
 def get_combined_results(image):
     reader = easyocr.Reader(['en'], gpu=True)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -455,6 +469,7 @@ def get_combined_results(image):
     # Convert list of results to a dictionary
     number_bboxes = {text: bbox for bbox, text, prob in easy_results if digits_regex.match(text)}
     return image, number_bboxes
+
 
 def get_image(pdf, page_number, crop_rect):
     output_pdf_bytes = save_modified_page_only(
@@ -606,230 +621,220 @@ def revalidate_matches(image, failed_matches, digit_to_part_mapping, threshold=1
             revalidated_results.append((key, matched, found, expected))
 
     return revalidated_results
-def convert_pdf_to_images(pdf_path, page_numbers, dpi=300):
-    doc = fitz.open(pdf_path)
-    images = []
-    for page_number in page_numbers:
-        page = doc.load_page(int(page_number) - 1)  # 页面索引从0开始
-        pix = page.get_pixmap(dpi=dpi)
-        img = cv2.imdecode(np.frombuffer(pix.tobytes(), dtype=np.uint8), cv2.IMREAD_COLOR)
-        images.append(img)
-    doc.close()
-    return images
 
-def align_images(base_image, images):
-    # 初始化SIFT检测器
-    sift = cv2.SIFT_create()
-    # 计算基准图像的关键点和描述符
-    keypoints_1, descriptors_1 = sift.detectAndCompute(base_image, None)
-    aligned_images = []
 
-    for img in images:
-        # 计算每张图的关键点和描述符
-        keypoints_2, descriptors_2 = sift.detectAndCompute(img, None)
-        # 匹配描述符
-        matcher = cv2.BFMatcher()
-        if descriptors_1 is None or descriptors_2 is None or descriptors_1.dtype != descriptors_2.dtype:
-            return '图像差距过大，请检查明细表所在页'
-        matches = matcher.knnMatch(descriptors_1, descriptors_2, k=2)
-        # 筛选良好的匹配点
-        good_matches = [m for m, n in matches if m.distance < 0.7 * n.distance]
-        
-        # 提取匹配点坐标
-        points1 = np.float32([keypoints_1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        points2 = np.float32([keypoints_2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        
-        # 计算透视变换矩阵
-        M, mask = cv2.findHomography(points2, points1, cv2.RANSAC, 5.0)
-        # 应用透视变换
-        aligned_img = cv2.warpPerspective(img, M, (base_image.shape[1], base_image.shape[0]))
-        aligned_images.append(aligned_img)
-    
-    return aligned_images
-def highlight_differences(base_image, images):
-    highlighted_diffs = []
-    for img in images:
-        # 计算差异图像
-        diff = cv2.absdiff(base_image, img)
-        
-        # 将差异图像转换为灰度图
-        gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        
-        # 创建一个掩码，标识非零像素的区域（差异区域）
-        _, mask = cv2.threshold(gray_diff, 1, 255, cv2.THRESH_BINARY)
-        
-        # 创建一个全红的图片，尺寸和原始图像相同
-        red_overlay = np.zeros_like(base_image)
-        red_overlay[:] = [0, 0, 255]  # BGR格式中的红色
-        
-        # 将红色覆盖层应用于差异区域
-        highlighted_diff = base_image.copy()
-        highlighted_diff[mask == 255] = red_overlay[mask == 255]
-        
-        highlighted_diffs.append(highlighted_diff)
-    
-    return highlighted_diffs
-def convert_images_to_base64(images):
-    images_base64 = []
-    for img in images:
-        # OpenCV 使用 BGR 颜色格式，而 PIL 使用 RGB，需要转换
-        rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # 转换为 PIL 图像
-        pil_image = Image.fromarray(rgb_image)
-        
-        # 使用 BytesIO 将图像保存到内存中
-        buffered = io.BytesIO()
-        pil_image.save(buffered, format="PNG")
-        
-        # 获取 Base64 编码的字符串
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        
-        # 加入数据 URI 前缀
-        images_base64.append(f"{BASE64_PNG_PREFIX}{img_str}")
-    
-    return images_base64
-def calculate_image_difference(base_image, images):
-    differences = []
-    for img in images:
-        # 计算差异
-        diff = cv2.absdiff(base_image, img)
-        differences.append(diff)
-    return differences
-def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, custom_data,table_dict):
+def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, custom_data, page_columns,
+                                page_pair_index):
     results = []  # 用于存储比对结果
-    for key, value in digit_to_part_mapping.items():
-        # 查找table_dict中的键
-        matched_entry = next((item for item in table_dict if int(item['key']) == int(key)), None)
-        if matched_entry:
-            # 如果找到键，比较similar_parts_count值
-            if value['similar_parts_count'] == int(matched_entry['count']):
-                results.append((key, True, value['similar_parts_count'], int(matched_entry['count'])))  # Match
-            else:
-                results.append((key, False, value['similar_parts_count'], int(matched_entry['count'])))  # No match
-        else:
-            # 如果没有找到键
-            results.append((key, False, value['similar_parts_count'], None))  # Key not found        
-                      
-    images = convert_pdf_to_images(pdf_path, page_number)
-    images_base64=[]
-    error_message=''
-    if images:
-        base_image = images[0]
-        aligned_images = align_images(base_image, images[1:])
-        if isinstance(aligned_images, str):
-            error_message=aligned_images
-        else:
-            differences = calculate_image_difference(base_image, aligned_images)                    
-            images= convert_images_to_base64(differences)
-            images_base64.append(images)
-            images_base64.insert(0, page_number[1:])
-    if (not digit_to_part_mapping) and not images_base64:
-        if not error_message:
+    table_results = [[], []]
+    # 尝试打开PDF文件
+    # try:
+    with pdfplumber.open(pdf_path) as pdf:
+        # 确保页面号码在PDF文档范围内
+        if page_number > len(pdf.pages) or page_number < 1:
             custom_data = {
                 'code': 0,
                 'data': {
                     'mapping_results': {},
                     'error_pages': [],
-                    'note': f'零件计数：爆炸图未检测到数字或直线\n明细表检测：无明细表',
+                    'note': '明细表页码超出范围',
                 },
                 'msg': '',
             }
-        else:
+            return custom_data
+        # 尝试从指定页面提取表格
+        tables = tabula.read_pdf(pdf_path, pages=str(
+            page_number), multiple_tables=True)
+        # 如果页面上没有表格，返回错误信息
+        if not tables:
             custom_data = {
                 'code': 0,
                 'data': {
                     'mapping_results': {},
                     'error_pages': [],
-                    'note': f'零件计数：爆炸图未检测到数字或直线\n明细表检测：{error_message}',
+                    'note': '在页{}未检测到表格'.format(page_number),
                 },
                 'msg': '',
             }
-    elif (not digit_to_part_mapping) and (images_base64):
-        custom_data = {
-            'code': 0,
-            'data': {
-                'mapping_results': {},
-                'error_pages': images_base64,
-                'note': f'零件计数：爆炸图未检测到数字或直线\n明细表检测：检测成功',
-            },
-            'msg': '',
-        }
-    elif (not results) and (not images_base64):
-        if not error_message:
-            custom_data = {
-                'code': 0,
-                'data': {
-                    'mapping_results': {},
-                    'error_pages': [],
-                    'note': f'零件计数：给定页面表格出错\n明细表检测：无明细表',
-                },
-                'msg': '',
-            }
-        else:
-            custom_data = {
-                'code': 0,
-                'data': {
-                    'mapping_results': {},
-                    'error_pages': [],
-                    'note': f'零件计数：给定页面表格出错\n明细表检测：{error_message}',
-                },
-                'msg': '',
-            }
-        
-    elif (results) and (not images_base64):
-        if not error_message:
-            custom_data = {
-                'code': 0,
-                'data': {
-                    'mapping_results': results,
-                    'error_pages': [],
-                    'note': f'零件计数：检测成功\n明细表检测：无明细表',
-                },
-                'msg': '',
-            }
-        else:
-            custom_data = {
-                'code': 0,
-                'data': {
-                    'mapping_results': results,
-                    'error_pages': [],
-                    'note': f'零件计数：检测成功\n明细表检测：{error_message}',
-                },
-                'msg': '',
-            }
-        
-    elif (not results) and (images_base64):
-        custom_data = {
-            'code': 0,
-            'data': {
-                'mapping_results': {},
-                'error_pages': images_base64,
-                'note': f'零件计数：给定页面表格出错\n明细表检测：检测成功',
-            },
-            'msg': '',
-        }
-    elif (results) and (images_base64):
-        custom_data = {
-            'code': 0,
-            'data': {
-                'mapping_results': results,
-                'error_pages': images_base64,
-                'note': f'零件计数：检测成功\n明细表检测：检测成功',
-            },
-            'msg': '',
-        }
+            return custom_data
+        found_valid_table = False  # 追踪是否找到满足条件的表格
+        for table in tables:
+            # 检查列数是否是3的倍数，如果是则按每3列分割处理
+            num_columns = table.shape[1]
+            print(table)
+            if num_columns == page_columns and not table.empty:
+                # 计算每一行的非 NaN 值的数量
+                thresh = math.ceil(len(table.columns)
+                                   * 0.5)  # 设置阈值为列数的一半
+                # 删除非 NaN 值少于阈值的行
+                table = table.dropna(thresh=thresh)
+                # 判断第一行第一列是否满足特定条件，这里假设的条件是检查是否为数字
+                try:
+                    # 假设 sub_table 是之前代码中创建的 DataFrame
+                    if not table.empty:
+                        first_cell_value = table.iloc[0, 0]
+                    else:
+                        # 处理空 DataFrame 的情况
+                        print("DataFrame 是空的")
+                        continue
+                    if first_cell_value is None or first_cell_value == "":
+                        condition_met = False
+                    else:
+                        # 尝试将第一行第一列的值转换为浮点数
+                        float(first_cell_value)
+                        condition_met = True
+                except ValueError:
+                    # 如果转换失败（即不是数字），则认为条件不满足
+                    condition_met = False
+                # 如果条件不满足（即第一行看起来像表头），则从第二行开始创建 DataFrame
+                if condition_met:
+                    table = table.reset_index(drop=True)
+                else:
+                    # 将第一行设置为表头
+                    table.columns = table.iloc[0]  # 第一行的值成为列名
+                    table = table.drop(table.index[0])  # 删除原始的第一行
+                    table = table.reset_index(drop=True)  # 重置索引
 
+                # 这里假设digit_to_part_mapping字典的key为字符串形式的数字
+                found_valid_table = True  # 找到了满足条件的表格
+                # 请确保DataFrame的列足够多以支持page_pair_index中的索引
+                if not all(0 < int(pair_index['index']) <= len(table.columns) and 0 < int(pair_index['count']) <= len(
+                        table.columns) for pair_index in page_pair_index):
+                    custom_data['code'] = 1
+                    custom_data['data']['note'] = '填写列数值超出表格列的范围。'
+                    return custom_data
+                for pair_index in page_pair_index:  # 遍历page_pair_index数组
+                    key_column = int(pair_index['index']) - 1  # Python索引是从0开始的，所以减1
+                    value_column = int(pair_index['count']) - 1  # 同上
+                    for key, value in digit_to_part_mapping.items():
+                        # 将key_column列中的可转换项转换为整数，无法转换的转为NaN
+                        table_copy = table.copy()
+                        table_copy[table.columns[key_column]] = pd.to_numeric(table.iloc[:, key_column],
+                                                                              errors='coerce').fillna(-1).astype(int)
+                        row = table_copy[table_copy.iloc[:, key_column] == int(key)]
+                        if len(row) > 1:
+                            # 如果有多于一行匹配，记录错误信息
+                            custom_data = {
+                                'code': 0,
+                                'data': {
+                                    'mapping_results': {},
+                                    'error_pages': [],
+                                    'note': '明细表序号重复，无法匹配',
+                                },
+                                'msg': '',
+                            }
+                            return custom_data
+                        elif len(row) == 1:
+                            third_column_value = row.iloc[0, value_column]  # 使用动态指定的value_column而不是固定的第三列
+                            if isinstance(third_column_value, str):
+                                # 如果是字符串，使用正则表达式提取数字
+                                numbers_in_third_column = re.findall(r'\d+', third_column_value)
+                            else:
+                                # 如果不是字符串，直接将值放入列表
+                                numbers_in_third_column = [third_column_value] if pd.notnull(third_column_value) else []
+                            if numbers_in_third_column:
+                                numbers = [int(num) for num in numbers_in_third_column]
+                                if value['similar_parts_count'] not in numbers:
+                                    # 匹配失败，返回详细信息
+                                    results.append((key, False, value['similar_parts_count'], numbers[0]))
+                                else:
+                                    results.append((key, True, value['similar_parts_count'], numbers[0]))  # 匹配成功
+                            else:
+                                # 第value_column列没有找到数字，返回详细信息
+                                results.append((key, False, value['similar_parts_count'], None))
+                rows, cols = table.shape
+                images, mismatches, error_lines_info = find_matching_table_with_pdfplumber(pdf, table, page_number,
+                                                                                           num_rows=rows,
+                                                                                           num_columns=cols,
+                                                                                           pdf_path=pdf_path,
+                                                                                           page_pair_index=page_pair_index)
+                for i in range(len(images)):
+                    table_results[0].append(images[i])
+                    table_results[1].append(mismatches[i])
+        if (not digit_to_part_mapping) and (all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '零件计数：爆炸图未检测到数字或直线\n明细表检测：未发现错误',
+                },
+                'msg': '',
+            }
+        elif (not digit_to_part_mapping) and (not all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': table_results,
+                    'note': f'零件计数：爆炸图未检测到数字或直线\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
+            }
+        elif (not results) and (all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': [],
+                    'note': '零件计数：给定页面表格出错\n明细表检测：未发现错误',
+                },
+                'msg': '',
+            }
+        elif (results) and (all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': results,
+                    'error_pages': [],
+                    'note': '零件计数：检测成功\n明细表检测：未发现错误',
+                },
+                'msg': '',
+            }
+        elif (not results) and (not all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': {},
+                    'error_pages': table_results,
+                    'note': f'零件计数：给定页面表格出错\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
+            }
+        elif (results) and (not all(len(inner) == 0 for inner in table_results)):
+            custom_data = {
+                'code': 0,
+                'data': {
+                    'mapping_results': results,
+                    'error_pages': table_results,
+                    'note': f'零件计数：检测成功\n明细表检测：检测成功,{error_lines_info}',
+                },
+                'msg': '',
+            }
+
+    if not found_valid_table:
+        # 所有表格处理完毕，没有找到满足条件的表格
+        custom_data = {
+            'code': 0,
+            'data': {
+                'mapping_results': {},
+                'error_pages': [],
+                'note': '没有找到满足条件的表格',
+            },
+            'msg': '',
+        }
+        return custom_data
     return custom_data
 
 
-def check_part_count(username,file, filename, rect, page_number_explore, page_number_table,table_dict):
+def check_part_count(username, file, filename, rect, page_number_explore, page_number_table, page_columns,
+                     page_pair_index):
     # pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
     pdf = fitz.open(file)  # 打开PDF文件
-    
+
     image, bbox = get_image(pdf, page_number_explore, crop_rect)
-    
+
     custom_data = {
         'code': 0,
         'data': {
@@ -842,23 +847,22 @@ def check_part_count(username,file, filename, rect, page_number_explore, page_nu
     digit_to_part_mapping = get_results(image, bbox)
 
     custom_data = form_extraction_and_compare(
-        file, page_number_table, digit_to_part_mapping, custom_data,table_dict)
+        file, page_number_table, digit_to_part_mapping, custom_data, page_columns, page_pair_index)
     if custom_data['data']['mapping_results'] is not None:
         revalidated_results = revalidate_matches(
             image, custom_data['data']['mapping_results'], digit_to_part_mapping, threshold=0.9)
     custom_data['data']['mapping_results'] = revalidated_results
-    # save_Part_count_ocr(username, pdf, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
+    # save_part_count(username, file, filename, custom_data['code'],custom_data['data']['mapping_results'],custom_data['data']['note'],custom_data['data']['error_pages'],custom_data['msg'])
     pdf.close()
     return custom_data
 
 
-
-
-class PartCountHandlerOcr(MainHandler):
+class PartCountHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, file, filename, pdf_rect, page_number_explore, page_number_table,table_dict):
+    def process_async(self, username, file, filename, pdf_rect, page_number_explore, page_number_table, page_columns,
+                      page_pair_index):
         return check_part_count(
-            username, file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
+            username, file, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
 
     async def post(self):
         username = self.current_user
@@ -866,6 +870,7 @@ class PartCountHandlerOcr(MainHandler):
         filename = params['filename']
         rect = params['rect']
         file = params['filePath']
+        print(rect)
         # 使用列表切片获取除第一项之外的所有元素，并使用列表推导式将它们转换为整数
         # rect_int= [int(x) for x in rect[1:]]
         rect_int = [int(x) for x in rect]
@@ -878,9 +883,11 @@ class PartCountHandlerOcr(MainHandler):
                     xmax * scale_factor, ymax * scale_factor]
         print(pdf_rect)
         page_number_explore = int(params['page_explore'])
-        page_number_table = int(params['page_table'][0])
-        table_dict=params['table_dict']
+        page_number_table = int(params['page_table'])
+        page_columns = int(params['columnCount'])
+        page_pair_index = params['pair_index']
+        print(page_columns, page_pair_index)
         custom_data = await self.process_async(
-            username,file, filename, pdf_rect, page_number_explore, page_number_table,table_dict)
-        save_part_count(username, file, custom_data['code'], custom_data['data'], custom_data['msg'])
+            username, file, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
+        save_part_count(username['username'], file, custom_data['code'], custom_data['data'], custom_data['msg'])
         self.write(custom_data)
