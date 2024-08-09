@@ -88,8 +88,8 @@ class MainHandler(tornado.web.RequestHandler):
         auth_header = self.request.headers.get('Authorization')
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            # user_info = decode_jwt(token)
-            userinfo = {'username': 'admin'}
+            user_info = decode_jwt(token)
+            userinfo = {'username': user_info}
             if userinfo:
                 self.current_user = userinfo
             else:
