@@ -92,7 +92,7 @@ def resize(base64_1, base64_2):
 
     return image_A, image_B_aligned
 
-def compare_explore(username, filename1, file1, filename2, file2, base64_data_old: str, base64_data_new: str):
+def compare_explore(username, filename1, file1, filename2, file2, base64_data_old: str, base64_data_new: str, mode):
     # img_[number]: base64
     before, after = resize(base64_data_old, base64_data_new)
 
@@ -113,7 +113,8 @@ def compare_explore(username, filename1, file1, filename2, file2, base64_data_ol
 
     # Threshold the difference image, followed by finding contours to
     # obtain the regions of the two input images that differ
-    thresh = cv2.threshold(diff, 5, 255, cv2.THRESH_BINARY_INV)[1]
+    t = 100 if mode == 0 else 200
+    thresh = cv2.threshold(diff, t, 255, cv2.THRESH_BINARY_INV)[1]
     contours = cv2.findContours(
         thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = contours[0] if len(contours) == 2 else contours[1]
@@ -136,21 +137,22 @@ def compare_explore(username, filename1, file1, filename2, file2, base64_data_ol
 
 class AreaHandler(MainHandler):
     @run_on_executor
-    def process_async(self, username, filename1, file1, filename2, file2, img_1, img_2):
-        return compare_explore(username, filename1, file1, filename2, file2, img_1, img_2)
+    def process_async(self, username, filename1, file1, filename2, file2, img_1, img_2, mode):
+        return compare_explore(username, filename1, file1, filename2, file2, img_1, img_2, mode)
 
 
     @need_auth
     async def post(self):
         username = self.current_user
-        param = tornado.escape.json_decode(self.request.body)
-        file1 = param['file_path_1']
+        params = tornado.escape.json_decode(self.request.body)
+        file1 = params['file_path_1']
         filename1 = os.path.basename(file1)
-        file2 = param['file_path_2']
+        file2 = params['file_path_2']
         filename2 = os.path.basename(file2)
-        img_1 = param['img_1']
-        img_2 = param['img_2']
-        code, img_base64, msg = await self.process_async(username, filename1, file1, filename2, file2, img_1, img_2)
+        img_1 = params['img_1']
+        img_2 = params['img_2']
+        mode = int(params.get('mode', 0))
+        code, img_base64, msg = await self.process_async(username, filename1, file1, filename2, file2, img_1, img_2, mode)
         custom_data = {
             "result": img_base64
         }
