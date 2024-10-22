@@ -11,6 +11,7 @@ from PIL import Image, ImageChops, ImageStat
 from utils import base64_to_image, img2base64, image_to_base64
 import time
 from pdf2image import convert_from_path
+from utils import process_paths
 
 sys.path.append("..")
 from save_filesys_db import save_Diffpdf
@@ -403,8 +404,9 @@ def check_diff_pdf(username, file1, file2, start_1, end_1, start_2, end_2, mode)
     error_msg = f"{list(set(mismatch_list))}页有差异"
     if len(mismatch_list) == 0:
         error_msg = '没有差异'
-    save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg, '')
-    return CODE_SUCCESS, mismatch_list, base64_strings, error_msg, ''
+    image_paths = save_Diffpdf(username['username'], CODE_SUCCESS, file1, file2, mismatch_list, base64_strings, error_msg, '')
+    image_paths = process_paths(image_paths)
+    return CODE_SUCCESS, mismatch_list, image_paths, error_msg, ''
 
 
 class FullPageHandler(MainHandler):
@@ -428,13 +430,13 @@ class FullPageHandler(MainHandler):
             print("默认模式")
         filename1 = os.path.basename(file_path_1)
         filename2 = os.path.basename(file_path_2)
-        code, pages, imgs_base64, error_msg, msg = await self.process_async(username,
+        code, pages, image_paths, error_msg, msg = await self.process_async(username,
                                                                            file_path_1, file_path_2, start_1, end_1, start_2, end_2, mode)
         custom_data = {
             "code": code,
             "data": {
                 'pages': pages,
-                'imgs_base64': imgs_base64,
+                'image_paths': image_paths,
                 'error_msg': error_msg
             },
             "msg": msg

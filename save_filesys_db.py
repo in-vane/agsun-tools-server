@@ -51,6 +51,8 @@ def save_Diffpdf(username, code, file1_path, file2_path, pages, base64_strings, 
     # 插入图片记录到数据库
     db_diff_pdf.insert_record(username, type_id, file1_path, file2_path, image_paths, result)
 
+    return image_paths
+
 
 def save_language(username, code, file_path, language, msg):
     if code == 1:
