@@ -73,7 +73,7 @@ class LineHandler(MainHandler):
     async def post(self):
         param = tornado.escape.json_decode(self.request.body)
         username = self.current_user
-        print(f"传入参数{params}")
+        print(f"传入参数为:{param}")
         file = param['file_path']
         mode = param['mode']
         start = int(param.get('start', -1))

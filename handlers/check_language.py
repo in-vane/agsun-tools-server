@@ -349,7 +349,7 @@ class LanguageHandler(MainHandler):
         elif self.request.path == "/api/language/compare":
             username = self.current_user
             params = tornado.escape.json_decode(self.request.body)
-            print(f"传入参数{params}")
+            print(f"传入参数为:{params}")
             file = params['file_path']
             file_name = os.path.basename(file)
             language_message = params['table']

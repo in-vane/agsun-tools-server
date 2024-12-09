@@ -525,7 +525,7 @@ class ScrewHandler(MainHandler):
         elif self.request.path == "/api/screw/compare":
             username = self.current_user
             params = tornado.escape.json_decode(self.request.body)
-            print(f"传入参数{params}")
+            print(f"传入参数为:{params}")
             file = params['file_path']
             table = params['table']
             start = int(params['start'])
