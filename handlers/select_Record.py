@@ -82,7 +82,7 @@ class SelectRecordHandler(MainHandler):
         url = await self.process_async()
         custom_data = {
             "code": 0,
-            "data": url,
+            "path": url,
             "msg": ''
         }
         self.write(custom_data)
