@@ -93,6 +93,7 @@ class MainHandler(tornado.web.RequestHandler):
             userinfo = {'username': user_info}
             if userinfo:
                 self.current_user = userinfo
+                print(f"现在的用户为:{self.current_user}")
             else:
                 # Token无效，抛出一个403 Forbidden异常
                 self.is_auth = False

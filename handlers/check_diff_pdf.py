@@ -417,6 +417,7 @@ class FullPageHandler(MainHandler):
         username = self.current_user
         start = time.time()
         param = tornado.escape.json_decode(self.request.body)
+        print(f"传入参数{param}")
         file_path_1 = param['file_path_1']
         file_path_2 = param['file_path_2']
         start_1 = int(param.get('start_1', -1))

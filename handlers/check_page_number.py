@@ -173,7 +173,7 @@ class PageNumberHandler(MainHandler):
     async def post(self):
         username = self.current_user
         params = tornado.escape.json_decode(self.request.body)
-        print(params)
+        print(f"传入参数{params}")
         file = params['file_path']
         rect = params['rect']
         rect = [value * 72 / 300 for value in rect]
