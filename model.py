@@ -149,7 +149,6 @@ class Result:
 
     def insert_record(self, user_id, type_id, file_path, path, text):
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        date_today = datetime.now().strftime('%Y-%m-%d')
         path = str(path)
         # 插入新的记录
         insert_sql = """
@@ -160,6 +159,8 @@ class Result:
             self.db_handler.cursor.execute(insert_sql, (current_time, user_id, type_id, file_path, path, text))
             self.db_handler.commit()
             print("File record inserted successfully.")
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
         except pymysql.IntegrityError as e:
             print(f"Error occurred while inserting file record: {e}")
         except Exception as e:
@@ -250,6 +251,8 @@ class Area:
             self.db_handler.cursor.execute(sql, (
                 current_time, user_id, type_id, file1_path, file2_path, image1_path, image2_path, image_result))
             self.db_handler.commit()
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
             print("File record inserted successfully.")
         except pymysql.IntegrityError as e:
             print(f"Error occurred while inserting file record: {e}")
@@ -351,6 +354,8 @@ class Ocr:
             self.db_handler.cursor.execute(sql, (
                 current_time, user_id, type_id, md5, image1_path, image2_path, image_result))
             self.db_handler.commit()
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
             print("File record inserted successfully.")
         except pymysql.IntegrityError as e:
             print(f"Error occurred while inserting file record: {e}")
@@ -396,6 +401,8 @@ class Line_Result_Files:
             # 插入新的记录
             self.db_handler.cursor.execute(insert_sql, (user_id, type_id, current_time, file_path, output_path))
             self.db_handler.commit()
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
             print("File record inserted successfully.")
 
         except pymysql.IntegrityError as e:
@@ -510,6 +517,8 @@ class Diff_Pdf:
             self.db_handler.cursor.execute(insert_sql, (
                 current_time, user_id, type_id, file1_path, file2_path, path, text))
             self.db_handler.commit()
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
             print("File record inserted successfully.")
 
         except pymysql.IntegrityError as e:
@@ -614,6 +623,8 @@ class Ce:
             self.db_handler.cursor.execute(sql, (
                 current_time, user_id, type_id, file1_path, file2_path, path))
             self.db_handler.commit()
+            # 添加的打印语句
+            print(f"用户 {user_id}，使用功能 {type_id}，时间为 {current_time}。")
             print("File record inserted successfully.")
         except pymysql.IntegrityError as e:
             print(f"Error occurred while inserting file record: {e}")
