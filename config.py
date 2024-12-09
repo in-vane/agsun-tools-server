@@ -4,6 +4,7 @@ FRONT = f"http://{HOST}/"
 FLIES_ROOT = './file_system/files'
 IMAGE_ROOT = './file_system/images'
 RESULT_FILE_ROOT = './file_system/line_result'
+RECORD_FILE_ROOT = './file_system/record'
 # 文件存储路径
 PATH_PDF = './assets/pdf'
 PATH_CSV = './assets/csv'

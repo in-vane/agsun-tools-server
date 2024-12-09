@@ -740,3 +740,151 @@ class User:
                     return False
         finally:
             connection.close()
+
+from datetime import datetime, timedelta
+
+class UserFeatureRecordCount:
+    def __init__(self, db_handler):
+        self.db_handler = db_handler
+        # 定义所有的功能类型及其对应的表和 type_id（如果适用）
+        self.features = [
+            {'feature': 'ce表对比', 'table': 'ce', 'type_id': None},
+            {'feature': '区域对比', 'table': 'area', 'type_id': None},
+            {'feature': '整页对比', 'table': 'diff_pdf', 'type_id': None},
+            {'feature': '线段检测', 'table': 'line_result_files', 'type_id': None},
+            {'feature': '零件计数', 'table': 'result', 'type_id': '003'},
+            {'feature': '页码检查', 'table': 'result', 'type_id': '004'},
+            {'feature': '螺丝包', 'table': 'result', 'type_id': '005'},
+            {'feature': 'ce贴纸尺寸', 'table': 'result', 'type_id': '007'},
+            {'feature': '语言顺序', 'table': 'result', 'type_id': '008'},
+        ]
+
+    def get_user_record(self, date=None):
+        """
+        查询包含 datetime 字段的用户功能记录，并根据日期范围过滤（可选）。
+
+        :param date: 列表，包含两个日期字符串 ['YYYY-MM-DD', 'YYYY-MM-DD']，可选
+        :return: dict，格式化后的结果字典
+        """
+        # 处理日期范围
+        if date:
+            start_date, end_date = date
+        else:
+            # 默认最近30天
+            end_date_dt = datetime.now()
+            start_date_dt = end_date_dt - timedelta(days=30)
+            start_date = start_date_dt.strftime('%Y-%m-%d')
+            end_date = end_date_dt.strftime('%Y-%m-%d')
+
+        # 动态构建 SQL 查询
+        union_queries = []
+        params = []
+        for feature in self.features:
+            query = f"SELECT u.username, '{feature['feature']}' AS feature, COUNT(r.datetime) AS record_count, GROUP_CONCAT(DISTINCT DATE(r.datetime)) AS datetime\n"
+            if feature['type_id']:
+                # 将日期条件和 type_id 移到 JOIN 子句中
+                query += f"FROM user u\nLEFT JOIN {feature['table']} r ON u.username = r.user_id AND r.type_id = %s AND DATE(r.datetime) BETWEEN %s AND %s\n"
+                params.extend([feature['type_id'], start_date, end_date])
+            else:
+                # 仅将日期条件移到 JOIN 子句中
+                query += f"FROM user u\nLEFT JOIN {feature['table']} r ON u.username = r.user_id AND DATE(r.datetime) BETWEEN %s AND %s\n"
+                params.extend([start_date, end_date])
+
+            query += "GROUP BY u.username"
+            union_queries.append(query)
+
+        final_sql = " UNION ALL ".join(union_queries) + ";"
+
+        try:
+            self.db_handler.cursor.execute(final_sql, params)
+            results = self.db_handler.cursor.fetchall()
+
+            # 格式化结果
+            formatted_results = {}
+
+            for row in results:
+                username = row['username']
+                feature = row['feature']
+                record_count = row['record_count']
+                datetime_list = row['datetime'].split(',') if row['datetime'] else []
+
+                if username not in formatted_results:
+                    # 初始化所有功能
+                    formatted_results[username] = {
+                        feature_entry['feature']: {'record_count': 0, 'datetime': []}
+                        for feature_entry in self.features
+                    }
+
+                # 更新记录数和日期
+                formatted_results[username][feature]['record_count'] = record_count
+                formatted_results[username][feature]['datetime'] = datetime_list
+
+            return formatted_results
+        except Exception as e:
+            print(f"An error occurred while querying user feature record count: {e}")
+            return {}
+
+    def get_user_record_datetime(self, date=None):
+        """
+        查询不包含 datetime 字段的用户功能记录，并根据日期范围过滤（可选）。
+
+        :param date: 列表，包含两个日期字符串 ['YYYY-MM-DD', 'YYYY-MM-DD']，可选
+        :return: dict，格式化后的结果字典
+        """
+        # 处理日期范围
+        if date:
+            start_date, end_date = date
+        else:
+            # 默认最近30天
+            end_date_dt = datetime.now()
+            start_date_dt = end_date_dt - timedelta(days=30)
+            start_date = start_date_dt.strftime('%Y-%m-%d')
+            end_date = end_date_dt.strftime('%Y-%m-%d')
+
+        # 动态构建 SQL 查询
+        union_queries = []
+        params = []
+        for feature in self.features:
+            query = f"SELECT u.username, '{feature['feature']}' AS feature, COUNT(r.datetime) AS record_count, NULL AS datetime\n"
+            if feature['type_id']:
+                # 将日期条件和 type_id 移到 JOIN 子句中
+                query += f"FROM user u\nLEFT JOIN {feature['table']} r ON u.username = r.user_id AND r.type_id = %s AND DATE(r.datetime) BETWEEN %s AND %s\n"
+                params.extend([feature['type_id'], start_date, end_date])
+            else:
+                # 仅将日期条件移到 JOIN 子句中
+                query += f"FROM user u\nLEFT JOIN {feature['table']} r ON u.username = r.user_id AND DATE(r.datetime) BETWEEN %s AND %s\n"
+                params.extend([start_date, end_date])
+
+            query += "GROUP BY u.username"
+            union_queries.append(query)
+
+        final_sql = " UNION ALL ".join(union_queries) + ";"
+
+        try:
+            self.db_handler.cursor.execute(final_sql, params)
+            results = self.db_handler.cursor.fetchall()
+
+            # 格式化结果
+            formatted_results = {}
+
+            for row in results:
+                username = row['username']
+                feature = row['feature']
+                record_count = row['record_count']
+
+                if username not in formatted_results:
+                    # 初始化所有功能
+                    formatted_results[username] = {
+                        feature_entry['feature']: {'record_count': 0}
+                        for feature_entry in self.features
+                    }
+
+                # 更新记录数
+                formatted_results[username][feature]['record_count'] = record_count
+
+            return formatted_results
+        except Exception as e:
+            print(f"An error occurred while querying user feature record count: {e}")
+            return {}
+
+record_count = UserFeatureRecordCount(db_handler)

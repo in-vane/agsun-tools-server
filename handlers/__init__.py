@@ -25,3 +25,4 @@ from .test_handler import TestHandler
 from .file_handler import FileHandler
 from .select_file import Select_FileHandler
 from .searchHistory import SearchHistoryHandler
+from .select_Record import SelectRecordHandler
