@@ -91,7 +91,7 @@ class MainHandler(tornado.web.RequestHandler):
             token = auth_header.split(" ")[1]
             user_info = decode_jwt(token)
             userinfo = {'username': user_info}
-            if userinfo:
+            if userinfo and userinfo.get('username') is not None:
                 self.current_user = userinfo
                 print(f"现在的用户为:{self.current_user}")
             else:
