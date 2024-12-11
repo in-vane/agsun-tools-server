@@ -131,14 +131,14 @@ def generate_excel_report(data, filename=None):
 
     # 保存修改后的 Excel 文件
     wb.save(file_path)
-    return file_path
+    return file_path, filename
 
 def select_record():
     record = record_count.get_user_record()
-    file_path = generate_excel_report(record)
+    file_path, filename = generate_excel_report(record)
     url = add_url(file_path)
     print(f"url:{url}")
-    return url
+    return url, filename
 
 
 class SelectRecordHandler(MainHandler):
@@ -147,10 +147,11 @@ class SelectRecordHandler(MainHandler):
         return select_record()
 
     async def post(self):
-        url = await self.process_async()
+        url, filename = await self.process_async()
         custom_data = {
             "code": 0,
             "path": url,
+            "filename":filename,
             "msg": ''
         }
         self.write(custom_data)
