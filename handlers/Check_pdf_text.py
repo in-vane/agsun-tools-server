@@ -255,7 +255,7 @@ def check_pdf_text(
 class PdfTextHandler(MainHandler):
     @run_on_executor
     def process_async(self, username, file1, file2, start_1, end_1, start_2, end_2, mode):
-        return check_pdf_text(username, file1, file2, start_1, end_1, start_2, end_2, mode)
+        return check_pdf_text(username, file1, file2, start_1, end_1, start_2, end_2, type_id='011')
     async def post(self):
         username = self.current_user
         param = tornado.escape.json_decode(self.request.body)
@@ -266,9 +266,10 @@ class PdfTextHandler(MainHandler):
         end_1 = int(param.get('end_1', -1))
         start_2 = int(param.get('start_2', -1))
         end_2 = int(param.get('end_2', -1))
-        mode = int(param.get('mode', 0))
+        # mode = int(param.get('mode', 0))
+        type_id = '011'
         code, pages, image_paths, error_msg, msg = await self.process_async(username,
-                                                                file_path_1, file_path_2, start_1, end_1, start_2, end_2, mode)
+                                                                file_path_1, file_path_2, start_1, end_1, start_2, end_2, type_id='011')
         custom_data = {
             "code": code,
             "data": {
