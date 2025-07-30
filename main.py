@@ -48,6 +48,7 @@ class Application(tornado.web.Application):
             (r'/api/history/files', handlers.Select_FileHandler),
             (r'/api/history/searchHistory', handlers.SearchHistoryHandler),
             (r'/api/history/searchRecord', handlers.SelectRecordHandler),
+            (r'/api/text', handlers.PdfTextHandler),
             (r"/websocket", WebSocketHandler),
         ]
         settings = {

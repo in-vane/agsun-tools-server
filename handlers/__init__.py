@@ -9,6 +9,7 @@ from .check_ce import check_CE_mode_normal, check_CE_mode_danmark
 from .check_ocr_char import check_ocr_char
 from .check_ocr_icon import check_ocr_icon
 from .check_line import check_line
+from .Check_pdf_text import check_pdf_text
 
 from .login import LoginHandler
 from .check_part_count import PartCountHandler
@@ -26,3 +27,4 @@ from .file_handler import FileHandler
 from .select_file import Select_FileHandler
 from .searchHistory import SearchHistoryHandler
 from .select_Record import SelectRecordHandler
+from .Check_pdf_text import PdfTextHandler
