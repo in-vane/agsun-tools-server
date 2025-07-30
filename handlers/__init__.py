@@ -1,4 +1,3 @@
-
 from .check_diff_pdf import check_diff_pdf
 from .check_part_count import check_part_count
 from .check_page_number import check_page_number
@@ -13,7 +12,7 @@ from .Check_pdf_text import check_pdf_text
 
 from .login import LoginHandler
 from .check_part_count import PartCountHandler
-from .check_part_count_ocr import PartCountHandler
+from .check_part_count_ocr import PartCountHandlerOCR
 from .check_line import LineHandler
 from .check_page_number import PageNumberHandler
 from .check_diff_pdf import FullPageHandler

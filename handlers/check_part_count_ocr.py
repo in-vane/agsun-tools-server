@@ -827,7 +827,7 @@ def form_extraction_and_compare(pdf_path, page_number, digit_to_part_mapping, cu
     return custom_data
 
 
-def check_part_count(username, file, filename, rect, page_number_explore, page_number_table, page_columns,
+def PartCountHandlerOCR(username, file, filename, rect, page_number_explore, page_number_table, page_columns,
                      page_pair_index):
     # pdf_path = f"./assets/pdf/{filename}"
     crop_rect = fitz.Rect(rect[0], rect[1], rect[2], rect[3])  # 裁剪区域
@@ -861,7 +861,7 @@ class PartCountHandler(MainHandler):
     @run_on_executor
     def process_async(self, username, file, filename, pdf_rect, page_number_explore, page_number_table, page_columns,
                       page_pair_index):
-        return check_part_count(
+        return PartCountHandlerOCR(
             username, file, filename, pdf_rect, page_number_explore, page_number_table, page_columns, page_pair_index)
 
     async def post(self):
